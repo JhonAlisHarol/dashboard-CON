@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+from datetime import datetime
 
 # 1. CONFIGURACIÓN DEL DASHBOARD
 st.set_page_config(page_title="S-Portal Hexagon | Full Command Center", layout="wide")
@@ -27,7 +28,7 @@ st.markdown("""
         margin-left: 15px;
         box-shadow: 0px 4px 15px rgba(0,0,0,0.5);
     }
-    h1, h2, h3, span, p { color: #ffffff !important; }
+    h1, h2, h3, span, p, label { color: #ffffff !important; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -40,6 +41,11 @@ def load_full_data():
         df = pd.read_csv(URL_CSV)
         df.columns = df.columns.str.strip()
         
+        # Procesamiento de Fechas (Maneja día primero para evitar errores de mes)
+        if 'FECHA' in df.columns:
+            df['FECHA_DT'] = pd.to_datetime(df['FECHA'], dayfirst=True, errors='coerce').dt.date
+            df = df.dropna(subset=['FECHA_DT'])
+
         def to_minutes(val):
             try:
                 if pd.isna(val) or str(val).strip() in ['', '0:00']: return 0.0
@@ -59,112 +65,123 @@ def load_full_data():
         if 'CENTRO' in df.columns:
             df['CENTRO'] = df['CENTRO'].astype(str).str.replace('CONTRA', 'CON').str.strip()
             
-        # Filtrado de eventos con al menos 1 positivo
         return df[df['Total_Positivos_Fila'] > 0].copy()
     except: return None
 
-df = load_full_data()
+df_raw = load_full_data()
 
-if df is not None:
-    # --- MÉTRICAS ---
+if df_raw is not None:
+    # --- BARRA LATERAL: FILTRO POR RANGO DE FECHAS ---
+    st.sidebar.header("🔎 Filtro de Periodo")
+    
+    min_date = df_raw['FECHA_DT'].min()
+    max_date = df_raw['FECHA_DT'].max()
+    
+    col_f1, col_f2 = st.sidebar.columns(2)
+    with col_f1:
+        fecha_inicio = st.date_input("Desde:", value=min_date, min_value=min_date, max_value=max_date)
+    with col_f2:
+        fecha_fin = st.date_input("Hasta:", value=max_date, min_value=min_date, max_value=max_date)
+
+    # Filtrado dinámico del DataFrame
+    df = df_raw[(df_raw['FECHA_DT'] >= fecha_inicio) & (df_raw['FECHA_DT'] <= fecha_fin)].copy()
+
+    # --- TÍTULO ---
     st.title("🛡️ Hexágono S-Portal | Centro de Mando HD")
-    
-    total_eventos_con_pos = len(df) # Debería ser 1,396
-    total_positivos_suma = int(df['Total_Positivos_Fila'].sum())
+    st.info(f"Periodo consultado: **{fecha_inicio.strftime('%d/%m/%Y')}** al **{fecha_fin.strftime('%d/%m/%Y')}**")
 
-    m1, m2, m3, m4, m5 = st.columns(5)
-    m1.metric("📊 EVENTOS POSITIVOS", f"{total_eventos_con_pos:,}")
-    m2.metric("✅ TOTAL POSITIVOS", f"{total_positivos_suma:,}")
-    m3.metric("⏱️ VAR. DESPACHO", f"{df['V_DESPACHO'].mean():.1f} min")
-    m4.metric("🤝 VAR. ATENCIÓN", f"{df['V_ATENCION'].mean():.1f} min")
-    m5.metric("🔐 VAR. CIERRE", f"{df['V_CIERRE'].mean():.1f} min")
+    if not df.empty:
+        # --- MÉTRICAS ---
+        total_eventos_con_pos = len(df)
+        total_positivos_suma = int(df['Total_Positivos_Fila'].sum())
 
-    st.markdown("---")
+        m1, m2, m3, m4, m5 = st.columns(5)
+        m1.metric("📊 EVENTOS POSITIVOS", f"{total_eventos_con_pos:,}")
+        m2.metric("✅ TOTAL POSITIVOS", f"{total_positivos_suma:,}")
+        m3.metric("⏱️ VAR. DESPACHO", f"{df['V_DESPACHO'].mean():.1f} min")
+        m4.metric("🤝 VAR. ATENCIÓN", f"{df['V_ATENCION'].mean():.1f} min")
+        m5.metric("🔐 VAR. CIERRE", f"{df['V_CIERRE'].mean():.1f} min")
 
-    # --- MAPA ---
-    st.subheader("📍 Mapa de Calor Provincial")
-    
-    prov_stats = df.groupby('PROVINCIA')['Total_Positivos_Fila'].sum().reset_index()
-    coords = {
-        'Panamá': [8.98, -79.52], 'Chiriquí': [8.43, -82.43], 'Colón': [9.35, -79.90],
-        'Panamá Oeste': [8.88, -79.78], 'Coclé': [8.51, -80.35], 'Veraguas': [8.10, -80.97],
-        'Los Santos': [7.93, -80.48], 'Herrera': [7.96, -80.70], 'Darién': [8.40, -77.91],
-        'Bocas del Toro': [9.33, -82.24]
-    }
-    prov_stats['lat'] = prov_stats['PROVINCIA'].map(lambda x: coords.get(x, [8.5, -80.0])[0])
-    prov_stats['lon'] = prov_stats['PROVINCIA'].map(lambda x: coords.get(x, [8.5, -80.0])[1])
+        st.markdown("---")
 
-    c_map, c_rank = st.columns([2, 1])
-    with c_map:
-        st.markdown(f"""
-            <div class="floating-metric">
-                <small style="color: #94a3b8; text-transform: uppercase; font-size: 10px;">Total Acumulado Positivos</small><br>
-                <span style="font-size: 22px; font-weight: bold; color: #00ebff;">{total_positivos_suma:,}</span>
-            </div>
-        """, unsafe_allow_html=True)
+        # --- MAPA ---
+        st.subheader("📍 Mapa de Calor Provincial")
+        prov_stats = df.groupby('PROVINCIA')['Total_Positivos_Fila'].sum().reset_index()
+        coords = {
+            'Panamá': [8.98, -79.52], 'Chiriquí': [8.43, -82.43], 'Colón': [9.35, -79.90],
+            'Panamá Oeste': [8.88, -79.78], 'Coclé': [8.51, -80.35], 'Veraguas': [8.10, -80.97],
+            'Los Santos': [7.93, -80.48], 'Herrera': [7.96, -80.70], 'Darién': [8.40, -77.91],
+            'Bocas del Toro': [9.33, -82.24]
+        }
+        prov_stats['lat'] = prov_stats['PROVINCIA'].map(lambda x: coords.get(x, [8.5, -80.0])[0])
+        prov_stats['lon'] = prov_stats['PROVINCIA'].map(lambda x: coords.get(x, [8.5, -80.0])[1])
+
+        c_map, c_rank = st.columns([2, 1])
+        with c_map:
+            st.markdown(f"""
+                <div class="floating-metric">
+                    <small style="color: #94a3b8; text-transform: uppercase; font-size: 10px;">Positivos en Periodo</small><br>
+                    <span style="font-size: 22px; font-weight: bold; color: #00ebff;">{total_positivos_suma:,}</span>
+                </div>
+            """, unsafe_allow_html=True)
+            
+            fig_map = px.density_mapbox(
+                prov_stats, lat='lat', lon='lon', z='Total_Positivos_Fila', radius=40,
+                center=dict(lat=8.5, lon=-80.0), zoom=6,
+                mapbox_style="carto-darkmatter", color_continuous_scale="Blues"
+            )
+            fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, paper_bgcolor='rgba(0,0,0,0)')
+            st.plotly_chart(fig_map, use_container_width=True)
         
-        fig_map = px.density_mapbox(
-            prov_stats, lat='lat', lon='lon', z='Total_Positivos_Fila', radius=40,
-            center=dict(lat=8.5, lon=-80.0), zoom=6,
-            mapbox_style="carto-darkmatter", color_continuous_scale="Blues"
-        )
-        fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, paper_bgcolor='rgba(0,0,0,0)')
-        st.plotly_chart(fig_map, use_container_width=True)
-    
-    with c_rank:
-        st.write("**Ranking Provincial**")
-        st.dataframe(prov_stats[['PROVINCIA', 'Total_Positivos_Fila']].sort_values('Total_Positivos_Fila', ascending=False), 
-                     hide_index=True, use_container_width=True)
+        with c_rank:
+            st.write("**Ranking Provincial**")
+            st.dataframe(prov_stats[['PROVINCIA', 'Total_Positivos_Fila']].sort_values('Total_Positivos_Fila', ascending=False), 
+                         hide_index=True, use_container_width=True)
 
-    st.markdown("---")
+        st.markdown("---")
 
-    # --- PASTELES ---
-    st.subheader("🎯 Análisis de Distribución")
-    col_p1, col_p2 = st.columns(2)
+        # --- PASTELES ---
+        st.subheader("🎯 Análisis de Distribución")
+        col_p1, col_p2 = st.columns(2)
+        with col_p1:
+            st.write("**📱 Positivos por Canal de Entrada**")
+            canal_data = df.groupby('CANAL DE ENTRADA')['Total_Positivos_Fila'].sum().sort_values(ascending=False).reset_index()
+            fig_canal = px.pie(canal_data, names='CANAL DE ENTRADA', values='Total_Positivos_Fila', hole=0.6,
+                              color_discrete_sequence=px.colors.sequential.Blues_r)
+            st.plotly_chart(fig_canal, use_container_width=True)
 
-    with col_p1:
-        st.write("**📱 Positivos por Canal de Entrada**")
-        canal_data = df.groupby('CANAL DE ENTRADA')['Total_Positivos_Fila'].sum().sort_values(ascending=False).reset_index()
-        fig_canal = px.pie(canal_data, names='CANAL DE ENTRADA', values='Total_Positivos_Fila', hole=0.6,
-                          color_discrete_sequence=px.colors.sequential.Blues_r)
-        fig_canal.update_layout(margin=dict(t=30, b=0, l=0, r=0), paper_bgcolor='rgba(0,0,0,0)')
-        st.plotly_chart(fig_canal, use_container_width=True)
+        with col_p2:
+            st.write("**🏢 Positivos por Centro**")
+            centro_data = df.groupby('CENTRO')['Total_Positivos_Fila'].sum().sort_values(ascending=False).reset_index()
+            fig_centro = px.pie(centro_data, names='CENTRO', values='Total_Positivos_Fila', hole=0.6,
+                               color_discrete_sequence=px.colors.sequential.Tealgrn)
+            st.plotly_chart(fig_centro, use_container_width=True)
 
-    with col_p2:
-        st.write("**🏢 Positivos por Centro**")
-        centro_data = df.groupby('CENTRO')['Total_Positivos_Fila'].sum().sort_values(ascending=False).reset_index()
-        fig_centro = px.pie(centro_data, names='CENTRO', values='Total_Positivos_Fila', hole=0.6,
-                           color_discrete_sequence=px.colors.sequential.Tealgrn)
-        fig_centro.update_layout(margin=dict(t=30, b=0, l=0, r=0), paper_bgcolor='rgba(0,0,0,0)')
-        st.plotly_chart(fig_centro, use_container_width=True)
+        st.markdown("---")
 
-    st.markdown("---")
-
-    # --- TABLA TÁCTICA ORDENADA ---
-    st.subheader("📋 Detalle de Positivos: Tipos vs Centros (Ordenado)")
-    
-    cols_pos_list = ['RESULTADO POSITIVO 1', 'RESULTADO POSITIVO 2', 'RESULTADO POSITIVO 3', 
-                    'RESULTADO POSITIVO 4', 'RESULTADO POSITIVO 5', 'RESULTADO POSITIVO 6']
-    
-    df_long = pd.melt(df, id_vars=['CENTRO'], value_vars=cols_pos_list, value_name='Tipo').dropna()
-    tabla_final = df_long.groupby(['Tipo', 'CENTRO']).size().unstack(fill_value=0)
-    
-    # Ordenar centros (Columnas) de mayor a menor
-    orden_centros = tabla_final.sum(axis=0).sort_values(ascending=False).index
-    tabla_final = tabla_final[orden_centros]
-    
-    # Sumatoria Horizontal y orden de filas
-    tabla_final['TOTAL IMPACTO'] = tabla_final.sum(axis=1)
-    tabla_final = tabla_final.sort_values('TOTAL IMPACTO', ascending=False)
-    
-    # Sumatoria Vertical
-    sumatoria_centros = tabla_final.sum(axis=0).to_frame().T
-    sumatoria_centros.index = ['TOTAL CENTRO']
-    
-    tabla_completa = pd.concat([tabla_final, sumatoria_centros])
-    tabla_completa.iloc[-1, -1] = total_positivos_suma
-
-    st.dataframe(tabla_completa, use_container_width=True, height=400)
+        # --- TABLA TÁCTICA ---
+        st.subheader("📋 Detalle de Positivos: Tipos vs Centros (Periodo)")
+        cols_pos_list = ['RESULTADO POSITIVO 1', 'RESULTADO POSITIVO 2', 'RESULTADO POSITIVO 3', 
+                        'RESULTADO POSITIVO 4', 'RESULTADO POSITIVO 5', 'RESULTADO POSITIVO 6']
+        df_long = pd.melt(df, id_vars=['CENTRO'], value_vars=cols_pos_list, value_name='Tipo').dropna()
+        
+        if not df_long.empty:
+            tabla_final = df_long.groupby(['Tipo', 'CENTRO']).size().unstack(fill_value=0)
+            orden_centros = tabla_final.sum(axis=0).sort_values(ascending=False).index
+            tabla_final = tabla_final[orden_centros]
+            tabla_final['TOTAL IMPACTO'] = tabla_final.sum(axis=1)
+            tabla_final = tabla_final.sort_values('TOTAL IMPACTO', ascending=False)
+            
+            sumatoria_centros = tabla_final.sum(axis=0).to_frame().T
+            sumatoria_centros.index = ['TOTAL CENTRO']
+            
+            tabla_completa = pd.concat([tabla_final, sumatoria_centros])
+            tabla_completa.iloc[-1, -1] = total_positivos_suma
+            st.dataframe(tabla_completa, use_container_width=True, height=400)
+        else:
+            st.warning("No hay detalles disponibles para este periodo.")
+    else:
+        st.warning("No se encontraron datos para el rango de fechas seleccionado.")
 
 else:
     st.error("No se pudo sincronizar con la base de datos.")
