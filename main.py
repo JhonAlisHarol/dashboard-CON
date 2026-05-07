@@ -1,125 +1,146 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-import time
 
-# 1. Configuración de la interfaz
-st.set_page_config(page_title="Dashboard Operativo Panamá", layout="wide")
+# 1. CONFIGURACIÓN DEL DASHBOARD
+st.set_page_config(page_title="S-Portal Hexagon | Full Command Center", layout="wide")
 
-# URL del CSV de Google Sheets
-CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQzIFyCT2C22Hlrz80szN7J2mEfA8N1R7hiAmFAUXaoorwDTOeWNh-ktv__d0vIBS-AQcuV5ws3ZU4C/pub?gid=972728265&single=true&output=csv"
+st.markdown("""
+    <style>
+    .stApp { background-color: #0a0e17; }
+    [data-testid="stMetric"] {
+        background: rgba(255, 255, 255, 0.05) !important;
+        backdrop-filter: blur(10px);
+        border: 1px solid rgba(0, 104, 201, 0.3) !important;
+        border-radius: 12px !important;
+        padding: 15px !important;
+    }
+    .floating-metric {
+        background: rgba(10, 14, 23, 0.8);
+        border: 1px solid #0068c9;
+        border-radius: 8px;
+        padding: 10px;
+        position: relative;
+        z-index: 100;
+        width: fit-content;
+        margin-bottom: -65px;
+        margin-left: 15px;
+        box-shadow: 0px 4px 15px rgba(0,0,0,0.5);
+    }
+    h1, h2, h3, span, p { color: #ffffff !important; }
+    </style>
+    """, unsafe_allow_html=True)
 
-# Coordenadas Zonas Policiales para el mapa
-COORD_PANAMA = {
-    "Z P - COLÓN": [9.34, -79.89], "Z P - CHIRIQUÍ": [8.43, -82.43],
-    "Z P - PANAMÁ OESTE": [8.88, -79.72], "Z P - SAN MIGUELITO": [9.03, -79.47],
-    "Z P - ARRAIJÁN": [8.94, -79.65], "Z P - NORTE": [9.15, -79.50],
-    "Z P - CANAL": [8.98, -79.55], "Z P - PACORA": [9.08, -79.28],
-    "Z P - COCLÉ": [8.43, -80.35], "Z P - LOS SANTOS": [7.78, -80.25],
-    "Z P - VERAGUAS": [8.10, -80.96], "Z P - HERRERA": [7.95, -80.63],
-    "Z P - BOCAS DEL TORO": [9.33, -82.25], "Z P - CHORRERA": [8.88, -79.75]
-}
+# 2. CARGA Y PROCESAMIENTO DE DATOS
+URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQzIFyCT2C22Hlrz80szN7J2mEfA8N1R7hiAmFAUXaoorwDTOeWNh-ktv__d0vIBS-AQcuV5ws3ZU4C/pub?gid=229458966&single=true&output=csv"
 
-@st.cache_data(ttl=5)
-def cargar_todo():
+@st.cache_data(ttl=60)
+def load_full_data():
     try:
-        # Carga del archivo con un parámetro de tiempo para refrescar
-        df_raw = pd.read_csv(f"{CSV_URL}&t={time.time()}", header=None).fillna(0)
+        df = pd.read_csv(URL_CSV)
+        df.columns = df.columns.str.strip()
         
-        def buscar_v(label):
+        # Limpieza de tiempos
+        def to_minutes(val):
             try:
-                mask = df_raw.apply(lambda x: x.astype(str).str.contains(label, case=False, na=False))
-                r, c = mask.values.nonzero()
-                if len(r) > 0:
-                    val = pd.to_numeric(df_raw.iloc[r[0], c[0] + 1], errors='coerce')
-                    return val if pd.notnull(val) else 0
-            except: return 0
-            return 0
+                if pd.isna(val) or str(val).strip() in ['', '0:00']: return 0.0
+                parts = str(val).split(':')
+                return float(int(parts[0]) * 60 + int(parts[1]))
+            except: return 0.0
 
-        # --- Bloque 1: Pasteles ---
-        df_p1 = pd.DataFrame({
-            'Métrica': ["SEGURIDAD VIAL", "CAPTURAS", "RECUPERACIONES", "EMERGENCIAS"],
-            'Cantidad': [buscar_v("SEGURIDAD VIAL"), buscar_v("CAPTURAS"), buscar_v("RECUPERACIONES"), buscar_v("EMERGENCIAS")]
-        })
+        df['V_DESPACHO'] = df['VARIANZA DE DESPACHO'].apply(to_minutes)
+        df['V_ATENCION'] = df['VARIANZA DE LA ATENCION'].apply(to_minutes)
+        col_cierre = 'VARIANZA DEL CIERRE' if 'VARIANZA DEL CIERRE' in df.columns else 'VARIANZA DE CIERRE'
+        df['V_CIERRE'] = df[col_cierre].apply(to_minutes)
         
-        df_p2 = pd.DataFrame({
-            'Fuente': ["Video Vigilancia", "CLL-104", "Otras Fuentes", "Enlace SENAFRONT"],
-            'Cantidad': [buscar_v("Video Vigilancia"), buscar_v("CLL-104"), buscar_v("Otras Fuentes"), buscar_v("Enlace SENAFRONT")]
-        })
-
-        # --- Bloque 2: Mapa y Ranking ---
-        lista_z = []
-        for nombre in COORD_PANAMA.keys():
-            v = buscar_v(nombre)
-            if v > 0:
-                lista_z.append({'ZONA': nombre, 'TOTAL': v, 'lat': COORD_PANAMA[nombre][0], 'lon': COORD_PANAMA[nombre][1]})
+        # Cálculo de Positivos (Suma horizontal de las 6 columnas de resultados)
+        cols_pos = ['RESULTADO POSITIVO 1', 'RESULTADO POSITIVO 2', 'RESULTADO POSITIVO 3', 
+                    'RESULTADO POSITIVO 4', 'RESULTADO POSITIVO 5', 'RESULTADO POSITIVO 6']
+        df['Total_Positivos_Fila'] = df[cols_pos].notna().sum(axis=1)
         
-        df_zonas = pd.DataFrame(lista_z)
-        if not df_zonas.empty:
-            df_zonas.columns = ['ZONA', 'TOTAL', 'lat', 'lon']
-
-        # --- Bloque 3: Tabla Detallada (MODIFICADO PARA LOS 151 SUBTIPOS) ---
-        try:
-            # Buscamos donde empieza la tabla de subtipos
-            idx = df_raw[df_raw.iloc[:, 1].astype(str).str.contains("S-01|APOYO AL CIUDADANO", case=False, na=False)].index[0]
-            # CAMBIO: Ahora toma 160 filas para asegurar los 151 subtipos
-            df_s = df_raw.iloc[idx:idx+160, [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]].copy()
-            df_s.columns = ['SUBTIPO', 'CON', 'CORCOL', 'COMCH', 'COMAR', 'COMDA', 'COMCHEP', 'CEVIBO', 'COMSAM', 'TOTAL']
+        # Corrección de nombres de centros según Ledger de correcciones
+        if 'CENTRO' in df.columns:
+            df['CENTRO'] = df['CENTRO'].astype(str).str.replace('CONTRA', 'CON').str.strip()
             
-            # Limpieza de datos
-            for col in df_s.columns[1:]:
-                df_s[col] = pd.to_numeric(df_s[col], errors='coerce').fillna(0)
-            
-            # Filtrar filas vacías o con ceros en el nombre del subtipo
-            df_s = df_s[df_s['SUBTIPO'] != 0]
-        except:
-            df_s = pd.DataFrame()
+        return df
+    except: return None
 
-        return df_zonas, df_s, df_p1, df_p2
-    except:
-        return pd.DataFrame(), pd.DataFrame(), pd.DataFrame(), pd.DataFrame()
+df = load_full_data()
 
-# Cargar los datos
-df_z, df_s, df_p1, df_p2 = cargar_todo()
+if df is not None:
+    # --- CÁLCULO DE MÉTRICAS UNIFICADAS ---
+    total_positivos_global = int(df['Total_Positivos_Fila'].sum())
+    # Consideramos "Eventos" solo aquellos que tuvieron al menos un resultado positivo
+    df_pos = df[df['Total_Positivos_Fila'] > 0].copy()
+    total_eventos_reales = len(df_pos) 
 
-# --- INTERFAZ ---
-st.title("📊 Control Integral de Incidentes - Panamá")
+    st.title("🛡️ Hexágono S-Portal | Centro de Mando HD")
+    
+    # --- FILA DE MÉTRICAS SUPERIOR ---
+    m1, m2, m3, m4, m5 = st.columns(5)
+    # Ahora Eventos Totales refleja los casos con impacto
+    m1.metric("📊 EVENTOS CON POSITIVO", f"{total_eventos_reales:,}")
+    m2.metric("✅ TOTAL ACUMULADO", f"{total_positivos_global:,}")
+    m3.metric("⏱️ VAR. DESPACHO", f"{df_pos['V_DESPACHO'].mean():.1f} min")
+    m4.metric("🤝 VAR. ATENCIÓN", f"{df_pos['V_ATENCION'].mean():.1f} min")
+    m5.metric("🔐 VAR. CIERRE", f"{df_pos['V_CIERRE'].mean():.1f} min")
 
-# Fila 1: Pasteles
-col1, col2 = st.columns(2)
-with col1:
-    if not df_p1.empty and df_p1['Cantidad'].sum() > 0:
-        st.plotly_chart(px.pie(df_p1, values='Cantidad', names='Métrica', title="Gestión de Análisis", hole=0.4, template="plotly_dark"), use_container_width=True)
-with col2:
-    if not df_p2.empty and df_p2['Cantidad'].sum() > 0:
-        st.plotly_chart(px.pie(df_p2, values='Cantidad', names='Fuente', title="Fuentes de Entrada", hole=0.4, template="plotly_dark"), use_container_width=True)
+    st.markdown("---")
 
-# Fila 2: Mapa y Ranking
-st.markdown("---")
-c_map, c_rank = st.columns([2, 1])
+    # --- SECCIÓN GEOGRÁFICA ---
+    st.subheader("📍 Mapa de Calor Provincial (Impacto Total)")
+    
+    prov_stats = df_pos.groupby('PROVINCIA')['Total_Positivos_Fila'].sum().reset_index()
+    coords = {
+        'Panamá': [8.98, -79.52], 'Chiriquí': [8.43, -82.43], 'Colón': [9.35, -79.90],
+        'Panamá Oeste': [8.88, -79.78], 'Coclé': [8.51, -80.35], 'Veraguas': [8.10, -80.97],
+        'Los Santos': [7.93, -80.48], 'Herrera': [7.96, -80.70], 'Darién': [8.40, -77.91],
+        'Bocas del Toro': [9.33, -82.24]
+    }
+    prov_stats['lat'] = prov_stats['PROVINCIA'].map(lambda x: coords.get(x, [8.5, -80.0])[0])
+    prov_stats['lon'] = prov_stats['PROVINCIA'].map(lambda x: coords.get(x, [8.5, -80.0])[1])
 
-with c_map:
-    st.subheader("📍 Mapa de Calor (Incidentes)")
-    if not df_z.empty and 'TOTAL' in df_z.columns:
-        fig = px.density_mapbox(df_z, lat='lat', lon='lon', z='TOTAL', radius=35,
-                                center=dict(lat=8.6, lon=-79.8), zoom=6.2,
-                                mapbox_style="carto-darkmatter")
-        fig.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, height=450)
-        st.plotly_chart(fig, use_container_width=True)
-    else:
-        st.info("Esperando datos válidos para generar el mapa...")
+    c_map, c_rank = st.columns([2.5, 1])
+    
+    with c_map:
+        # Etiqueta flotante con la suma total de las provincias
+        st.markdown(f"""
+            <div class="floating-metric">
+                <small style="color: #94a3b8; text-transform: uppercase; font-size: 10px;">Total Positivos Provincias</small><br>
+                <span style="font-size: 22px; font-weight: bold; color: #00ebff;">{total_positivos_global:,}</span>
+            </div>
+        """, unsafe_allow_html=True)
+        
+        fig_map = px.density_mapbox(
+            prov_stats, lat='lat', lon='lon', z='Total_Positivos_Fila', radius=45,
+            center=dict(lat=8.5, lon=-80.0), zoom=6.5,
+            mapbox_style="carto-darkmatter", color_continuous_scale="Blues"
+        )
+        fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, paper_bgcolor='rgba(0,0,0,0)', showlegend=False)
+        st.plotly_chart(fig_map, use_container_width=True)
+    
+    with c_rank:
+        st.write("**Ranking de Impacto**")
+        st.dataframe(prov_stats[['PROVINCIA', 'Total_Positivos_Fila']].sort_values('Total_Positivos_Fila', ascending=False), 
+                     hide_index=True, use_container_width=True)
 
-with c_rank:
-    st.subheader("🏆 Ranking Z.P.")
-    if not df_z.empty:
-        st.dataframe(df_z.sort_values('TOTAL', ascending=False)[['ZONA', 'TOTAL']], hide_index=True, use_container_width=True, height=400)
+    st.markdown("---")
 
-# Fila 3: Tabla (MODIFICADO: ALTURA FIJA Y SCROLL)
-st.markdown("---")
-st.subheader("📋 Detalle General de Subtipos")
-if not df_s.empty:
-    # height=600 permite ver los primeros 20 y activar la barra desplazadora
-    st.dataframe(df_s, use_container_width=True, hide_index=True, height=600)
+    # --- ANÁLISIS DETALLADO ---
+    st.subheader("🎯 Distribución de Resultados")
+    col1, col2 = st.columns(2)
 
-# Refresco
-st.components.v1.html("<script>setTimeout(function(){window.location.reload();}, 120000);</script>", height=0)
+    with col1:
+        st.write("**📱 Por Canal de Entrada**")
+        fig_canal = px.pie(df_pos, names='CANAL DE ENTRADA', values='Total_Positivos_Fila', hole=0.6,
+                           color_discrete_sequence=px.colors.sequential.Blues_r)
+        st.plotly_chart(fig_canal, use_container_width=True)
+
+    with col2:
+        st.write("**🏢 Por Centro (CON)**")
+        fig_centro = px.pie(df_pos, names='CENTRO', values='Total_Positivos_Fila', hole=0.6,
+                            color_discrete_sequence=px.colors.sequential.Tealgrn)
+        st.plotly_chart(fig_centro, use_container_width=True)
+
+else:
+    st.error("No se pudo sincronizar con la base de datos de S-Portal.")
