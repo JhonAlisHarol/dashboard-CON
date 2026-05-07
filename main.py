@@ -8,7 +8,7 @@ st.set_page_config(page_title="S-Portal Hexagon | Full Command Center", layout="
 st.markdown("""
     <style>
     .stApp { background-color: #0a0e17; }
-    [data-testid="stMetric"] {
+    .stMetric {
         background: rgba(255, 255, 255, 0.05) !important;
         backdrop-filter: blur(10px);
         border: 1px solid rgba(0, 104, 201, 0.3) !important;
@@ -16,8 +16,8 @@ st.markdown("""
         padding: 15px !important;
     }
     .floating-metric {
-        background: rgba(10, 14, 23, 0.8);
-        border: 1px solid #0068c9;
+        background: rgba(10, 14, 23, 0.9);
+        border: 1px solid #00ebff;
         border-radius: 8px;
         padding: 10px;
         position: relative;
@@ -31,7 +31,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 2. CARGA Y PROCESAMIENTO DE DATOS
+# 2. CARGA DE DATOS
 URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQzIFyCT2C22Hlrz80szN7J2mEfA8N1R7hiAmFAUXaoorwDTOeWNh-ktv__d0vIBS-AQcuV5ws3ZU4C/pub?gid=229458966&single=true&output=csv"
 
 @st.cache_data(ttl=60)
@@ -40,7 +40,6 @@ def load_full_data():
         df = pd.read_csv(URL_CSV)
         df.columns = df.columns.str.strip()
         
-        # Limpieza de tiempos
         def to_minutes(val):
             try:
                 if pd.isna(val) or str(val).strip() in ['', '0:00']: return 0.0
@@ -53,44 +52,39 @@ def load_full_data():
         col_cierre = 'VARIANZA DEL CIERRE' if 'VARIANZA DEL CIERRE' in df.columns else 'VARIANZA DE CIERRE'
         df['V_CIERRE'] = df[col_cierre].apply(to_minutes)
         
-        # Cálculo de Positivos (Suma horizontal de las 6 columnas de resultados)
         cols_pos = ['RESULTADO POSITIVO 1', 'RESULTADO POSITIVO 2', 'RESULTADO POSITIVO 3', 
                     'RESULTADO POSITIVO 4', 'RESULTADO POSITIVO 5', 'RESULTADO POSITIVO 6']
         df['Total_Positivos_Fila'] = df[cols_pos].notna().sum(axis=1)
         
-        # Corrección de nombres de centros según Ledger de correcciones
         if 'CENTRO' in df.columns:
             df['CENTRO'] = df['CENTRO'].astype(str).str.replace('CONTRA', 'CON').str.strip()
             
-        return df
+        # Filtrado de eventos con al menos 1 positivo
+        return df[df['Total_Positivos_Fila'] > 0].copy()
     except: return None
 
 df = load_full_data()
 
 if df is not None:
-    # --- CÁLCULO DE MÉTRICAS UNIFICADAS ---
-    total_positivos_global = int(df['Total_Positivos_Fila'].sum())
-    # Consideramos "Eventos" solo aquellos que tuvieron al menos un resultado positivo
-    df_pos = df[df['Total_Positivos_Fila'] > 0].copy()
-    total_eventos_reales = len(df_pos) 
-
+    # --- MÉTRICAS ---
     st.title("🛡️ Hexágono S-Portal | Centro de Mando HD")
     
-    # --- FILA DE MÉTRICAS SUPERIOR ---
+    total_eventos_con_pos = len(df) # Debería ser 1,396
+    total_positivos_suma = int(df['Total_Positivos_Fila'].sum())
+
     m1, m2, m3, m4, m5 = st.columns(5)
-    # Ahora Eventos Totales refleja los casos con impacto
-    m1.metric("📊 EVENTOS CON POSITIVO", f"{total_eventos_reales:,}")
-    m2.metric("✅ TOTAL ACUMULADO", f"{total_positivos_global:,}")
-    m3.metric("⏱️ VAR. DESPACHO", f"{df_pos['V_DESPACHO'].mean():.1f} min")
-    m4.metric("🤝 VAR. ATENCIÓN", f"{df_pos['V_ATENCION'].mean():.1f} min")
-    m5.metric("🔐 VAR. CIERRE", f"{df_pos['V_CIERRE'].mean():.1f} min")
+    m1.metric("📊 EVENTOS POSITIVOS", f"{total_eventos_con_pos:,}")
+    m2.metric("✅ TOTAL POSITIVOS", f"{total_positivos_suma:,}")
+    m3.metric("⏱️ VAR. DESPACHO", f"{df['V_DESPACHO'].mean():.1f} min")
+    m4.metric("🤝 VAR. ATENCIÓN", f"{df['V_ATENCION'].mean():.1f} min")
+    m5.metric("🔐 VAR. CIERRE", f"{df['V_CIERRE'].mean():.1f} min")
 
     st.markdown("---")
 
-    # --- SECCIÓN GEOGRÁFICA ---
-    st.subheader("📍 Mapa de Calor Provincial (Impacto Total)")
+    # --- MAPA ---
+    st.subheader("📍 Mapa de Calor Provincial")
     
-    prov_stats = df_pos.groupby('PROVINCIA')['Total_Positivos_Fila'].sum().reset_index()
+    prov_stats = df.groupby('PROVINCIA')['Total_Positivos_Fila'].sum().reset_index()
     coords = {
         'Panamá': [8.98, -79.52], 'Chiriquí': [8.43, -82.43], 'Colón': [9.35, -79.90],
         'Panamá Oeste': [8.88, -79.78], 'Coclé': [8.51, -80.35], 'Veraguas': [8.10, -80.97],
@@ -100,47 +94,77 @@ if df is not None:
     prov_stats['lat'] = prov_stats['PROVINCIA'].map(lambda x: coords.get(x, [8.5, -80.0])[0])
     prov_stats['lon'] = prov_stats['PROVINCIA'].map(lambda x: coords.get(x, [8.5, -80.0])[1])
 
-    c_map, c_rank = st.columns([2.5, 1])
-    
+    c_map, c_rank = st.columns([2, 1])
     with c_map:
-        # Etiqueta flotante con la suma total de las provincias
         st.markdown(f"""
             <div class="floating-metric">
-                <small style="color: #94a3b8; text-transform: uppercase; font-size: 10px;">Total Positivos Provincias</small><br>
-                <span style="font-size: 22px; font-weight: bold; color: #00ebff;">{total_positivos_global:,}</span>
+                <small style="color: #94a3b8; text-transform: uppercase; font-size: 10px;">Total Acumulado Positivos</small><br>
+                <span style="font-size: 22px; font-weight: bold; color: #00ebff;">{total_positivos_suma:,}</span>
             </div>
         """, unsafe_allow_html=True)
         
         fig_map = px.density_mapbox(
-            prov_stats, lat='lat', lon='lon', z='Total_Positivos_Fila', radius=45,
-            center=dict(lat=8.5, lon=-80.0), zoom=6.5,
+            prov_stats, lat='lat', lon='lon', z='Total_Positivos_Fila', radius=40,
+            center=dict(lat=8.5, lon=-80.0), zoom=6,
             mapbox_style="carto-darkmatter", color_continuous_scale="Blues"
         )
-        fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, paper_bgcolor='rgba(0,0,0,0)', showlegend=False)
+        fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, paper_bgcolor='rgba(0,0,0,0)')
         st.plotly_chart(fig_map, use_container_width=True)
     
     with c_rank:
-        st.write("**Ranking de Impacto**")
+        st.write("**Ranking Provincial**")
         st.dataframe(prov_stats[['PROVINCIA', 'Total_Positivos_Fila']].sort_values('Total_Positivos_Fila', ascending=False), 
                      hide_index=True, use_container_width=True)
 
     st.markdown("---")
 
-    # --- ANÁLISIS DETALLADO ---
-    st.subheader("🎯 Distribución de Resultados")
-    col1, col2 = st.columns(2)
+    # --- PASTELES ---
+    st.subheader("🎯 Análisis de Distribución")
+    col_p1, col_p2 = st.columns(2)
 
-    with col1:
-        st.write("**📱 Por Canal de Entrada**")
-        fig_canal = px.pie(df_pos, names='CANAL DE ENTRADA', values='Total_Positivos_Fila', hole=0.6,
-                           color_discrete_sequence=px.colors.sequential.Blues_r)
+    with col_p1:
+        st.write("**📱 Positivos por Canal de Entrada**")
+        canal_data = df.groupby('CANAL DE ENTRADA')['Total_Positivos_Fila'].sum().sort_values(ascending=False).reset_index()
+        fig_canal = px.pie(canal_data, names='CANAL DE ENTRADA', values='Total_Positivos_Fila', hole=0.6,
+                          color_discrete_sequence=px.colors.sequential.Blues_r)
+        fig_canal.update_layout(margin=dict(t=30, b=0, l=0, r=0), paper_bgcolor='rgba(0,0,0,0)')
         st.plotly_chart(fig_canal, use_container_width=True)
 
-    with col2:
-        st.write("**🏢 Por Centro (CON)**")
-        fig_centro = px.pie(df_pos, names='CENTRO', values='Total_Positivos_Fila', hole=0.6,
-                            color_discrete_sequence=px.colors.sequential.Tealgrn)
+    with col_p2:
+        st.write("**🏢 Positivos por Centro**")
+        centro_data = df.groupby('CENTRO')['Total_Positivos_Fila'].sum().sort_values(ascending=False).reset_index()
+        fig_centro = px.pie(centro_data, names='CENTRO', values='Total_Positivos_Fila', hole=0.6,
+                           color_discrete_sequence=px.colors.sequential.Tealgrn)
+        fig_centro.update_layout(margin=dict(t=30, b=0, l=0, r=0), paper_bgcolor='rgba(0,0,0,0)')
         st.plotly_chart(fig_centro, use_container_width=True)
 
+    st.markdown("---")
+
+    # --- TABLA TÁCTICA ORDENADA ---
+    st.subheader("📋 Detalle de Positivos: Tipos vs Centros (Ordenado)")
+    
+    cols_pos_list = ['RESULTADO POSITIVO 1', 'RESULTADO POSITIVO 2', 'RESULTADO POSITIVO 3', 
+                    'RESULTADO POSITIVO 4', 'RESULTADO POSITIVO 5', 'RESULTADO POSITIVO 6']
+    
+    df_long = pd.melt(df, id_vars=['CENTRO'], value_vars=cols_pos_list, value_name='Tipo').dropna()
+    tabla_final = df_long.groupby(['Tipo', 'CENTRO']).size().unstack(fill_value=0)
+    
+    # Ordenar centros (Columnas) de mayor a menor
+    orden_centros = tabla_final.sum(axis=0).sort_values(ascending=False).index
+    tabla_final = tabla_final[orden_centros]
+    
+    # Sumatoria Horizontal y orden de filas
+    tabla_final['TOTAL IMPACTO'] = tabla_final.sum(axis=1)
+    tabla_final = tabla_final.sort_values('TOTAL IMPACTO', ascending=False)
+    
+    # Sumatoria Vertical
+    sumatoria_centros = tabla_final.sum(axis=0).to_frame().T
+    sumatoria_centros.index = ['TOTAL CENTRO']
+    
+    tabla_completa = pd.concat([tabla_final, sumatoria_centros])
+    tabla_completa.iloc[-1, -1] = total_positivos_suma
+
+    st.dataframe(tabla_completa, use_container_width=True, height=400)
+
 else:
-    st.error("No se pudo sincronizar con la base de datos de S-Portal.")
+    st.error("No se pudo sincronizar con la base de datos.")
