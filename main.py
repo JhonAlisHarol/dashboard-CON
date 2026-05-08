@@ -44,12 +44,30 @@ def load_full_data():
         df = pd.read_csv(URL_CSV)
         df.columns = df.columns.str.strip()
         
+        # Limpieza de fechas
         col_f = next((c for c in df.columns if 'FECHA' in c.upper()), None)
         if col_f: df['FECHA_DT'] = pd.to_datetime(df[col_f], dayfirst=True, errors='coerce').dt.date
         
+        # Limpieza de horas
         col_h = next((c for c in df.columns if 'HORA' in c.upper()), None)
         if col_h: df['HORA_NUM'] = pd.to_datetime(df[col_h], errors='coerce').dt.hour.fillna(0).astype(int)
 
+        # Función para convertir HH:MM:SS a minutos flotantes
+        def to_m(v):
+            try:
+                if pd.isna(v) or v == "" or v == 0: return 0.0
+                p = str(v).split(':')
+                if len(p) >= 2:
+                    return float(int(p[0])*60 + int(p[1]) + (int(p[2])/60 if len(p)==3 else 0))
+                return float(v)
+            except: return 0.0
+
+        # Procesar varianzas
+        v_cols = ['VARIANZA DE DESPACHO', 'VARIANZA DE LA ATENCION', 'VARIANZA DEL CIERRE', 'VARIANZA DE CIERRE']
+        for c in v_cols:
+            if c in df.columns: df[c+'_M'] = df[c].apply(to_m)
+
+        # Procesar Positivos
         cols_pos = [c for c in df.columns if 'RESULTADO POSITIVO' in c.upper()]
         df['T_POS_COUNT'] = df[cols_pos].notna().sum(axis=1)
         
@@ -60,6 +78,12 @@ def load_full_data():
     except: return None
 
 df_raw = load_full_data()
+
+# Función de formato de tiempo (Minutos a Horas si > 60)
+def format_time(minutes):
+    if minutes >= 60:
+        return f"{minutes/60:.1f} h"
+    return f"{minutes:.1f} min"
 
 if df_raw is not None:
     # --- FILTROS ---
@@ -78,12 +102,19 @@ if df_raw is not None:
     total_eventos = len(df)
     total_positivos = int(df['T_POS_COUNT'].sum())
 
+    # Cálculo de promedios de varianza
+    avg_despacho = df['VARIANZA DE DESPACHO_M'].mean() if 'VARIANZA DE DESPACHO_M' in df.columns else 0
+    avg_atencion = df['VARIANZA DE LA ATENCION_M'].mean() if 'VARIANZA DE LA ATENCION_M' in df.columns else 0
+    
+    col_cierre_m = 'VARIANZA DEL CIERRE_M' if 'VARIANZA DEL CIERRE_M' in df.columns else ('VARIANZA DE CIERRE_M' if 'VARIANZA DE CIERRE_M' in df.columns else None)
+    avg_cierre = df[col_cierre_m].mean() if col_cierre_m else 0
+
     m1, m2, m3, m4, m5 = st.columns(5)
     m1.metric("📊 EVENTOS", f"{total_eventos:,}")
     m2.metric("✅ POSITIVOS", f"{total_positivos:,}")
-    m3.metric("⏱️ DESPACHO", "29.3 min")
-    m4.metric("🤝 ATENCIÓN", "35.6 min")
-    m5.metric("🔐 CIERRE", "82.8 min")
+    m3.metric("⏱️ DESPACHO", format_time(avg_despacho))
+    m4.metric("🤝 ATENCIÓN", format_time(avg_atencion))
+    m5.metric("🔐 CIERRE", format_time(avg_cierre))
 
     st.markdown("---")
 
@@ -127,7 +158,7 @@ if df_raw is not None:
 
     st.markdown("---")
 
-    # --- SECCIÓN 4: TABLAS DE CIERRE (CORREGIDA) Y ZONAS ---
+    # --- SECCIÓN 4: TABLAS DE CIERRE Y ZONAS ---
     cn1, cn2 = st.columns(2)
     with cn1:
         st.subheader("📉 CIERRE DEL INCIDENTE-SUBTIPO")
