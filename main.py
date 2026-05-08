@@ -1,10 +1,9 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from datetime import datetime, time
 
 # 1. CONFIGURACIÓN DEL DASHBOARD
-st.set_page_config(page_title="S-Portal Hexagon | Full Command Center", layout="wide")
+st.set_page_config(page_title="S-Portal Hexagon | Command Center", layout="wide")
 
 st.markdown("""
     <style>
@@ -32,7 +31,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 2. CARGA DE DATOS
+# 2. CARGA DE DATOS ROBUSTA
 URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQzIFyCT2C22Hlrz80szN7J2mEfA8N1R7hiAmFAUXaoorwDTOeWNh-ktv__d0vIBS-AQcuV5ws3ZU4C/pub?gid=229458966&single=true&output=csv"
 
 @st.cache_data(ttl=60)
@@ -41,16 +40,14 @@ def load_full_data():
         df = pd.read_csv(URL_CSV)
         df.columns = df.columns.str.strip()
         
-        # Procesamiento de Fechas (Formato Día/Mes/Año)
-        if 'FECHA' in df.columns:
-            df['FECHA_DT'] = pd.to_datetime(df['FECHA'], dayfirst=True, errors='coerce').dt.date
+        col_fecha = next((c for c in df.columns if 'FECHA' in c.upper()), None)
+        if col_fecha:
+            df['FECHA_DT'] = pd.to_datetime(df[col_fecha], dayfirst=True, errors='coerce').dt.date
             df = df.dropna(subset=['FECHA_DT'])
         
-        # Procesamiento de Horas
-        if 'HORA' in df.columns:
-            # Extraemos la hora numérica (0-23) para el filtrado rápido
-            df['HORA_NUM'] = pd.to_datetime(df['HORA'], errors='coerce').dt.hour
-            df = df.dropna(subset=['HORA_NUM'])
+        col_hora = next((c for c in df.columns if 'HORA' in c.upper()), None)
+        if col_hora:
+            df['HORA_NUM'] = pd.to_datetime(df[col_hora], errors='coerce').dt.hour.fillna(0).astype(int)
         else:
             df['HORA_NUM'] = 0
 
@@ -61,13 +58,11 @@ def load_full_data():
                 return float(int(parts[0]) * 60 + int(parts[1]))
             except: return 0.0
 
-        df['V_DESPACHO'] = df['VARIANZA DE DESPACHO'].apply(to_minutes)
-        df['V_ATENCION'] = df['VARIANZA DE LA ATENCION'].apply(to_minutes)
-        col_cierre = 'VARIANZA DEL CIERRE' if 'VARIANZA DEL CIERRE' in df.columns else 'VARIANZA DE CIERRE'
-        df['V_CIERRE'] = df[col_cierre].apply(to_minutes)
-        
-        cols_pos = ['RESULTADO POSITIVO 1', 'RESULTADO POSITIVO 2', 'RESULTADO POSITIVO 3', 
-                    'RESULTADO POSITIVO 4', 'RESULTADO POSITIVO 5', 'RESULTADO POSITIVO 6']
+        df['V_DESPACHO'] = df['VARIANZA DE DESPACHO'].apply(to_minutes) if 'VARIANZA DE DESPACHO' in df.columns else 0
+        df['V_ATENCION'] = df['VARIANZA DE LA ATENCION'].apply(to_minutes) if 'VARIANZA DE LA ATENCION' in df.columns else 0
+        df['V_CIERRE'] = df['VARIANZA DEL CIERRE'].apply(to_minutes) if 'VARIANZA DEL CIERRE' in df.columns else 0
+
+        cols_pos = [c for c in df.columns if 'RESULTADO POSITIVO' in c.upper()]
         df['Total_Positivos_Fila'] = df[cols_pos].notna().sum(axis=1)
         
         if 'CENTRO' in df.columns:
@@ -79,62 +74,35 @@ def load_full_data():
 df_raw = load_full_data()
 
 if df_raw is not None:
-    # --- BARRA LATERAL: FILTROS TIPO "DESDE - HASTA" ---
-    st.sidebar.header("🔎 Filtros de Periodo")
+    # --- FILTROS LATERALES ---
+    st.sidebar.header("🔎 Filtros")
+    f_inicio = st.sidebar.date_input("Fecha Desde:", value=df_raw['FECHA_DT'].min())
+    f_fin = st.sidebar.date_input("Fecha Hasta:", value=df_raw['FECHA_DT'].max())
     
-    # Filtro de Fechas
-    min_date = df_raw['FECHA_DT'].min()
-    max_date = df_raw['FECHA_DT'].max()
-    
-    st.sidebar.subheader("📅 Fechas")
-    f_col1, f_col2 = st.sidebar.columns(2)
-    with f_col1:
-        fecha_inicio = st.date_input("Desde:", value=min_date, key="f_ini")
-    with f_col2:
-        fecha_fin = st.date_input("Hasta:", value=max_date, key="f_fin")
+    lista_horas = list(range(24))
+    h_inicio = st.sidebar.selectbox("Hora Desde:", lista_horas, index=0)
+    h_fin = st.sidebar.selectbox("Hora Hasta:", lista_horas, index=23)
 
-    st.sidebar.markdown("---")
-    
-    # Filtro de Horas (Similar a la fecha)
-    st.sidebar.subheader("⏰ Horas")
-    h_col1, h_col2 = st.sidebar.columns(2)
-    
-    # Generamos lista de horas 00 a 23
-    lista_horas = [i for i in range(24)]
-    
-    with h_col1:
-        hora_inicio = st.selectbox("Hora Inicio:", lista_horas, index=0, format_func=lambda x: f"{x:02d}:00")
-    with h_col2:
-        hora_fin = st.selectbox("Hora Fin:", lista_horas, index=23, format_func=lambda x: f"{x:02d}:59")
-
-    # Filtrado dinámico (Fecha + Hora)
     df = df_raw[
-        (df_raw['FECHA_DT'] >= fecha_inicio) & 
-        (df_raw['FECHA_DT'] <= fecha_fin) &
-        (df_raw['HORA_NUM'] >= hora_inicio) &
-        (df_raw['HORA_NUM'] <= hora_fin)
+        (df_raw['FECHA_DT'] >= f_inicio) & (df_raw['FECHA_DT'] <= f_fin) &
+        (df_raw['HORA_NUM'] >= h_inicio) & (df_raw['HORA_NUM'] <= h_fin)
     ].copy()
 
-    # --- TÍTULO ---
-    st.title("🛡️ Hexágono S-Portal | Centro de Mando HD")
-    st.info(f"Filtro aplicado: **{fecha_inicio.strftime('%d/%m/%Y')}** ({hora_inicio:02d}:00) hasta **{fecha_fin.strftime('%d/%m/%Y')}** ({hora_fin:02d}:59)")
+    # --- MÉTRICAS ---
+    st.title("🛡️ Hexágono S-Portal | Command Center")
+    t_pos = int(df['Total_Positivos_Fila'].sum())
+    m1, m2, m3, m4, m5 = st.columns(5)
+    m1.metric("📊 EVENTOS", f"{len(df):,}")
+    m2.metric("✅ POSITIVOS", f"{t_pos:,}")
+    m3.metric("⏱️ DESPACHO", f"{df['V_DESPACHO'].mean():.1f} min")
+    m4.metric("🤝 ATENCIÓN", f"{df['V_ATENCION'].mean():.1f} min")
+    m5.metric("🔐 CIERRE", f"{df['V_CIERRE'].mean():.1f} min")
 
-    if not df.empty:
-        # --- MÉTRICAS ---
-        total_eventos_con_pos = len(df)
-        total_positivos_suma = int(df['Total_Positivos_Fila'].sum())
+    st.markdown("---")
 
-        m1, m2, m3, m4, m5 = st.columns(5)
-        m1.metric("📊 EVENTOS POSITIVOS", f"{total_eventos_con_pos:,}")
-        m2.metric("✅ TOTAL POSITIVOS", f"{total_positivos_suma:,}")
-        m3.metric("⏱️ VAR. DESPACHO", f"{df['V_DESPACHO'].mean():.1f} min")
-        m4.metric("🤝 VAR. ATENCIÓN", f"{df['V_ATENCION'].mean():.1f} min")
-        m5.metric("🔐 VAR. CIERRE", f"{df['V_CIERRE'].mean():.1f} min")
-
-        st.markdown("---")
-
-        # --- MAPA ---
-        st.subheader("📍 Mapa de Calor Provincial")
+    # --- MAPA DE CALOR (RESTAURADO) ---
+    st.subheader("📍 Mapa de Calor Provincial")
+    if 'PROVINCIA' in df.columns:
         prov_stats = df.groupby('PROVINCIA')['Total_Positivos_Fila'].sum().reset_index()
         coords = {'Panamá': [8.98, -79.52], 'Chiriquí': [8.43, -82.43], 'Colón': [9.35, -79.90],
                   'Panamá Oeste': [8.88, -79.78], 'Coclé': [8.51, -80.35], 'Veraguas': [8.10, -80.97],
@@ -145,56 +113,62 @@ if df_raw is not None:
 
         c_map, c_rank = st.columns([2, 1])
         with c_map:
-            st.markdown(f"""<div class="floating-metric"><small style="color: #94a3b8; text-transform: uppercase; font-size: 10px;">Filtro Actual</small><br>
-                <span style="font-size: 22px; font-weight: bold; color: #00ebff;">{total_positivos_suma:,}</span></div>""", unsafe_allow_html=True)
-            fig_map = px.density_mapbox(prov_stats, lat='lat', lon='lon', z='Total_Positivos_Fila', radius=40,
-                center=dict(lat=8.5, lon=-80.0), zoom=6, mapbox_style="carto-darkmatter", color_continuous_scale="Blues")
+            st.markdown(f"""<div class="floating-metric"><small style="color:#94a3b8; font-size:10px;">Total Filtrado</small><br><span style="font-size:22px; font-weight:bold; color:#00ebff;">{t_pos:,}</span></div>""", unsafe_allow_html=True)
+            fig_map = px.density_mapbox(prov_stats, lat='lat', lon='lon', z='Total_Positivos_Fila', radius=40, center=dict(lat=8.5, lon=-80.0), zoom=6, mapbox_style="carto-darkmatter", color_continuous_scale="Blues")
             fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_map, use_container_width=True)
-        
         with c_rank:
             st.write("**Ranking Provincial**")
             st.dataframe(prov_stats[['PROVINCIA', 'Total_Positivos_Fila']].sort_values('Total_Positivos_Fila', ascending=False), hide_index=True, use_container_width=True)
+    
+    st.markdown("---")
 
-        st.markdown("---")
+    # --- PASTELES ---
+    col_p1, col_p2 = st.columns(2)
+    with col_p1:
+        st.write("**📱 Por Canal de Entrada**")
+        st.plotly_chart(px.pie(df, names='CANAL DE ENTRADA', values='Total_Positivos_Fila', hole=0.5), use_container_width=True)
+    with col_p2:
+        st.write("**🏢 Por Centro**")
+        st.plotly_chart(px.pie(df, names='CENTRO', values='Total_Positivos_Fila', hole=0.5, color_discrete_sequence=px.colors.sequential.Tealgrn), use_container_width=True)
 
-        # --- PASTELES ---
-        st.subheader("🎯 Análisis de Distribución")
-        col_p1, col_p2 = st.columns(2)
-        with col_p1:
-            st.write("**📱 Positivos por Canal de Entrada**")
-            canal_data = df.groupby('CANAL DE ENTRADA')['Total_Positivos_Fila'].sum().sort_values(ascending=False).reset_index()
-            fig_canal = px.pie(canal_data, names='CANAL DE ENTRADA', values='Total_Positivos_Fila', hole=0.6, color_discrete_sequence=px.colors.sequential.Blues_r)
-            st.plotly_chart(fig_canal, use_container_width=True)
-        with col_p2:
-            st.write("**🏢 Positivos por Centro**")
-            centro_data = df.groupby('CENTRO')['Total_Positivos_Fila'].sum().sort_values(ascending=False).reset_index()
-            fig_centro = px.pie(centro_data, names='CENTRO', values='Total_Positivos_Fila', hole=0.6, color_discrete_sequence=px.colors.sequential.Tealgrn)
-            st.plotly_chart(fig_centro, use_container_width=True)
+    st.markdown("---")
 
-        st.markdown("---")
+    # --- TABLA TÁCTICA ORIGINAL (ORDENADA Y CON TOTALES) ---
+    st.subheader("📋 Detalle de Positivos: Tipos vs Centros")
+    cols_p = [c for c in df.columns if 'RESULTADO POSITIVO' in c.upper()]
+    df_l = pd.melt(df, id_vars=['CENTRO'], value_vars=cols_p, value_name='Tipo').dropna()
+    if not df_l.empty:
+        tab_centros = df_l.groupby(['Tipo', 'CENTRO']).size().unstack(fill_value=0)
+        tab_centros = tab_centros[tab_centros.sum(axis=0).sort_values(ascending=False).index]
+        tab_centros['TOTAL IMPACTO'] = tab_centros.sum(axis=1)
+        tab_centros = tab_centros.sort_values('TOTAL IMPACTO', ascending=False)
+        tot_v = tab_centros.sum(axis=0).to_frame().T
+        tot_v.index = ['TOTAL GENERAL']
+        st.dataframe(pd.concat([tab_centros, tot_v]), use_container_width=True)
 
-        # --- TABLA TÁCTICA ---
-        st.subheader("📋 Detalle de Positivos por Centro (Filtrado)")
-        cols_pos_list = ['RESULTADO POSITIVO 1', 'RESULTADO POSITIVO 2', 'RESULTADO POSITIVO 3', 
-                        'RESULTADO POSITIVO 4', 'RESULTADO POSITIVO 5', 'RESULTADO POSITIVO 6']
-        df_long = pd.melt(df, id_vars=['CENTRO'], value_vars=cols_pos_list, value_name='Tipo').dropna()
-        
-        if not df_long.empty:
-            tabla_final = df_long.groupby(['Tipo', 'CENTRO']).size().unstack(fill_value=0)
-            orden_centros = tabla_final.sum(axis=0).sort_values(ascending=False).index
-            tabla_final = tabla_final[orden_centros]
-            tabla_final['TOTAL IMPACTO'] = tabla_final.sum(axis=1)
-            tabla_final = tabla_final.sort_values('TOTAL IMPACTO', ascending=False)
-            
-            sumatoria_centros = tabla_final.sum(axis=0).to_frame().T
-            sumatoria_centros.index = ['TOTAL CENTRO']
-            tabla_completa = pd.concat([tabla_final, sumatoria_centros])
-            tabla_completa.iloc[-1, -1] = total_positivos_suma
-            st.dataframe(tabla_completa, use_container_width=True, height=400)
-        else:
-            st.warning("No hay detalles disponibles para este horario.")
-    else:
-        st.warning("No se encontraron eventos en el rango de fecha y hora seleccionado.")
+    st.markdown("---")
+
+    # --- LOS DOS CUADROS NUEVOS ---
+    col_n1, col_n2 = st.columns(2)
+    with col_n1:
+        st.subheader("📉 CIERRE DEL INCIDENTES-SUBTIPO")
+        col_c = next((c for c in df.columns if 'SUBTIPO' in c.upper() or 'TIPO' == c.upper()), None)
+        if col_c:
+            tab_sub = df.groupby([col_c, 'CENTRO']).size().unstack(fill_value=0)
+            tab_sub = tab_sub[tab_sub.sum(axis=0).sort_values(ascending=False).index]
+            tab_sub['TOTAL'] = tab_sub.sum(axis=1)
+            tab_sub = tab_sub.sort_values('TOTAL', ascending=False)
+            sum_s = tab_sub.sum(axis=0).to_frame().T
+            sum_s.index = ['TOTAL GENERAL']
+            st.dataframe(pd.concat([tab_sub, sum_s]), use_container_width=True, height=400)
+
+    with col_n2:
+        st.subheader("🚔 ZP., SERVICIO POLICIAL O ENLACE")
+        col_zp = next((c for c in df.columns if any(k in c.upper() for k in ['ZONA', 'ZP', 'SERVICIO'])), None)
+        if col_zp:
+            zp_stats = df.groupby(col_zp)['Total_Positivos_Fila'].sum().reset_index().sort_values('Total_Positivos_Fila', ascending=False)
+            total_z = pd.DataFrame({col_zp: ['TOTAL GENERAL'], 'Total_Positivos_Fila': [zp_stats['Total_Positivos_Fila'].sum()]})
+            st.dataframe(pd.concat([zp_stats, total_z]), use_container_width=True, height=400, hide_index=True)
 else:
-    st.error("No se pudo sincronizar con la base de datos.")
+    st.error("Fallo al cargar base de datos.")
