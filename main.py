@@ -44,30 +44,25 @@ def load_full_data():
         df = pd.read_csv(URL_CSV)
         df.columns = df.columns.str.strip()
         
-        # Limpieza de fechas
         col_f = next((c for c in df.columns if 'FECHA' in c.upper()), None)
-        if col_f: df['FECHA_DT'] = pd.to_datetime(df[col_f], dayfirst=True, errors='coerce').dt.date
+        if col_f: 
+            df['FECHA_DT'] = pd.to_datetime(df[col_f], dayfirst=True, errors='coerce')
+            df['MES_NOMBRE'] = df['FECHA_DT'].dt.strftime('%m - %B')
         
-        # Limpieza de horas
         col_h = next((c for c in df.columns if 'HORA' in c.upper()), None)
         if col_h: df['HORA_NUM'] = pd.to_datetime(df[col_h], errors='coerce').dt.hour.fillna(0).astype(int)
 
-        # Función para convertir HH:MM:SS a minutos flotantes
         def to_m(v):
             try:
                 if pd.isna(v) or v == "" or v == 0: return 0.0
                 p = str(v).split(':')
-                if len(p) >= 2:
-                    return float(int(p[0])*60 + int(p[1]) + (int(p[2])/60 if len(p)==3 else 0))
-                return float(v)
+                return float(int(p[0])*60 + int(p[1])) if len(p) >= 2 else float(v)
             except: return 0.0
 
-        # Procesar varianzas
         v_cols = ['VARIANZA DE DESPACHO', 'VARIANZA DE LA ATENCION', 'VARIANZA DEL CIERRE', 'VARIANZA DE CIERRE']
         for c in v_cols:
             if c in df.columns: df[c+'_M'] = df[c].apply(to_m)
 
-        # Procesar Positivos
         cols_pos = [c for c in df.columns if 'RESULTADO POSITIVO' in c.upper()]
         df['T_POS_COUNT'] = df[cols_pos].notna().sum(axis=1)
         
@@ -79,76 +74,61 @@ def load_full_data():
 
 df_raw = load_full_data()
 
-# Función de formato de tiempo (Minutos a Horas si > 60)
 def format_time(minutes):
-    if minutes >= 60:
-        return f"{minutes/60:.1f} h"
+    if minutes >= 60: return f"{minutes/60:.1f} h"
     return f"{minutes:.1f} min"
 
 if df_raw is not None:
-    # --- FILTROS ---
+    # FILTROS
     with st.sidebar:
         st.header("🔎 Filtros")
-        f1 = st.date_input("Desde:", df_raw['FECHA_DT'].min())
-        f2 = st.date_input("Hasta:", df_raw['FECHA_DT'].max())
+        f1 = st.date_input("Desde:", df_raw['FECHA_DT'].min().date())
+        f2 = st.date_input("Hasta:", df_raw['FECHA_DT'].max().date())
         h1 = st.selectbox("Hora Desde:", list(range(24)), index=0)
         h2 = st.selectbox("Hora Hasta:", list(range(24)), index=23)
 
-    df = df_raw[(df_raw['FECHA_DT'] >= f1) & (df_raw['FECHA_DT'] <= f2) & 
+    df = df_raw[(df_raw['FECHA_DT'].dt.date >= f1) & (df_raw['FECHA_DT'].dt.date <= f2) & 
                 (df_raw['HORA_NUM'] >= h1) & (df_raw['HORA_NUM'] <= h2)].copy()
 
-    # --- MÉTRICAS ---
+    # MÉTRICAS
     st.title("🛡️ Hexágono S-Portal | Command Center")
-    total_eventos = len(df)
     total_positivos = int(df['T_POS_COUNT'].sum())
-
-    # Cálculo de promedios de varianza
-    avg_despacho = df['VARIANZA DE DESPACHO_M'].mean() if 'VARIANZA DE DESPACHO_M' in df.columns else 0
-    avg_atencion = df['VARIANZA DE LA ATENCION_M'].mean() if 'VARIANZA DE LA ATENCION_M' in df.columns else 0
     
-    col_cierre_m = 'VARIANZA DEL CIERRE_M' if 'VARIANZA DEL CIERRE_M' in df.columns else ('VARIANZA DE CIERRE_M' if 'VARIANZA DE CIERRE_M' in df.columns else None)
-    avg_cierre = df[col_cierre_m].mean() if col_cierre_m else 0
-
     m1, m2, m3, m4, m5 = st.columns(5)
-    m1.metric("📊 EVENTOS", f"{total_eventos:,}")
+    m1.metric("📊 EVENTOS", f"{len(df):,}")
     m2.metric("✅ POSITIVOS", f"{total_positivos:,}")
-    m3.metric("⏱️ DESPACHO", format_time(avg_despacho))
-    m4.metric("🤝 ATENCIÓN", format_time(avg_atencion))
-    m5.metric("🔐 CIERRE", format_time(avg_cierre))
+    m3.metric("⏱️ DESPACHO", format_time(df['VARIANZA DE DESPACHO_M'].mean() if 'VARIANZA DE DESPACHO_M' in df.columns else 0))
+    m4.metric("🤝 ATENCIÓN", format_time(df['VARIANZA DE LA ATENCION_M'].mean() if 'VARIANZA DE LA ATENCION_M' in df.columns else 0))
+    v_cierre_col = 'VARIANZA DEL CIERRE_M' if 'VARIANZA DEL CIERRE_M' in df.columns else 'VARIANZA DE CIERRE_M'
+    m5.metric("🔐 CIERRE", format_time(df[v_cierre_col].mean() if v_cierre_col in df.columns else 0))
 
     st.markdown("---")
 
-    # --- SECCIÓN 1: MAPA Y RANKING ---
-    st.subheader("📍 Mapa de Calor Provincial")
+    # SECCIÓN 1: MAPA
+    st.subheader("📍 MAPA DE CALOR PROVINCIAL")
     if 'PROVINCIA' in df.columns:
         prov_stats = df.groupby('PROVINCIA')['T_POS_COUNT'].sum().reset_index()
         coords = {'Panamá':[8.98,-79.52], 'Chiriquí':[8.43,-82.43], 'Colón':[9.35,-79.9], 'Panamá Oeste':[8.88,-79.78], 'Coclé':[8.51,-80.35], 'Veraguas':[8.1,-80.97], 'Los Santos':[7.93,-80.48], 'Herrera':[7.96,-80.7], 'Darién':[8.4,-77.91], 'Bocas del Toro':[9.33,-82.24]}
         prov_stats['lat'] = prov_stats['PROVINCIA'].map(lambda x: coords.get(x, [8.5, -80.0])[0])
         prov_stats['lon'] = prov_stats['PROVINCIA'].map(lambda x: coords.get(x, [8.5, -80.0])[1])
-        
         c_map, c_rank = st.columns([2, 1])
         with c_map:
             st.markdown(f'<div class="map-overlay-total"><small style="color:#00ebff;">TOTAL POSITIVOS</small><br><span style="font-size:24px; font-weight:bold;">{total_positivos:,}</span></div>', unsafe_allow_html=True)
-            fig_map = px.density_mapbox(prov_stats, lat='lat', lon='lon', z='T_POS_COUNT', radius=35, center=dict(lat=8.5, lon=-80.0), zoom=6, mapbox_style="carto-darkmatter")
-            fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, paper_bgcolor='rgba(0,0,0,0)')
-            st.plotly_chart(fig_map, use_container_width=True)
+            st.plotly_chart(px.density_mapbox(prov_stats, lat='lat', lon='lon', z='T_POS_COUNT', radius=35, center=dict(lat=8.5, lon=-80.0), zoom=6, mapbox_style="carto-darkmatter"), use_container_width=True)
         with c_rank:
             st.write("**Ranking Provincial**")
             st.dataframe(prov_stats[['PROVINCIA', 'T_POS_COUNT']].sort_values('T_POS_COUNT', ascending=False), hide_index=True, use_container_width=True)
 
     st.markdown("---")
 
-    # --- SECCIÓN 2: PASTELES ---
+    # SECCIÓN 2: PASTELES CON TÍTULOS
+    st.subheader("📊 DISTRIBUCIÓN POR CANALES Y CENTROS")
     cp1, cp2 = st.columns(2)
-    with cp1:
-        if 'CANAL DE ENTRADA' in df.columns:
-            st.plotly_chart(px.pie(df, names='CANAL DE ENTRADA', values='T_POS_COUNT', title="Canales", hole=0.5), use_container_width=True)
-    with cp2:
-        if 'CENTRO' in df.columns:
-            st.plotly_chart(px.pie(df, names='CENTRO', values='T_POS_COUNT', title="Centros", hole=0.5, color_discrete_sequence=px.colors.sequential.Tealgrn), use_container_width=True)
+    with cp1: st.plotly_chart(px.pie(df, names='CANAL DE ENTRADA', values='T_POS_COUNT', title="Proporción por Canales", hole=0.5), use_container_width=True)
+    with cp2: st.plotly_chart(px.pie(df, names='CENTRO', values='T_POS_COUNT', title="Proporción por Centros", hole=0.5, color_discrete_sequence=px.colors.sequential.Tealgrn), use_container_width=True)
 
-    # --- SECCIÓN 3: TABLA DETALLE TIPOS VS CENTROS ---
-    st.subheader("📋 Detalle: Tipos vs Centros")
+    # SECCIÓN 3: TABLA TIPOS VS CENTROS
+    st.subheader("📋 DETALLE: TIPOS VS CENTROS")
     cols_p = [c for c in df.columns if 'RESULTADO POSITIVO' in c.upper()]
     df_l = pd.melt(df, id_vars=['CENTRO'], value_vars=cols_p, value_name='Tipo').dropna()
     if not df_l.empty:
@@ -158,27 +138,51 @@ if df_raw is not None:
 
     st.markdown("---")
 
-    # --- SECCIÓN 4: TABLAS DE CIERRE Y ZONAS ---
+    # SECCIÓN 4: CIERRE Y ZONAS
     cn1, cn2 = st.columns(2)
     with cn1:
         st.subheader("📉 CIERRE DEL INCIDENTE-SUBTIPO")
-        col_cierre = "CIERRE DEL INCIDENTE-SUBTIPO"
-        if col_cierre not in df.columns:
-            col_cierre = next((c for c in df.columns if 'CIERRE' in c.upper() and 'SUBTIPO' in c.upper()), None)
-        
+        col_cierre = next((c for c in df.columns if 'CIERRE' in c.upper() and 'SUBTIPO' in c.upper()), None)
         if col_cierre:
-            df[col_cierre] = df[col_cierre].fillna("SIN ESPECIFICAR")
             t_sb = df.groupby([col_cierre, 'CENTRO']).size().unstack(fill_value=0)
             t_sb['TOTAL'] = t_sb.sum(axis=1)
-            st.dataframe(pd.concat([t_sb.sort_values('TOTAL', ascending=False), t_sb.sum().to_frame(name='TOTAL GENERAL').T]), use_container_width=True, height=450)
+            st.dataframe(pd.concat([t_sb.sort_values('TOTAL', ascending=False), t_sb.sum().to_frame(name='TOTAL GENERAL').T]), use_container_width=True, height=400)
 
     with cn2:
         st.subheader("🚔 ZP., SERVICIO POLICIAL O ENLACE")
         col_zp = next((c for c in df.columns if any(k in c.upper() for k in ['ZONA', 'ZP', 'SERVICIO'])), None)
         if col_zp:
-            zp_stats = df.groupby(col_zp)['T_POS_COUNT'].sum().reset_index().sort_values('T_POS_COUNT', ascending=False)
-            total_z = pd.DataFrame({col_zp: ['TOTAL GENERAL'], 'T_POS_COUNT': [zp_stats['T_POS_COUNT'].sum()]})
-            st.dataframe(pd.concat([zp_stats, total_z]), use_container_width=True, height=450, hide_index=True)
+            zp_s = df.groupby(col_zp)['T_POS_COUNT'].sum().reset_index().sort_values('T_POS_COUNT', ascending=False)
+            st.dataframe(pd.concat([zp_s, pd.DataFrame({col_zp:['TOTAL GENERAL'], 'T_POS_COUNT':[zp_s['T_POS_COUNT'].sum()]})]), use_container_width=True, height=400, hide_index=True)
+
+    st.markdown("---")
+
+    # SECCIÓN 5: ANÁLISIS ADICIONAL CON TOTALES
+    st.subheader("📊 ANÁLISIS POR UNIDAD Y TIEMPO (MENSUAL)")
+    c_mes, c_vv, c_desp = st.columns(3)
+    
+    with c_mes:
+        st.write("**📅 Positivos por Meses**")
+        if 'MES_NOMBRE' in df.columns:
+            mes_stats = df.groupby('MES_NOMBRE')['T_POS_COUNT'].sum().reset_index()
+            mes_total = pd.DataFrame({'MES_NOMBRE': ['TOTAL GENERAL'], 'T_POS_COUNT': [mes_stats['T_POS_COUNT'].sum()]})
+            st.dataframe(pd.concat([mes_stats.sort_values('MES_NOMBRE'), mes_total]), use_container_width=True, hide_index=True)
+
+    with c_vv:
+        st.write("**📟 Unidad de VV/104**")
+        col_vv = next((c for c in df.columns if 'UNIDAD DE VV' in c.upper() or 'VV/104' in c.upper()), None)
+        if col_vv:
+            vv_stats = df.groupby(col_vv).size().reset_index(name='EVENTOS').sort_values('EVENTOS', ascending=False)
+            vv_total = pd.DataFrame({col_vv: ['TOTAL GENERAL'], 'EVENTOS': [vv_stats['EVENTOS'].sum()]})
+            st.dataframe(pd.concat([vv_stats, vv_total]), use_container_width=True, hide_index=True, height=300)
+
+    with c_desp:
+        st.write("**🚨 Unidad de Despacho**")
+        col_desp = next((c for c in df.columns if 'UNIDAD DE DESPACHO' in c.upper()), None)
+        if col_desp:
+            desp_stats = df.groupby(col_desp).size().reset_index(name='EVENTOS').sort_values('EVENTOS', ascending=False)
+            desp_total = pd.DataFrame({col_desp: ['TOTAL GENERAL'], 'EVENTOS': [desp_stats['EVENTOS'].sum()]})
+            st.dataframe(pd.concat([desp_stats, desp_total]), use_container_width=True, hide_index=True, height=300)
 
     time.sleep(1)
     st.rerun()
