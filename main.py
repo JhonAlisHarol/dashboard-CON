@@ -22,7 +22,6 @@ st.markdown("""
         z-index: 999;
         font-family: monospace;
     }
-    /* Estilo para el total flotante sobre el mapa */
     .map-overlay-total {
         position: relative;
         top: 60px;
@@ -100,7 +99,7 @@ if df_raw is not None:
     df = df_raw[(df_raw['FECHA_DT'] >= f1) & (df_raw['FECHA_DT'] <= f2) & 
                 (df_raw['HORA_NUM'] >= h1) & (df_raw['HORA_NUM'] <= h2)].copy()
 
-    # --- MÉTRICAS PRINCIPALES ---
+    # --- MÉTRICAS ---
     st.title("🛡️ Hexágono S-Portal | Command Center")
     total_eventos = len(df)
     total_positivos = int(df['T_POS_COUNT'].sum())
@@ -114,7 +113,7 @@ if df_raw is not None:
 
     st.markdown("---")
 
-    # --- MAPA CON TOTAL DE POSITIVOS AGREGADO ---
+    # --- MAPA ---
     st.subheader("📍 Mapa de Calor Provincial")
     if 'PROVINCIA' in df.columns:
         prov_stats = df.groupby('PROVINCIA')['T_POS_COUNT'].sum().reset_index()
@@ -124,49 +123,42 @@ if df_raw is not None:
         
         c_map, c_rank = st.columns([2, 1])
         with c_map:
-            # Cuadro de total sobre el mapa
-            st.markdown(f"""
-                <div class="map-overlay-total">
-                    <small style="color:#00ebff; text-transform:uppercase; font-size:11px;">Total Positivos</small><br>
-                    <span style="font-size:24px; font-weight:bold; color:white;">{total_positivos:,}</span>
-                </div>
-                """, unsafe_allow_html=True)
-            
+            st.markdown(f'<div class="map-overlay-total"><small style="color:#00ebff;">TOTAL POSITIVOS</small><br><span style="font-size:24px; font-weight:bold;">{total_positivos:,}</span></div>', unsafe_allow_html=True)
             fig_map = px.density_mapbox(prov_stats, lat='lat', lon='lon', z='T_POS_COUNT', radius=35, center=dict(lat=8.5, lon=-80.0), zoom=6, mapbox_style="carto-darkmatter")
-            fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, paper_bgcolor='rgba(0,0,0,0)', showlegend=False)
+            fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, paper_bgcolor='rgba(0,0,0,0)')
             st.plotly_chart(fig_map, use_container_width=True)
         with c_rank:
-            st.write("**Ranking de Impacto**")
-            # Lat/Lon eliminados de la vista
+            st.write("**Ranking Provincial**")
             st.dataframe(prov_stats[['PROVINCIA', 'T_POS_COUNT']].sort_values('T_POS_COUNT', ascending=False), hide_index=True, use_container_width=True)
 
     st.markdown("---")
 
-    # --- PASTELES ---
-    cp1, cp2 = st.columns(2)
-    cp1.plotly_chart(px.pie(df, names='CANAL DE ENTRADA', values='T_POS_COUNT', title="Canales"), use_container_width=True)
-    cp2.plotly_chart(px.pie(df, names='CENTRO', values='T_POS_COUNT', title="Centros", color_discrete_sequence=px.colors.sequential.Tealgrn), use_container_width=True)
-
-    # --- TABLAS CON TOTALES SINCRONIZADOS ---
-    st.subheader("📋 Detalle: Tipos vs Centros")
-    c_p_list = [c for c in df.columns if 'RESULTADO POSITIVO' in c.upper()]
-    df_l = pd.melt(df, id_vars=['CENTRO'], value_vars=c_p_list).dropna()
-    t_c = df_l.groupby(['value', 'CENTRO']).size().unstack(fill_value=0)
-    t_c = t_c[t_c.sum().sort_values(ascending=False).index]
-    t_c['TOTAL'] = t_c.sum(axis=1)
-    st.dataframe(pd.concat([t_c.sort_values('TOTAL', ascending=False), t_c.sum().to_frame(name='TOTAL GENERAL').T]), use_container_width=True)
+    # --- TABLA: DETALLE DE POSITIVOS POR CENTROS (RESTAURADA) ---
+    st.subheader("📋 Detalle de Positivos: Tipos vs Centros")
+    cols_p = [c for c in df.columns if 'RESULTADO POSITIVO' in c.upper()]
+    df_l = pd.melt(df, id_vars=['CENTRO'], value_vars=cols_p, value_name='Tipo').dropna()
+    if not df_l.empty:
+        t_c = df_l.groupby(['Tipo', 'CENTRO']).size().unstack(fill_value=0)
+        t_c = t_c[t_c.sum(axis=0).sort_values(ascending=False).index]
+        t_c['TOTAL'] = t_c.sum(axis=1)
+        st.dataframe(pd.concat([t_c.sort_values('TOTAL', ascending=False), t_c.sum().to_frame(name='TOTAL GENERAL').T]), use_container_width=True)
 
     st.markdown("---")
+
+    # --- CUADROS INFERIORES: CIERRE Y ZP ---
     cn1, cn2 = st.columns(2)
     with cn1:
-        st.subheader("📉 CIERRE DEL INCIDENTES-SUBTIPO")
-        col_sb = next((c for c in df.columns if 'SUBTIPO' in c.upper() or 'TIPO' == c.upper()), None)
-        if col_sb:
-            df[col_sb] = df[col_sb].fillna("NO DEFINIDO")
-            t_sb = df.groupby([col_sb, 'CENTRO']).size().unstack(fill_value=0)
+        st.subheader("📉 CIERRE DEL INCIDENTE-SUBTIPO")
+        col_cierre = "CIERRE DEL INCIDENTE-SUBTIPO"
+        if col_cierre not in df.columns:
+            col_cierre = next((c for c in df.columns if 'CIERRE' in c.upper() and 'SUBTIPO' in c.upper()), None)
+        
+        if col_cierre:
+            df[col_cierre] = df[col_cierre].fillna("SIN ESPECIFICAR")
+            t_sb = df.groupby([col_cierre, 'CENTRO']).size().unstack(fill_value=0)
             t_sb = t_sb[t_sb.sum(axis=0).sort_values(ascending=False).index]
             t_sb['TOTAL'] = t_sb.sum(axis=1)
-            st.dataframe(pd.concat([t_sb.sort_values('TOTAL', ascending=False), t_sb.sum().to_frame(name='TOTAL GENERAL').T]), use_container_width=True, height=400)
+            st.dataframe(pd.concat([t_sb.sort_values('TOTAL', ascending=False), t_sb.sum().to_frame(name='TOTAL GENERAL').T]), use_container_width=True, height=450)
 
     with cn2:
         st.subheader("🚔 ZP., SERVICIO POLICIAL O ENLACE")
@@ -174,7 +166,7 @@ if df_raw is not None:
         if col_zp:
             zp_stats = df.groupby(col_zp)['T_POS_COUNT'].sum().reset_index().sort_values('T_POS_COUNT', ascending=False)
             total_z = pd.DataFrame({col_zp: ['TOTAL GENERAL'], 'T_POS_COUNT': [zp_stats['T_POS_COUNT'].sum()]})
-            st.dataframe(pd.concat([zp_stats, total_z]), use_container_width=True, height=400, hide_index=True)
+            st.dataframe(pd.concat([zp_stats, total_z]), use_container_width=True, height=450, hide_index=True)
 
     time.sleep(1)
     st.rerun()
