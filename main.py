@@ -1,37 +1,57 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import time
 
-# 1. CONFIGURACIÓN DEL DASHBOARD
+# 1. CONFIGURACIÓN Y ESTILO
 st.set_page_config(page_title="S-Portal Hexagon | Command Center", layout="wide")
 
 st.markdown("""
     <style>
     .stApp { background-color: #0a0e17; }
-    .stMetric {
-        background: rgba(255, 255, 255, 0.05) !important;
-        backdrop-filter: blur(10px);
-        border: 1px solid rgba(0, 104, 201, 0.3) !important;
-        border-radius: 12px !important;
-        padding: 15px !important;
-    }
-    .floating-metric {
-        background: rgba(10, 14, 23, 0.9);
+    .stMetric { background: rgba(255, 255, 255, 0.05); border: 1px solid #00ebff; border-radius: 10px; }
+    h1, h2, h3, span, p, label { color: #ffffff !important; }
+    .timer-box {
+        position: fixed;
+        top: 10px;
+        right: 80px;
+        background: rgba(0, 235, 255, 0.1);
         border: 1px solid #00ebff;
-        border-radius: 8px;
-        padding: 10px;
+        padding: 5px 15px;
+        border-radius: 20px;
+        z-index: 999;
+        font-family: monospace;
+    }
+    /* Estilo para el total flotante sobre el mapa */
+    .map-overlay-total {
         position: relative;
+        top: 60px;
+        left: 20px;
+        background: rgba(10, 14, 23, 0.85);
+        border: 2px solid #00ebff;
+        padding: 10px 20px;
+        border-radius: 10px;
         z-index: 100;
         width: fit-content;
-        margin-bottom: -65px;
-        margin-left: 15px;
-        box-shadow: 0px 4px 15px rgba(0,0,0,0.5);
+        margin-bottom: -70px;
+        box-shadow: 0px 4px 15px rgba(0,235,255,0.3);
     }
-    h1, h2, h3, span, p, label { color: #ffffff !important; }
     </style>
     """, unsafe_allow_html=True)
 
-# 2. CARGA DE DATOS ROBUSTA
+# 2. RELOJ DE ACTUALIZACIÓN
+if 'last_update' not in st.session_state:
+    st.session_state.last_update = time.time()
+
+elapsed = int(time.time() - st.session_state.last_update)
+remaining = max(0, 60 - elapsed)
+st.markdown(f"""<div class="timer-box">🔄 Refresco en: {remaining}s</div>""", unsafe_allow_html=True)
+
+if remaining <= 0:
+    st.session_state.last_update = time.time()
+    st.rerun()
+
+# 3. CARGA DE DATOS
 URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQzIFyCT2C22Hlrz80szN7J2mEfA8N1R7hiAmFAUXaoorwDTOeWNh-ktv__d0vIBS-AQcuV5ws3ZU4C/pub?gid=229458966&single=true&output=csv"
 
 @st.cache_data(ttl=60)
@@ -40,135 +60,121 @@ def load_full_data():
         df = pd.read_csv(URL_CSV)
         df.columns = df.columns.str.strip()
         
-        col_fecha = next((c for c in df.columns if 'FECHA' in c.upper()), None)
-        if col_fecha:
-            df['FECHA_DT'] = pd.to_datetime(df[col_fecha], dayfirst=True, errors='coerce').dt.date
-            df = df.dropna(subset=['FECHA_DT'])
+        col_f = next((c for c in df.columns if 'FECHA' in c.upper()), None)
+        if col_f:
+            df['FECHA_DT'] = pd.to_datetime(df[col_f], dayfirst=True, errors='coerce').dt.date
         
-        col_hora = next((c for c in df.columns if 'HORA' in c.upper()), None)
-        if col_hora:
-            df['HORA_NUM'] = pd.to_datetime(df[col_hora], errors='coerce').dt.hour.fillna(0).astype(int)
-        else:
-            df['HORA_NUM'] = 0
+        col_h = next((c for c in df.columns if 'HORA' in c.upper()), None)
+        if col_h:
+            df['HORA_NUM'] = pd.to_datetime(df[col_h], errors='coerce').dt.hour.fillna(0).astype(int)
 
-        def to_minutes(val):
+        def to_m(v):
             try:
-                if pd.isna(val) or str(val).strip() in ['', '0:00']: return 0.0
-                parts = str(val).split(':')
-                return float(int(parts[0]) * 60 + int(parts[1]))
+                p = str(v).split(':')
+                return float(int(p[0])*60 + int(p[1]))
             except: return 0.0
 
-        df['V_DESPACHO'] = df['VARIANZA DE DESPACHO'].apply(to_minutes) if 'VARIANZA DE DESPACHO' in df.columns else 0
-        df['V_ATENCION'] = df['VARIANZA DE LA ATENCION'].apply(to_minutes) if 'VARIANZA DE LA ATENCION' in df.columns else 0
-        df['V_CIERRE'] = df['VARIANZA DEL CIERRE'].apply(to_minutes) if 'VARIANZA DEL CIERRE' in df.columns else 0
+        for c in ['VARIANZA DE DESPACHO', 'VARIANZA DE LA ATENCION', 'VARIANZA DEL CIERRE', 'VARIANZA DE CIERRE']:
+            if c in df.columns: df[c+'_M'] = df[c].apply(to_m)
 
         cols_pos = [c for c in df.columns if 'RESULTADO POSITIVO' in c.upper()]
-        df['Total_Positivos_Fila'] = df[cols_pos].notna().sum(axis=1)
+        df['T_POS_COUNT'] = df[cols_pos].notna().sum(axis=1)
         
         if 'CENTRO' in df.columns:
             df['CENTRO'] = df['CENTRO'].astype(str).str.replace('CONTRA', 'CON').str.strip()
             
-        return df[df['Total_Positivos_Fila'] > 0].copy()
+        return df[df['T_POS_COUNT'] > 0].copy()
     except: return None
 
 df_raw = load_full_data()
 
 if df_raw is not None:
-    # --- FILTROS LATERALES ---
-    st.sidebar.header("🔎 Filtros")
-    f_inicio = st.sidebar.date_input("Fecha Desde:", value=df_raw['FECHA_DT'].min())
-    f_fin = st.sidebar.date_input("Fecha Hasta:", value=df_raw['FECHA_DT'].max())
-    
-    lista_horas = list(range(24))
-    h_inicio = st.sidebar.selectbox("Hora Desde:", lista_horas, index=0)
-    h_fin = st.sidebar.selectbox("Hora Hasta:", lista_horas, index=23)
+    # --- FILTROS ---
+    with st.sidebar:
+        st.header("🔎 Filtros")
+        f1 = st.date_input("Desde:", df_raw['FECHA_DT'].min())
+        f2 = st.date_input("Hasta:", df_raw['FECHA_DT'].max())
+        h1 = st.selectbox("Hora Desde:", list(range(24)), index=0)
+        h2 = st.selectbox("Hora Hasta:", list(range(24)), index=23)
 
-    df = df_raw[
-        (df_raw['FECHA_DT'] >= f_inicio) & (df_raw['FECHA_DT'] <= f_fin) &
-        (df_raw['HORA_NUM'] >= h_inicio) & (df_raw['HORA_NUM'] <= h_fin)
-    ].copy()
+    df = df_raw[(df_raw['FECHA_DT'] >= f1) & (df_raw['FECHA_DT'] <= f2) & 
+                (df_raw['HORA_NUM'] >= h1) & (df_raw['HORA_NUM'] <= h2)].copy()
 
-    # --- MÉTRICAS ---
+    # --- MÉTRICAS PRINCIPALES ---
     st.title("🛡️ Hexágono S-Portal | Command Center")
-    t_pos = int(df['Total_Positivos_Fila'].sum())
+    total_eventos = len(df)
+    total_positivos = int(df['T_POS_COUNT'].sum())
+
     m1, m2, m3, m4, m5 = st.columns(5)
-    m1.metric("📊 EVENTOS", f"{len(df):,}")
-    m2.metric("✅ POSITIVOS", f"{t_pos:,}")
-    m3.metric("⏱️ DESPACHO", f"{df['V_DESPACHO'].mean():.1f} min")
-    m4.metric("🤝 ATENCIÓN", f"{df['V_ATENCION'].mean():.1f} min")
-    m5.metric("🔐 CIERRE", f"{df['V_CIERRE'].mean():.1f} min")
+    m1.metric("📊 EVENTOS", f"{total_eventos:,}")
+    m2.metric("✅ POSITIVOS", f"{total_positivos:,}")
+    m3.metric("⏱️ DESPACHO", f"{df.get('VARIANZA DE DESPACHO_M', pd.Series([0])).mean():.1f} min")
+    m4.metric("🤝 ATENCIÓN", f"{df.get('VARIANZA DE LA ATENCION_M', pd.Series([0])).mean():.1f} min")
+    m5.metric("🔐 CIERRE", f"{df.get('VARIANZA DEL CIERRE_M', df.get('VARIANZA DE CIERRE_M', pd.Series([0]))).mean():.1f} min")
 
     st.markdown("---")
 
-    # --- MAPA DE CALOR (RESTAURADO) ---
+    # --- MAPA CON TOTAL DE POSITIVOS AGREGADO ---
     st.subheader("📍 Mapa de Calor Provincial")
     if 'PROVINCIA' in df.columns:
-        prov_stats = df.groupby('PROVINCIA')['Total_Positivos_Fila'].sum().reset_index()
-        coords = {'Panamá': [8.98, -79.52], 'Chiriquí': [8.43, -82.43], 'Colón': [9.35, -79.90],
-                  'Panamá Oeste': [8.88, -79.78], 'Coclé': [8.51, -80.35], 'Veraguas': [8.10, -80.97],
-                  'Los Santos': [7.93, -80.48], 'Herrera': [7.96, -80.70], 'Darién': [8.40, -77.91],
-                  'Bocas del Toro': [9.33, -82.24]}
+        prov_stats = df.groupby('PROVINCIA')['T_POS_COUNT'].sum().reset_index()
+        coords = {'Panamá':[8.98,-79.52], 'Chiriquí':[8.43,-82.43], 'Colón':[9.35,-79.9], 'Panamá Oeste':[8.88,-79.78], 'Coclé':[8.51,-80.35], 'Veraguas':[8.1,-80.97], 'Los Santos':[7.93,-80.48], 'Herrera':[7.96,-80.7], 'Darién':[8.4,-77.91], 'Bocas del Toro':[9.33,-82.24]}
         prov_stats['lat'] = prov_stats['PROVINCIA'].map(lambda x: coords.get(x, [8.5, -80.0])[0])
         prov_stats['lon'] = prov_stats['PROVINCIA'].map(lambda x: coords.get(x, [8.5, -80.0])[1])
-
+        
         c_map, c_rank = st.columns([2, 1])
         with c_map:
-            st.markdown(f"""<div class="floating-metric"><small style="color:#94a3b8; font-size:10px;">Total Filtrado</small><br><span style="font-size:22px; font-weight:bold; color:#00ebff;">{t_pos:,}</span></div>""", unsafe_allow_html=True)
-            fig_map = px.density_mapbox(prov_stats, lat='lat', lon='lon', z='Total_Positivos_Fila', radius=40, center=dict(lat=8.5, lon=-80.0), zoom=6, mapbox_style="carto-darkmatter", color_continuous_scale="Blues")
-            fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, paper_bgcolor='rgba(0,0,0,0)')
+            # Cuadro de total sobre el mapa
+            st.markdown(f"""
+                <div class="map-overlay-total">
+                    <small style="color:#00ebff; text-transform:uppercase; font-size:11px;">Total Positivos</small><br>
+                    <span style="font-size:24px; font-weight:bold; color:white;">{total_positivos:,}</span>
+                </div>
+                """, unsafe_allow_html=True)
+            
+            fig_map = px.density_mapbox(prov_stats, lat='lat', lon='lon', z='T_POS_COUNT', radius=35, center=dict(lat=8.5, lon=-80.0), zoom=6, mapbox_style="carto-darkmatter")
+            fig_map.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, paper_bgcolor='rgba(0,0,0,0)', showlegend=False)
             st.plotly_chart(fig_map, use_container_width=True)
         with c_rank:
-            st.write("**Ranking Provincial**")
-            st.dataframe(prov_stats[['PROVINCIA', 'Total_Positivos_Fila']].sort_values('Total_Positivos_Fila', ascending=False), hide_index=True, use_container_width=True)
-    
+            st.write("**Ranking de Impacto**")
+            # Lat/Lon eliminados de la vista
+            st.dataframe(prov_stats[['PROVINCIA', 'T_POS_COUNT']].sort_values('T_POS_COUNT', ascending=False), hide_index=True, use_container_width=True)
+
     st.markdown("---")
 
     # --- PASTELES ---
-    col_p1, col_p2 = st.columns(2)
-    with col_p1:
-        st.write("**📱 Por Canal de Entrada**")
-        st.plotly_chart(px.pie(df, names='CANAL DE ENTRADA', values='Total_Positivos_Fila', hole=0.5), use_container_width=True)
-    with col_p2:
-        st.write("**🏢 Por Centro**")
-        st.plotly_chart(px.pie(df, names='CENTRO', values='Total_Positivos_Fila', hole=0.5, color_discrete_sequence=px.colors.sequential.Tealgrn), use_container_width=True)
+    cp1, cp2 = st.columns(2)
+    cp1.plotly_chart(px.pie(df, names='CANAL DE ENTRADA', values='T_POS_COUNT', title="Canales"), use_container_width=True)
+    cp2.plotly_chart(px.pie(df, names='CENTRO', values='T_POS_COUNT', title="Centros", color_discrete_sequence=px.colors.sequential.Tealgrn), use_container_width=True)
+
+    # --- TABLAS CON TOTALES SINCRONIZADOS ---
+    st.subheader("📋 Detalle: Tipos vs Centros")
+    c_p_list = [c for c in df.columns if 'RESULTADO POSITIVO' in c.upper()]
+    df_l = pd.melt(df, id_vars=['CENTRO'], value_vars=c_p_list).dropna()
+    t_c = df_l.groupby(['value', 'CENTRO']).size().unstack(fill_value=0)
+    t_c = t_c[t_c.sum().sort_values(ascending=False).index]
+    t_c['TOTAL'] = t_c.sum(axis=1)
+    st.dataframe(pd.concat([t_c.sort_values('TOTAL', ascending=False), t_c.sum().to_frame(name='TOTAL GENERAL').T]), use_container_width=True)
 
     st.markdown("---")
-
-    # --- TABLA TÁCTICA ORIGINAL (ORDENADA Y CON TOTALES) ---
-    st.subheader("📋 Detalle de Positivos: Tipos vs Centros")
-    cols_p = [c for c in df.columns if 'RESULTADO POSITIVO' in c.upper()]
-    df_l = pd.melt(df, id_vars=['CENTRO'], value_vars=cols_p, value_name='Tipo').dropna()
-    if not df_l.empty:
-        tab_centros = df_l.groupby(['Tipo', 'CENTRO']).size().unstack(fill_value=0)
-        tab_centros = tab_centros[tab_centros.sum(axis=0).sort_values(ascending=False).index]
-        tab_centros['TOTAL IMPACTO'] = tab_centros.sum(axis=1)
-        tab_centros = tab_centros.sort_values('TOTAL IMPACTO', ascending=False)
-        tot_v = tab_centros.sum(axis=0).to_frame().T
-        tot_v.index = ['TOTAL GENERAL']
-        st.dataframe(pd.concat([tab_centros, tot_v]), use_container_width=True)
-
-    st.markdown("---")
-
-    # --- LOS DOS CUADROS NUEVOS ---
-    col_n1, col_n2 = st.columns(2)
-    with col_n1:
+    cn1, cn2 = st.columns(2)
+    with cn1:
         st.subheader("📉 CIERRE DEL INCIDENTES-SUBTIPO")
-        col_c = next((c for c in df.columns if 'SUBTIPO' in c.upper() or 'TIPO' == c.upper()), None)
-        if col_c:
-            tab_sub = df.groupby([col_c, 'CENTRO']).size().unstack(fill_value=0)
-            tab_sub = tab_sub[tab_sub.sum(axis=0).sort_values(ascending=False).index]
-            tab_sub['TOTAL'] = tab_sub.sum(axis=1)
-            tab_sub = tab_sub.sort_values('TOTAL', ascending=False)
-            sum_s = tab_sub.sum(axis=0).to_frame().T
-            sum_s.index = ['TOTAL GENERAL']
-            st.dataframe(pd.concat([tab_sub, sum_s]), use_container_width=True, height=400)
+        col_sb = next((c for c in df.columns if 'SUBTIPO' in c.upper() or 'TIPO' == c.upper()), None)
+        if col_sb:
+            df[col_sb] = df[col_sb].fillna("NO DEFINIDO")
+            t_sb = df.groupby([col_sb, 'CENTRO']).size().unstack(fill_value=0)
+            t_sb = t_sb[t_sb.sum(axis=0).sort_values(ascending=False).index]
+            t_sb['TOTAL'] = t_sb.sum(axis=1)
+            st.dataframe(pd.concat([t_sb.sort_values('TOTAL', ascending=False), t_sb.sum().to_frame(name='TOTAL GENERAL').T]), use_container_width=True, height=400)
 
-    with col_n2:
+    with cn2:
         st.subheader("🚔 ZP., SERVICIO POLICIAL O ENLACE")
         col_zp = next((c for c in df.columns if any(k in c.upper() for k in ['ZONA', 'ZP', 'SERVICIO'])), None)
         if col_zp:
-            zp_stats = df.groupby(col_zp)['Total_Positivos_Fila'].sum().reset_index().sort_values('Total_Positivos_Fila', ascending=False)
-            total_z = pd.DataFrame({col_zp: ['TOTAL GENERAL'], 'Total_Positivos_Fila': [zp_stats['Total_Positivos_Fila'].sum()]})
+            zp_stats = df.groupby(col_zp)['T_POS_COUNT'].sum().reset_index().sort_values('T_POS_COUNT', ascending=False)
+            total_z = pd.DataFrame({col_zp: ['TOTAL GENERAL'], 'T_POS_COUNT': [zp_stats['T_POS_COUNT'].sum()]})
             st.dataframe(pd.concat([zp_stats, total_z]), use_container_width=True, height=400, hide_index=True)
-else:
-    st.error("Fallo al cargar base de datos.")
+
+    time.sleep(1)
+    st.rerun()
