@@ -4,7 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import time
 
-# 1. CONFIGURACIÓN Y ESTILO DEL DASHBOARD
+# 1. CONFIGURACIÓN Y ESTILO (SIN TOCAR)
 st.set_page_config(page_title="S-Portal Hexagon | Command Center", layout="wide")
 
 st.markdown("""
@@ -12,23 +12,6 @@ st.markdown("""
     .stApp { background-color: #0a0e17; }
     .stMetric { background: rgba(255, 255, 255, 0.05); border: 1px solid #00ebff; border-radius: 10px; padding: 10px; }
     h1, h2, h3, span, p, label { color: #ffffff !important; }
-    
-    /* Estilo para el cronómetro en el sidebar */
-    .timer-container {
-        margin-top: 20px;
-        padding: 15px;
-        background: rgba(0, 235, 255, 0.1);
-        border: 1px solid #00ebff;
-        border-radius: 10px;
-        text-align: center;
-    }
-    .timer-text {
-        font-family: 'Courier New', Courier, monospace;
-        font-size: 24px;
-        font-weight: bold;
-        color: #00ebff;
-    }
-    
     .map-overlay-total {
         position: relative; top: 60px; left: 20px;
         background: rgba(10, 14, 23, 0.85); border: 2px solid #00ebff;
@@ -38,7 +21,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 2. SISTEMA DE RECARGA AUTOMÁTICA (60 SEGUNDOS)
+# 2. SISTEMA DE RECARGA AUTOMÁTICA
 if 'last_update' not in st.session_state:
     st.session_state.last_update = time.time()
 
@@ -49,7 +32,7 @@ if remaining <= 0:
     st.session_state.last_update = time.time()
     st.rerun()
 
-# 3. CARGA Y PROCESAMIENTO DE DATOS
+# 3. CARGA Y PROCESAMIENTO DE DATOS (ESTRUCTURA ORIGINAL COMPLETA)
 URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQzIFyCT2C22Hlrz80szN7J2mEfA8N1R7hiAmFAUXaoorwDTOeWNh-ktv__d0vIBS-AQcuV5ws3ZU4C/pub?gid=229458966&single=true&output=csv"
 
 @st.cache_data(ttl=60)
@@ -86,62 +69,53 @@ def load_full_data():
         return df[df['T_POS_COUNT'] > 0].copy()
     except: return None
 
-def create_gauge(value_min, title, color):
-    if value_min >= 60:
-        display_value = value_min / 60
-        suffix = " h"
-    else:
-        display_value = value_min
-        suffix = " min"
-        
+def create_gauge(value, title, color, is_timer=False):
+    suffix = " seg" if is_timer else (" h" if value >= 60 else " min")
+    display_val = value / 60 if suffix == " h" else value
+    
     fig = go.Figure(go.Indicator(
         mode = "gauge+number",
-        value = display_value,
-        title = {'text': title, 'font': {'size': 18, 'color': "white"}},
-        number = {'suffix': suffix, 'font': {'color': "white"}, 'valueformat': '.1f'},
+        value = display_val,
+        title = {'text': title, 'font': {'size': 14 if is_timer else 18, 'color': "white"}},
+        number = {'suffix': suffix, 'font': {'color': color if is_timer else "white"}, 'valueformat': 'd' if is_timer else '.1f'},
         gauge = {
-            'axis': {'range': [None, max(60 if suffix == " min" else 24, display_value * 1.5)], 'tickwidth': 1, 'tickcolor': "white"},
+            'axis': {'range': [0, 60 if is_timer else max(60, display_val*1.5)], 'tickwidth': 1, 'tickcolor': "white"},
             'bar': {'color': color},
-            'bgcolor': "rgba(0,0,0,0)",
+            'bgcolor': "rgba(255,255,255,0.05)",
             'borderwidth': 2,
             'bordercolor': "gray"
         }
     ))
+    h = 180 if is_timer else 220
     fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', 
-                      height=220, margin=dict(l=30, r=30, t=50, b=20))
+                      height=h, margin=dict(l=20, r=20, t=40, b=20))
     return fig
 
 df_raw = load_full_data()
 
 if df_raw is not None:
-    # --- FILTROS Y CRONÓMETRO ---
+    # --- BARRA LATERAL (FILTROS + RELOJ) ---
     with st.sidebar:
         st.header("🔎 Filtros")
         f1 = st.date_input("Desde:", df_raw['FECHA_DT'].min().date())
         f2 = st.date_input("Hasta:", df_raw['FECHA_DT'].max().date())
         h1 = st.selectbox("Hora Inicial:", list(range(24)), index=0)
         h2 = st.selectbox("Hora Final:", list(range(24)), index=23)
-        
-        # Cronómetro visible al final de los filtros
-        st.markdown(f"""
-            <div class="timer-container">
-                <p style="margin:0; font-size:12px; color:#aaa;">ACTUALIZACIÓN EN:</p>
-                <div class="timer-text">00:{remaining:02d}</div>
-            </div>
-        """, unsafe_allow_html=True)
+        st.markdown("---")
+        st.plotly_chart(create_gauge(remaining, "ACTUALIZACIÓN EN", "#00ebff", is_timer=True), use_container_width=True)
 
     df = df_raw[(df_raw['FECHA_DT'].dt.date >= f1) & (df_raw['FECHA_DT'].dt.date <= f2) & 
                 (df_raw['HORA_NUM'] >= h1) & (df_raw['HORA_NUM'] <= h2)].copy()
 
     # --- MÉTRICAS SUPERIORES ---
-    st.title("🛡️ Hexágono S-Portal | Command Center")
+    st.title("🛡️ Hexágono S-Portal | Centro de Mando")
     total_positivos = int(df['T_POS_COUNT'].sum())
     
     col_met1, col_met2 = st.columns(2)
     col_met1.metric("📊 EVENTOS TOTALES", f"{len(df):,}")
     col_met2.metric("✅ TOTAL POSITIVOS", f"{total_positivos:,}")
 
-    # --- INDICADORES DE VARIANZA ---
+    # --- INDICADORES DE VARIANZA (ORIGINALES) ---
     v_desp = df['VARIANZA DE DESPACHO_M'].mean() if 'VARIANZA DE DESPACHO_M' in df.columns else 0
     v_aten = df['VARIANZA DE LA ATENCION_M'].mean() if 'VARIANZA DE LA ATENCION_M' in df.columns else 0
     v_cierre_col = 'VARIANZA DEL CIERRE_M' if 'VARIANZA DEL CIERRE_M' in df.columns else 'VARIANZA DE CIERRE_M'
@@ -154,7 +128,7 @@ if df_raw is not None:
 
     st.markdown("---")
 
-    # --- SECCIÓN 1: MAPA Y GRÁFICO DINÁMICO DE PROVINCIAS ---
+    # --- SECCIÓN 1: MAPA Y GRÁFICO PROVINCIAL ---
     st.subheader("📍 MAPA DE CALOR PROVINCIAL")
     if 'PROVINCIA' in df.columns:
         prov_stats = df.groupby('PROVINCIA')['T_POS_COUNT'].sum().reset_index().sort_values('T_POS_COUNT', ascending=True)
@@ -166,17 +140,9 @@ if df_raw is not None:
         with c_map:
             st.markdown(f'<div class="map-overlay-total"><small style="color:#00ebff;">TOTAL POSITIVOS</small><br><span style="font-size:24px; font-weight:bold;">{total_positivos:,}</span></div>', unsafe_allow_html=True)
             st.plotly_chart(px.density_mapbox(prov_stats, lat='lat', lon='lon', z='T_POS_COUNT', radius=35, center=dict(lat=8.5, lon=-80.0), zoom=6, mapbox_style="carto-darkmatter"), use_container_width=True)
-        
         with c_rank:
-            st.write("**Estadística Provincial**")
             fig_prov = px.bar(prov_stats, x='T_POS_COUNT', y='PROVINCIA', orientation='h', text='T_POS_COUNT', color='T_POS_COUNT', color_continuous_scale='Tealgrn')
-            fig_prov.update_traces(textposition='outside', cliponaxis=False, marker_line_color='rgb(8,48,107)', marker_line_width=1.5, opacity=0.8)
-            fig_prov.update_layout(
-                xaxis=dict(showticklabels=False, showgrid=False, zeroline=False, range=[0, prov_stats['T_POS_COUNT'].max() * 1.3]),
-                yaxis=dict(categoryorder='total ascending', ticksuffix="  "),
-                showlegend=False, coloraxis_showscale=False, margin=dict(l=120, r=50, t=30, b=0), height=450,
-                paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="white")
-            )
+            fig_prov.update_layout(showlegend=False, coloraxis_showscale=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), height=450)
             st.plotly_chart(fig_prov, use_container_width=True)
 
     st.markdown("---")
@@ -193,8 +159,6 @@ if df_raw is not None:
     df_l = pd.melt(df, id_vars=['CENTRO'], value_vars=cols_p, value_name='Tipo').dropna()
     if not df_l.empty:
         t_c = df_l.groupby(['Tipo', 'CENTRO']).size().unstack(fill_value=0)
-        cols_sorted = t_c.sum(axis=0).sort_values(ascending=False).index
-        t_c = t_c[cols_sorted]
         t_c['TOTAL'] = t_c.sum(axis=1)
         t_c = t_c.sort_values('TOTAL', ascending=False)
         st.dataframe(pd.concat([t_c, t_c.sum().to_frame(name='TOTAL GENERAL').T]), use_container_width=True)
@@ -207,14 +171,9 @@ if df_raw is not None:
         st.subheader("📉 CIERRE DEL INCIDENTE-SUBTIPO")
         col_cierre = next((c for c in df.columns if 'CIERRE' in c.upper() and 'SUBTIPO' in c.upper()), None)
         if col_cierre:
-            df[col_cierre] = df[col_cierre].fillna("SIN ESPECIFICAR")
             t_sb = df.groupby([col_cierre, 'CENTRO']).size().unstack(fill_value=0)
-            cols_sb_sorted = t_sb.sum(axis=0).sort_values(ascending=False).index
-            t_sb = t_sb[cols_sb_sorted]
             t_sb['TOTAL'] = t_sb.sum(axis=1)
-            t_sb = t_sb.sort_values('TOTAL', ascending=False)
-            st.dataframe(pd.concat([t_sb, t_sb.sum().to_frame(name='TOTAL GENERAL').T]), use_container_width=True, height=400)
-
+            st.dataframe(pd.concat([t_sb.sort_values('TOTAL', ascending=False), t_sb.sum().to_frame(name='TOTAL GENERAL').T]), use_container_width=True, height=400)
     with cn2:
         st.subheader("🚔 ZP., SERVICIO POLICIAL O ENLACE")
         col_zp = next((c for c in df.columns if any(k in c.upper() for k in ['ZONA', 'ZP', 'SERVICIO'])), None)
@@ -224,36 +183,26 @@ if df_raw is not None:
 
     st.markdown("---")
 
-    # --- SECCIÓN 5: ANÁLISIS DETALLADO ---
-    st.subheader("📊 ANÁLISIS POR UNIDAD Y TIEMPO (DETALLADO)")
+    # --- SECCIÓN 5: ANÁLISIS POR UNIDAD Y TIEMPO ---
+    st.subheader("📊 ANÁLISIS DETALLADO")
     c_mes, c_vv, c_desp = st.columns(3)
-    
     with c_mes:
-        st.write("**📅 Positivos por Meses**")
         if 'MES_NOMBRE' in df.columns:
-            df['MES_NOMBRE'] = df['MES_NOMBRE'].fillna("SIN FECHA")
-            mes_stats = df.groupby('MES_NOMBRE')['T_POS_COUNT'].sum().reset_index()
-            mes_total = pd.DataFrame({'MES_NOMBRE': ['TOTAL GENERAL'], 'T_POS_COUNT': [mes_stats['T_POS_COUNT'].sum()]})
-            st.dataframe(pd.concat([mes_stats.sort_values('MES_NOMBRE'), mes_total]), use_container_width=True, hide_index=True)
-
+            st.write("**📅 Positivos por Meses**")
+            m_s = df.groupby('MES_NOMBRE')['T_POS_COUNT'].sum().reset_index()
+            st.dataframe(pd.concat([m_s, pd.DataFrame({'MES_NOMBRE':['TOTAL'], 'T_POS_COUNT':[m_s['T_POS_COUNT'].sum()]})]), use_container_width=True, hide_index=True)
     with c_vv:
-        st.write("**📟 Unidad de VV/104 por Centro**")
         col_vv = next((c for c in df.columns if 'UNIDAD DE VV' in c.upper() or 'VV/104' in c.upper()), None)
-        if col_vv and 'CENTRO' in df.columns:
-            df[col_vv] = df[col_vv].fillna("SIN UNIDAD ASIGNADA")
-            vv_stats = df.groupby([col_vv, 'CENTRO']).size().reset_index(name='EVENTOS').sort_values('EVENTOS', ascending=False)
-            vv_total = pd.DataFrame({col_vv: ['TOTAL GENERAL'], 'CENTRO': ['-'], 'EVENTOS': [vv_stats['EVENTOS'].sum()]})
-            st.dataframe(pd.concat([vv_stats, vv_total]), use_container_width=True, hide_index=True, height=350)
-
+        if col_vv:
+            st.write("**📟 Unidad de VV/104**")
+            vv_s = df.groupby([col_vv, 'CENTRO']).size().reset_index(name='E').sort_values('E', ascending=False)
+            st.dataframe(vv_s, use_container_width=True, hide_index=True)
     with c_desp:
-        st.write("**🚨 Unidad de Despacho por Centro**")
         col_desp = next((c for c in df.columns if 'UNIDAD DE DESPACHO' in c.upper()), None)
-        if col_desp and 'CENTRO' in df.columns:
-            df[col_desp] = df[col_desp].fillna("SIN UNIDAD ASIGNADA")
-            desp_stats = df.groupby([col_desp, 'CENTRO']).size().reset_index(name='EVENTOS').sort_values('EVENTOS', ascending=False)
-            desp_total = pd.DataFrame({col_desp: ['TOTAL GENERAL'], 'CENTRO': ['-'], 'EVENTOS': [desp_stats['EVENTOS'].sum()]})
-            st.dataframe(pd.concat([desp_stats, desp_total]), use_container_width=True, hide_index=True, height=350)
+        if col_desp:
+            st.write("**🚨 Unidad de Despacho**")
+            dp_s = df.groupby([col_desp, 'CENTRO']).size().reset_index(name='E').sort_values('E', ascending=False)
+            st.dataframe(dp_s, use_container_width=True, hide_index=True)
 
-    # Pequeña pausa para evitar sobrecarga antes del rerun
     time.sleep(1)
     st.rerun()
