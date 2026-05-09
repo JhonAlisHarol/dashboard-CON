@@ -106,20 +106,50 @@ if df_raw is not None:
 
     st.markdown("---")
 
-    # --- SECCIÓN 1: MAPA ---
+    # --- SECCIÓN 1: MAPA Y GRÁFICO DINÁMICO DE PROVINCIAS ---
     st.subheader("📍 MAPA DE CALOR PROVINCIAL")
     if 'PROVINCIA' in df.columns:
-        prov_stats = df.groupby('PROVINCIA')['T_POS_COUNT'].sum().reset_index()
+        prov_stats = df.groupby('PROVINCIA')['T_POS_COUNT'].sum().reset_index().sort_values('T_POS_COUNT', ascending=True)
         coords = {'Panamá':[8.98,-79.52], 'Chiriquí':[8.43,-82.43], 'Colón':[9.35,-79.9], 'Panamá Oeste':[8.88,-79.78], 'Coclé':[8.51,-80.35], 'Veraguas':[8.1,-80.97], 'Los Santos':[7.93,-80.48], 'Herrera':[7.96,-80.7], 'Darién':[8.4,-77.91], 'Bocas del Toro':[9.33,-82.24]}
         prov_stats['lat'] = prov_stats['PROVINCIA'].map(lambda x: coords.get(x, [8.5, -80.0])[0])
         prov_stats['lon'] = prov_stats['PROVINCIA'].map(lambda x: coords.get(x, [8.5, -80.0])[1])
+        
         c_map, c_rank = st.columns([2, 1])
         with c_map:
             st.markdown(f'<div class="map-overlay-total"><small style="color:#00ebff;">TOTAL POSITIVOS</small><br><span style="font-size:24px; font-weight:bold;">{total_positivos:,}</span></div>', unsafe_allow_html=True)
             st.plotly_chart(px.density_mapbox(prov_stats, lat='lat', lon='lon', z='T_POS_COUNT', radius=35, center=dict(lat=8.5, lon=-80.0), zoom=6, mapbox_style="carto-darkmatter"), use_container_width=True)
+        
         with c_rank:
-            st.write("**Ranking Provincial**")
-            st.dataframe(prov_stats[['PROVINCIA', 'T_POS_COUNT']].sort_values('T_POS_COUNT', ascending=False), hide_index=True, use_container_width=True)
+            st.write("**Estadística Provincial**")
+            # --- AJUSTE AQUÍ PARA QUE NO SE RECORTE ---
+            fig_prov = px.bar(
+                prov_stats, 
+                x='T_POS_COUNT', 
+                y='PROVINCIA', 
+                orientation='h',
+                text='T_POS_COUNT',
+                color='T_POS_COUNT',
+                color_continuous_scale='Tealgrn'
+            )
+            fig_prov.update_traces(
+                textposition='outside', 
+                cliponaxis=False, # Evita que se recorte el número
+                marker_line_color='rgb(8,48,107)', 
+                marker_line_width=1.5, 
+                opacity=0.8
+            )
+            fig_prov.update_layout(
+                xaxis=dict(showticklabels=False, showgrid=False, zeroline=False, range=[0, prov_stats['T_POS_COUNT'].max() * 1.2]), # Espacio extra al final
+                yaxis=dict(categoryorder='total ascending', ticksuffix="  "), # Espacio entre nombre y barra
+                showlegend=False, 
+                coloraxis_showscale=False,
+                margin=dict(l=120, r=50, t=30, b=0), # Margen izquierdo amplio para nombres de provincias
+                height=450,
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(color="white")
+            )
+            st.plotly_chart(fig_prov, use_container_width=True)
 
     st.markdown("---")
 
@@ -129,16 +159,14 @@ if df_raw is not None:
     with cp1: st.plotly_chart(px.pie(df, names='CANAL DE ENTRADA', values='T_POS_COUNT', title="Proporción por Canales", hole=0.5), use_container_width=True)
     with cp2: st.plotly_chart(px.pie(df, names='CENTRO', values='T_POS_COUNT', title="Proporción por Centros", hole=0.5, color_discrete_sequence=px.colors.sequential.Tealgrn), use_container_width=True)
 
-    # --- SECCIÓN 3: TABLA TIPOS VS CENTROS (ORDENADO CENTROS Y FILAS) ---
+    # --- SECCIÓN 3: TABLA TIPOS VS CENTROS ---
     st.subheader("📋 DETALLE: TIPOS VS CENTROS")
     cols_p = [c for c in df.columns if 'RESULTADO POSITIVO' in c.upper()]
     df_l = pd.melt(df, id_vars=['CENTRO'], value_vars=cols_p, value_name='Tipo').dropna()
     if not df_l.empty:
         t_c = df_l.groupby(['Tipo', 'CENTRO']).size().unstack(fill_value=0)
-        # Ordenar columnas (Centros) de mayor a menor según su suma total
         cols_sorted = t_c.sum(axis=0).sort_values(ascending=False).index
         t_c = t_c[cols_sorted]
-        # Ordenar filas (Tipos) por el total
         t_c['TOTAL'] = t_c.sum(axis=1)
         t_c = t_c.sort_values('TOTAL', ascending=False)
         st.dataframe(pd.concat([t_c, t_c.sum().to_frame(name='TOTAL GENERAL').T]), use_container_width=True)
@@ -153,10 +181,8 @@ if df_raw is not None:
         if col_cierre:
             df[col_cierre] = df[col_cierre].fillna("SIN ESPECIFICAR")
             t_sb = df.groupby([col_cierre, 'CENTRO']).size().unstack(fill_value=0)
-            # Ordenar columnas (Centros) de mayor a menor
             cols_sb_sorted = t_sb.sum(axis=0).sort_values(ascending=False).index
             t_sb = t_sb[cols_sb_sorted]
-            # Ordenar filas por el total
             t_sb['TOTAL'] = t_sb.sum(axis=1)
             t_sb = t_sb.sort_values('TOTAL', ascending=False)
             st.dataframe(pd.concat([t_sb, t_sb.sum().to_frame(name='TOTAL GENERAL').T]), use_container_width=True, height=400)
