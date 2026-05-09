@@ -4,7 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import time
 
-# 1. CONFIGURACIÓN Y ESTILO (SIN TOCAR)
+# 1. CONFIGURACIÓN Y ESTILO
 st.set_page_config(page_title="S-Portal Hexagon | Command Center", layout="wide")
 
 st.markdown("""
@@ -32,7 +32,7 @@ if remaining <= 0:
     st.session_state.last_update = time.time()
     st.rerun()
 
-# 3. CARGA Y PROCESAMIENTO DE DATOS (ESTRUCTURA ORIGINAL COMPLETA)
+# 3. CARGA Y PROCESAMIENTO DE DATOS
 URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQzIFyCT2C22Hlrz80szN7J2mEfA8N1R7hiAmFAUXaoorwDTOeWNh-ktv__d0vIBS-AQcuV5ws3ZU4C/pub?gid=229458966&single=true&output=csv"
 
 @st.cache_data(ttl=60)
@@ -41,6 +41,10 @@ def load_full_data():
         df = pd.read_csv(URL_CSV)
         df.columns = df.columns.str.strip()
         
+        # Corrección de nombres de Centros
+        if 'CENTRO' in df.columns:
+            df['CENTRO'] = df['CENTRO'].astype(str).str.replace('CONTRA', 'CON', case=False).str.strip()
+            
         col_f = next((c for c in df.columns if 'FECHA' in c.upper()), None)
         if col_f: 
             df['FECHA_DT'] = pd.to_datetime(df[col_f], dayfirst=True, errors='coerce')
@@ -62,9 +66,6 @@ def load_full_data():
 
         cols_pos = [c for c in df.columns if 'RESULTADO POSITIVO' in c.upper()]
         df['T_POS_COUNT'] = df[cols_pos].notna().sum(axis=1)
-        
-        if 'CENTRO' in df.columns:
-            df['CENTRO'] = df['CENTRO'].astype(str).str.replace('CONTRA', 'CON').str.strip()
             
         return df[df['T_POS_COUNT'] > 0].copy()
     except: return None
@@ -72,42 +73,30 @@ def load_full_data():
 def create_gauge(value, title, color, is_timer=False):
     suffix = " seg" if is_timer else (" h" if value >= 60 else " min")
     display_val = value / 60 if suffix == " h" else value
-    
     fig = go.Figure(go.Indicator(
         mode = "gauge+number",
         value = display_val,
-        title = {'text': title, 'font': {'size': 14 if is_timer else 18, 'color': "white"}},
-        number = {'suffix': suffix, 'font': {'color': color if is_timer else "white"}, 'valueformat': 'd' if is_timer else '.1f'},
-        gauge = {
-            'axis': {'range': [0, 60 if is_timer else max(60, display_val*1.5)], 'tickwidth': 1, 'tickcolor': "white"},
-            'bar': {'color': color},
-            'bgcolor': "rgba(255,255,255,0.05)",
-            'borderwidth': 2,
-            'bordercolor': "gray"
-        }
+        title = {'text': title, 'font': {'size': 14, 'color': "white"}},
+        number = {'suffix': suffix, 'font': {'color': "white"}},
+        gauge = {'axis': {'range': [0, 60 if is_timer else max(60, display_val*1.5)]}, 'bar': {'color': color}}
     ))
-    h = 180 if is_timer else 220
-    fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', 
-                      height=h, margin=dict(l=20, r=20, t=40, b=20))
+    fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', height=200, margin=dict(l=20, r=20, t=40, b=20))
     return fig
 
 df_raw = load_full_data()
 
 if df_raw is not None:
-    # --- BARRA LATERAL (FILTROS + RELOJ) ---
     with st.sidebar:
         st.header("🔎 Filtros")
         f1 = st.date_input("Desde:", df_raw['FECHA_DT'].min().date())
         f2 = st.date_input("Hasta:", df_raw['FECHA_DT'].max().date())
         h1 = st.selectbox("Hora Inicial:", list(range(24)), index=0)
         h2 = st.selectbox("Hora Final:", list(range(24)), index=23)
-        st.markdown("---")
-        st.plotly_chart(create_gauge(remaining, "ACTUALIZACIÓN EN", "#00ebff", is_timer=True), use_container_width=True)
+        st.plotly_chart(create_gauge(remaining, "ACTUALIZACIÓN", "#00ebff", is_timer=True), use_container_width=True)
 
     df = df_raw[(df_raw['FECHA_DT'].dt.date >= f1) & (df_raw['FECHA_DT'].dt.date <= f2) & 
                 (df_raw['HORA_NUM'] >= h1) & (df_raw['HORA_NUM'] <= h2)].copy()
 
-    # --- MÉTRICAS SUPERIORES ---
     st.title("🛡️ Hexágono S-Portal | Centro de Mando")
     total_positivos = int(df['T_POS_COUNT'].sum())
     
@@ -115,7 +104,6 @@ if df_raw is not None:
     col_met1.metric("📊 EVENTOS TOTALES", f"{len(df):,}")
     col_met2.metric("✅ TOTAL POSITIVOS", f"{total_positivos:,}")
 
-    # --- INDICADORES DE VARIANZA (ORIGINALES) ---
     v_desp = df['VARIANZA DE DESPACHO_M'].mean() if 'VARIANZA DE DESPACHO_M' in df.columns else 0
     v_aten = df['VARIANZA DE LA ATENCION_M'].mean() if 'VARIANZA DE LA ATENCION_M' in df.columns else 0
     v_cierre_col = 'VARIANZA DEL CIERRE_M' if 'VARIANZA DEL CIERRE_M' in df.columns else 'VARIANZA DE CIERRE_M'
@@ -128,7 +116,7 @@ if df_raw is not None:
 
     st.markdown("---")
 
-    # --- SECCIÓN 1: MAPA Y GRÁFICO PROVINCIAL ---
+    # --- SECCIÓN 1: MAPA ---
     st.subheader("📍 MAPA DE CALOR PROVINCIAL")
     if 'PROVINCIA' in df.columns:
         prov_stats = df.groupby('PROVINCIA')['T_POS_COUNT'].sum().reset_index().sort_values('T_POS_COUNT', ascending=True)
@@ -142,7 +130,7 @@ if df_raw is not None:
             st.plotly_chart(px.density_mapbox(prov_stats, lat='lat', lon='lon', z='T_POS_COUNT', radius=35, center=dict(lat=8.5, lon=-80.0), zoom=6, mapbox_style="carto-darkmatter"), use_container_width=True)
         with c_rank:
             fig_prov = px.bar(prov_stats, x='T_POS_COUNT', y='PROVINCIA', orientation='h', text='T_POS_COUNT', color='T_POS_COUNT', color_continuous_scale='Tealgrn')
-            fig_prov.update_layout(showlegend=False, coloraxis_showscale=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), height=450)
+            fig_prov.update_layout(showlegend=False, coloraxis_showscale=False, paper_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), height=450)
             st.plotly_chart(fig_prov, use_container_width=True)
 
     st.markdown("---")
@@ -153,19 +141,23 @@ if df_raw is not None:
     with cp1: st.plotly_chart(px.pie(df, names='CANAL DE ENTRADA', values='T_POS_COUNT', title="Proporción por Canales", hole=0.5), use_container_width=True)
     with cp2: st.plotly_chart(px.pie(df, names='CENTRO', values='T_POS_COUNT', title="Proporción por Centros", hole=0.5, color_discrete_sequence=px.colors.sequential.Tealgrn), use_container_width=True)
 
-    # --- SECCIÓN 3: TABLA TIPOS VS CENTROS ---
+    # --- SECCIÓN 3: TABLA TIPOS VS CENTROS (Ordenada Mayor a Menor) ---
     st.subheader("📋 DETALLE: TIPOS VS CENTROS")
     cols_p = [c for c in df.columns if 'RESULTADO POSITIVO' in c.upper()]
     df_l = pd.melt(df, id_vars=['CENTRO'], value_vars=cols_p, value_name='Tipo').dropna()
     if not df_l.empty:
         t_c = df_l.groupby(['Tipo', 'CENTRO']).size().unstack(fill_value=0)
         t_c['TOTAL'] = t_c.sum(axis=1)
-        t_c = t_c.sort_values('TOTAL', ascending=False)
+        
+        # Ordenar columnas (Centros) de mayor a menor según volumen de positivos
+        orden_centros = t_c.drop(columns='TOTAL').sum().sort_values(ascending=False).index.tolist()
+        t_c = t_c[orden_centros + ['TOTAL']].sort_values('TOTAL', ascending=False)
+        
         st.dataframe(pd.concat([t_c, t_c.sum().to_frame(name='TOTAL GENERAL').T]), use_container_width=True)
 
     st.markdown("---")
 
-    # --- SECCIÓN 4: CIERRE Y ZONAS ---
+    # --- SECCIÓN 4: CIERRE (Ordenada Mayor a Menor) ---
     cn1, cn2 = st.columns(2)
     with cn1:
         st.subheader("📉 CIERRE DEL INCIDENTE-SUBTIPO")
@@ -173,7 +165,10 @@ if df_raw is not None:
         if col_cierre:
             t_sb = df.groupby([col_cierre, 'CENTRO']).size().unstack(fill_value=0)
             t_sb['TOTAL'] = t_sb.sum(axis=1)
-            st.dataframe(pd.concat([t_sb.sort_values('TOTAL', ascending=False), t_sb.sum().to_frame(name='TOTAL GENERAL').T]), use_container_width=True, height=400)
+            # Ordenar columnas (Centros) de mayor a menor
+            orden_c = t_sb.drop(columns='TOTAL').sum().sort_values(ascending=False).index.tolist()
+            t_sb = t_sb[orden_c + ['TOTAL']].sort_values('TOTAL', ascending=False)
+            st.dataframe(pd.concat([t_sb, t_sb.sum().to_frame(name='TOTAL GENERAL').T]), use_container_width=True, height=400)
     with cn2:
         st.subheader("🚔 ZP., SERVICIO POLICIAL O ENLACE")
         col_zp = next((c for c in df.columns if any(k in c.upper() for k in ['ZONA', 'ZP', 'SERVICIO'])), None)
@@ -183,26 +178,35 @@ if df_raw is not None:
 
     st.markdown("---")
 
-    # --- SECCIÓN 5: ANÁLISIS POR UNIDAD Y TIEMPO ---
-    st.subheader("📊 ANÁLISIS DETALLADO")
+    # --- SECCIÓN 5: ANÁLISIS DETALLADO (Totales y Sin Asignar) ---
+    st.subheader("📊 ANÁLISIS POR UNIDAD Y TIEMPO")
     c_mes, c_vv, c_desp = st.columns(3)
+    
     with c_mes:
         if 'MES_NOMBRE' in df.columns:
             st.write("**📅 Positivos por Meses**")
             m_s = df.groupby('MES_NOMBRE')['T_POS_COUNT'].sum().reset_index()
             st.dataframe(pd.concat([m_s, pd.DataFrame({'MES_NOMBRE':['TOTAL'], 'T_POS_COUNT':[m_s['T_POS_COUNT'].sum()]})]), use_container_width=True, hide_index=True)
+    
     with c_vv:
         col_vv = next((c for c in df.columns if 'UNIDAD DE VV' in c.upper() or 'VV/104' in c.upper()), None)
         if col_vv:
             st.write("**📟 Unidad de VV/104**")
+            df[col_vv] = df[col_vv].fillna("SIN ASIGNAR")
             vv_s = df.groupby([col_vv, 'CENTRO']).size().reset_index(name='E').sort_values('E', ascending=False)
-            st.dataframe(vv_s, use_container_width=True, hide_index=True)
+            # Agregar Fila Total
+            total_vv = vv_s['E'].sum()
+            st.dataframe(pd.concat([vv_s, pd.DataFrame({col_vv:['TOTAL GENERAL'], 'CENTRO':['-'], 'E':[total_vv]})]), use_container_width=True, hide_index=True)
+            
     with c_desp:
         col_desp = next((c for c in df.columns if 'UNIDAD DE DESPACHO' in c.upper()), None)
         if col_desp:
             st.write("**🚨 Unidad de Despacho**")
+            df[col_desp] = df[col_desp].fillna("SIN ASIGNAR")
             dp_s = df.groupby([col_desp, 'CENTRO']).size().reset_index(name='E').sort_values('E', ascending=False)
-            st.dataframe(dp_s, use_container_width=True, hide_index=True)
+            # Agregar Fila Total
+            total_dp = dp_s['E'].sum()
+            st.dataframe(pd.concat([dp_s, pd.DataFrame({col_desp:['TOTAL GENERAL'], 'CENTRO':['-'], 'E':[total_dp]})]), use_container_width=True, hide_index=True)
 
     time.sleep(1)
     st.rerun()
