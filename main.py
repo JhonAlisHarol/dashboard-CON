@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
+import plotly.graph_objects as go
 import time
 
 # 1. CONFIGURACIÓN Y ESTILO DEL DASHBOARD
@@ -9,7 +10,7 @@ st.set_page_config(page_title="S-Portal Hexagon | Command Center", layout="wide"
 st.markdown("""
     <style>
     .stApp { background-color: #0a0e17; }
-    .stMetric { background: rgba(255, 255, 255, 0.05); border: 1px solid #00ebff; border-radius: 10px; }
+    .stMetric { background: rgba(255, 255, 255, 0.05); border: 1px solid #00ebff; border-radius: 10px; padding: 10px; }
     h1, h2, h3, span, p, label { color: #ffffff !important; }
     .timer-box {
         position: fixed; top: 10px; right: 80px;
@@ -74,9 +75,31 @@ def load_full_data():
         return df[df['T_POS_COUNT'] > 0].copy()
     except: return None
 
-def format_time(minutes):
-    if minutes >= 60: return f"{minutes/60:.1f} h"
-    return f"{minutes:.1f} min"
+def create_gauge(value_min, title, color):
+    # Lógica de conversión: si supera 60 min, mostrar en horas
+    if value_min >= 60:
+        display_value = value_min / 60
+        suffix = " h"
+    else:
+        display_value = value_min
+        suffix = " min"
+        
+    fig = go.Figure(go.Indicator(
+        mode = "gauge+number",
+        value = display_value,
+        title = {'text': title, 'font': {'size': 18, 'color': "white"}},
+        number = {'suffix': suffix, 'font': {'color': "white"}, 'valueformat': '.1f'},
+        gauge = {
+            'axis': {'range': [None, max(60 if suffix == " min" else 24, display_value * 1.5)], 'tickwidth': 1, 'tickcolor': "white"},
+            'bar': {'color': color},
+            'bgcolor': "rgba(0,0,0,0)",
+            'borderwidth': 2,
+            'bordercolor': "gray"
+        }
+    ))
+    fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', 
+                      height=220, margin=dict(l=30, r=30, t=50, b=20))
+    return fig
 
 df_raw = load_full_data()
 
@@ -92,17 +115,24 @@ if df_raw is not None:
     df = df_raw[(df_raw['FECHA_DT'].dt.date >= f1) & (df_raw['FECHA_DT'].dt.date <= f2) & 
                 (df_raw['HORA_NUM'] >= h1) & (df_raw['HORA_NUM'] <= h2)].copy()
 
-    # --- MÉTRICAS ---
+    # --- MÉTRICAS SUPERIORES ---
     st.title("🛡️ Hexágono S-Portal | Command Center")
     total_positivos = int(df['T_POS_COUNT'].sum())
     
-    m1, m2, m3, m4, m5 = st.columns(5)
-    m1.metric("📊 EVENTOS", f"{len(df):,}")
-    m2.metric("✅ POSITIVOS", f"{total_positivos:,}")
-    m3.metric("⏱️ DESPACHO", format_time(df['VARIANZA DE DESPACHO_M'].mean() if 'VARIANZA DE DESPACHO_M' in df.columns else 0))
-    m4.metric("🤝 ATENCIÓN", format_time(df['VARIANZA DE LA ATENCION_M'].mean() if 'VARIANZA DE LA ATENCION_M' in df.columns else 0))
+    col_met1, col_met2 = st.columns(2)
+    col_met1.metric("📊 EVENTOS TOTALES", f"{len(df):,}")
+    col_met2.metric("✅ TOTAL POSITIVOS", f"{total_positivos:,}")
+
+    # --- INDICADORES DE VARIANZA (GAUGES CON AUTO-FORMATO) ---
+    v_desp = df['VARIANZA DE DESPACHO_M'].mean() if 'VARIANZA DE DESPACHO_M' in df.columns else 0
+    v_aten = df['VARIANZA DE LA ATENCION_M'].mean() if 'VARIANZA DE LA ATENCION_M' in df.columns else 0
     v_cierre_col = 'VARIANZA DEL CIERRE_M' if 'VARIANZA DEL CIERRE_M' in df.columns else 'VARIANZA DE CIERRE_M'
-    m5.metric("🔐 CIERRE", format_time(df[v_cierre_col].mean() if v_cierre_col in df.columns else 0))
+    v_cier = df[v_cierre_col].mean() if v_cierre_col in df.columns else 0
+
+    g1, g2, g3 = st.columns(3)
+    with g1: st.plotly_chart(create_gauge(v_desp, "VARIANZA DESPACHO", "#00ebff"), use_container_width=True)
+    with g2: st.plotly_chart(create_gauge(v_aten, "VARIANZA ATENCIÓN", "#00ffaa"), use_container_width=True)
+    with g3: st.plotly_chart(create_gauge(v_cier, "VARIANZA CIERRE", "#ffaa00"), use_container_width=True)
 
     st.markdown("---")
 
@@ -121,33 +151,13 @@ if df_raw is not None:
         
         with c_rank:
             st.write("**Estadística Provincial**")
-            # --- AJUSTE AQUÍ PARA QUE NO SE RECORTE ---
-            fig_prov = px.bar(
-                prov_stats, 
-                x='T_POS_COUNT', 
-                y='PROVINCIA', 
-                orientation='h',
-                text='T_POS_COUNT',
-                color='T_POS_COUNT',
-                color_continuous_scale='Tealgrn'
-            )
-            fig_prov.update_traces(
-                textposition='outside', 
-                cliponaxis=False, # Evita que se recorte el número
-                marker_line_color='rgb(8,48,107)', 
-                marker_line_width=1.5, 
-                opacity=0.8
-            )
+            fig_prov = px.bar(prov_stats, x='T_POS_COUNT', y='PROVINCIA', orientation='h', text='T_POS_COUNT', color='T_POS_COUNT', color_continuous_scale='Tealgrn')
+            fig_prov.update_traces(textposition='outside', cliponaxis=False, marker_line_color='rgb(8,48,107)', marker_line_width=1.5, opacity=0.8)
             fig_prov.update_layout(
-                xaxis=dict(showticklabels=False, showgrid=False, zeroline=False, range=[0, prov_stats['T_POS_COUNT'].max() * 1.2]), # Espacio extra al final
-                yaxis=dict(categoryorder='total ascending', ticksuffix="  "), # Espacio entre nombre y barra
-                showlegend=False, 
-                coloraxis_showscale=False,
-                margin=dict(l=120, r=50, t=30, b=0), # Margen izquierdo amplio para nombres de provincias
-                height=450,
-                paper_bgcolor='rgba(0,0,0,0)',
-                plot_bgcolor='rgba(0,0,0,0)',
-                font=dict(color="white")
+                xaxis=dict(showticklabels=False, showgrid=False, zeroline=False, range=[0, prov_stats['T_POS_COUNT'].max() * 1.3]),
+                yaxis=dict(categoryorder='total ascending', ticksuffix="  "),
+                showlegend=False, coloraxis_showscale=False, margin=dict(l=120, r=50, t=30, b=0), height=450,
+                paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="white")
             )
             st.plotly_chart(fig_prov, use_container_width=True)
 
