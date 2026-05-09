@@ -12,11 +12,23 @@ st.markdown("""
     .stApp { background-color: #0a0e17; }
     .stMetric { background: rgba(255, 255, 255, 0.05); border: 1px solid #00ebff; border-radius: 10px; padding: 10px; }
     h1, h2, h3, span, p, label { color: #ffffff !important; }
-    .timer-box {
-        position: fixed; top: 10px; right: 80px;
-        background: rgba(0, 235, 255, 0.1); border: 1px solid #00ebff;
-        padding: 5px 15px; border-radius: 20px; z-index: 999; font-family: monospace;
+    
+    /* Estilo para el cronómetro en el sidebar */
+    .timer-container {
+        margin-top: 20px;
+        padding: 15px;
+        background: rgba(0, 235, 255, 0.1);
+        border: 1px solid #00ebff;
+        border-radius: 10px;
+        text-align: center;
     }
+    .timer-text {
+        font-family: 'Courier New', Courier, monospace;
+        font-size: 24px;
+        font-weight: bold;
+        color: #00ebff;
+    }
+    
     .map-overlay-total {
         position: relative; top: 60px; left: 20px;
         background: rgba(10, 14, 23, 0.85); border: 2px solid #00ebff;
@@ -26,13 +38,12 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 2. SISTEMA DE RECARGA AUTOMÁTICA
+# 2. SISTEMA DE RECARGA AUTOMÁTICA (60 SEGUNDOS)
 if 'last_update' not in st.session_state:
     st.session_state.last_update = time.time()
 
 elapsed = int(time.time() - st.session_state.last_update)
 remaining = max(0, 60 - elapsed)
-st.markdown(f'<div class="timer-box">🔄 Refresco en: {remaining}s</div>', unsafe_allow_html=True)
 
 if remaining <= 0:
     st.session_state.last_update = time.time()
@@ -76,7 +87,6 @@ def load_full_data():
     except: return None
 
 def create_gauge(value_min, title, color):
-    # Lógica de conversión: si supera 60 min, mostrar en horas
     if value_min >= 60:
         display_value = value_min / 60
         suffix = " h"
@@ -104,13 +114,21 @@ def create_gauge(value_min, title, color):
 df_raw = load_full_data()
 
 if df_raw is not None:
-    # --- FILTROS ---
+    # --- FILTROS Y CRONÓMETRO ---
     with st.sidebar:
         st.header("🔎 Filtros")
         f1 = st.date_input("Desde:", df_raw['FECHA_DT'].min().date())
         f2 = st.date_input("Hasta:", df_raw['FECHA_DT'].max().date())
         h1 = st.selectbox("Hora Inicial:", list(range(24)), index=0)
         h2 = st.selectbox("Hora Final:", list(range(24)), index=23)
+        
+        # Cronómetro visible al final de los filtros
+        st.markdown(f"""
+            <div class="timer-container">
+                <p style="margin:0; font-size:12px; color:#aaa;">ACTUALIZACIÓN EN:</p>
+                <div class="timer-text">00:{remaining:02d}</div>
+            </div>
+        """, unsafe_allow_html=True)
 
     df = df_raw[(df_raw['FECHA_DT'].dt.date >= f1) & (df_raw['FECHA_DT'].dt.date <= f2) & 
                 (df_raw['HORA_NUM'] >= h1) & (df_raw['HORA_NUM'] <= h2)].copy()
@@ -123,7 +141,7 @@ if df_raw is not None:
     col_met1.metric("📊 EVENTOS TOTALES", f"{len(df):,}")
     col_met2.metric("✅ TOTAL POSITIVOS", f"{total_positivos:,}")
 
-    # --- INDICADORES DE VARIANZA (GAUGES CON AUTO-FORMATO) ---
+    # --- INDICADORES DE VARIANZA ---
     v_desp = df['VARIANZA DE DESPACHO_M'].mean() if 'VARIANZA DE DESPACHO_M' in df.columns else 0
     v_aten = df['VARIANZA DE LA ATENCION_M'].mean() if 'VARIANZA DE LA ATENCION_M' in df.columns else 0
     v_cierre_col = 'VARIANZA DEL CIERRE_M' if 'VARIANZA DEL CIERRE_M' in df.columns else 'VARIANZA DE CIERRE_M'
@@ -236,5 +254,6 @@ if df_raw is not None:
             desp_total = pd.DataFrame({col_desp: ['TOTAL GENERAL'], 'CENTRO': ['-'], 'EVENTOS': [desp_stats['EVENTOS'].sum()]})
             st.dataframe(pd.concat([desp_stats, desp_total]), use_container_width=True, hide_index=True, height=350)
 
+    # Pequeña pausa para evitar sobrecarga antes del rerun
     time.sleep(1)
     st.rerun()
