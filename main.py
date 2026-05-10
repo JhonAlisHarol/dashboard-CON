@@ -94,20 +94,19 @@ if df_raw is not None:
     col_met1.metric("📊 EVENTOS TOTALES", f"{len(df):,}")
     col_met2.metric("✅ TOTAL POSITIVOS", f"{total_positivos:,}")
 
+    g1, g2, g3 = st.columns(3)
     v_desp = df['VARIANZA DE DESPACHO_M'].mean() if 'VARIANZA DE DESPACHO_M' in df.columns else 0
     v_aten = df['VARIANZA DE LA ATENCION_M'].mean() if 'VARIANZA DE LA ATENCION_M' in df.columns else 0
     v_cierre_col = 'VARIANZA DEL CIERRE_M' if 'VARIANZA DEL CIERRE_M' in df.columns else 'VARIANZA DE CIERRE_M'
     v_cier = df[v_cierre_col].mean() if v_cierre_col in df.columns else 0
-
-    g1, g2, g3 = st.columns(3)
     with g1: st.plotly_chart(create_gauge(v_desp, "VARIANZA DESPACHO", "#00ebff"), use_container_width=True)
     with g2: st.plotly_chart(create_gauge(v_aten, "VARIANZA ATENCIÓN", "#00ffaa"), use_container_width=True)
     with g3: st.plotly_chart(create_gauge(v_cier, "VARIANZA CIERRE", "#ffaa00"), use_container_width=True)
 
     st.markdown("---")
 
-    # --- SECCIÓN 1: MAPA (CORREGIDO CON TOP 5 + NUMERITOS + OTROS) ---
-    st.subheader("📍 MAPA DE CALOR PROVINCIAL")
+    # --- SECCIÓN 1: MAPA SATELITAL (SIN TOKEN REQUERIDO) ---
+    st.subheader("📍 MAPA SATELITAL DE INCIDENCIAS")
     if 'PROVINCIA' in df.columns:
         cols_p = [c for c in df.columns if 'RESULTADO POSITIVO' in c.upper()]
         df_long = pd.melt(df, id_vars=['PROVINCIA'], value_vars=cols_p, value_name='Tipo').dropna()
@@ -116,12 +115,8 @@ if df_raw is not None:
             counts = group['Tipo'].value_counts()
             top_5 = counts.nlargest(5)
             others_count = counts.iloc[5:].sum()
-            
-            # Formatear Top 5 con sus numeritos
             lines = [f"• {tipo}: {cant}" for tipo, cant in top_5.items()]
-            # Agregar Otros si existen
-            if others_count > 0:
-                lines.append(f"• Otros: {others_count}")
+            if others_count > 0: lines.append(f"• Otros: {others_count}")
             return "<br>".join([""] + lines)
 
         top_details = df_long.groupby('PROVINCIA').apply(get_detailed_top).reset_index(name='DETALLE_TOP')
@@ -135,15 +130,33 @@ if df_raw is not None:
         c_map, c_rank = st.columns([2, 1])
         with c_map:
             st.markdown(f'<div class="map-overlay-total"><small style="color:#00ebff;">TOTAL POSITIVOS</small><br><span style="font-size:24px; font-weight:bold;">{total_positivos:,}</span></div>', unsafe_allow_html=True)
-            fig_mapa = px.density_mapbox(
-                prov_stats, lat='lat', lon='lon', z='T_POS_COUNT', radius=35, 
-                center=dict(lat=8.5, lon=-80.0), zoom=6, mapbox_style="carto-darkmatter",
+            
+            # Scatter mapbox con capas de satélite públicas
+            fig_mapa = px.scatter_mapbox(
+                prov_stats, lat='lat', lon='lon', size='T_POS_COUNT', color='T_POS_COUNT',
+                color_continuous_scale="Jet", size_max=40, zoom=6.5,
+                center=dict(lat=8.5, lon=-80.0),
                 hover_name='PROVINCIA',
                 hover_data={'lat': False, 'lon': False, 'T_POS_COUNT': True, 'DETALLE_TOP': True},
-                labels={'T_POS_COUNT': 'Total Positivos', 'DETALLE_TOP': 'Principales Incidencias'}
+                labels={'T_POS_COUNT': 'Total Positivos', 'DETALLE_TOP': 'Detalle'}
             )
-            fig_mapa.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, paper_bgcolor='rgba(0,0,0,0)')
+            
+            # Configuración para forzar la vista satelital sin necesidad de Mapbox Token
+            fig_mapa.update_layout(
+                mapbox=dict(
+                    style="white-bg",
+                    layers=[{
+                        "below": 'traces',
+                        "sourcetype": "raster",
+                        "source": ["https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}"]
+                    }]
+                ),
+                margin={"r":0,"t":0,"l":0,"b":0},
+                paper_bgcolor='rgba(0,0,0,0)',
+                coloraxis_showscale=False
+            )
             st.plotly_chart(fig_mapa, use_container_width=True)
+            
         with c_rank:
             fig_prov = px.bar(prov_stats, x='T_POS_COUNT', y='PROVINCIA', orientation='h', text='T_POS_COUNT', color='T_POS_COUNT', color_continuous_scale='Tealgrn')
             fig_prov.update_layout(showlegend=False, coloraxis_showscale=False, paper_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), height=450)
