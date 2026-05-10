@@ -40,33 +40,25 @@ def load_full_data():
     try:
         df = pd.read_csv(URL_CSV)
         df.columns = df.columns.str.strip()
-        
-        # Corrección de nombres de Centros
         if 'CENTRO' in df.columns:
             df['CENTRO'] = df['CENTRO'].astype(str).str.replace('CONTRA', 'CON', case=False).str.strip()
-            
         col_f = next((c for c in df.columns if 'FECHA' in c.upper()), None)
         if col_f: 
             df['FECHA_DT'] = pd.to_datetime(df[col_f], dayfirst=True, errors='coerce')
             df['MES_NOMBRE'] = df['FECHA_DT'].dt.strftime('%m - %B')
-        
         col_h = next((c for c in df.columns if 'HORA' in c.upper()), None)
         if col_h: 
             df['HORA_NUM'] = pd.to_datetime(df[col_h], errors='coerce').dt.hour.fillna(0).astype(int)
-
         def to_m(v):
             try:
                 if pd.isna(v) or v == "" or v == 0: return 0.0
                 p = str(v).split(':')
                 return float(int(p[0])*60 + int(p[1])) if len(p) >= 2 else float(v)
             except: return 0.0
-
         for c in ['VARIANZA DE DESPACHO', 'VARIANZA DE LA ATENCION', 'VARIANZA DEL CIERRE', 'VARIANZA DE CIERRE']:
             if c in df.columns: df[c+'_M'] = df[c].apply(to_m)
-
         cols_pos = [c for c in df.columns if 'RESULTADO POSITIVO' in c.upper()]
         df['T_POS_COUNT'] = df[cols_pos].notna().sum(axis=1)
-            
         return df[df['T_POS_COUNT'] > 0].copy()
     except: return None
 
@@ -74,8 +66,7 @@ def create_gauge(value, title, color, is_timer=False):
     suffix = " seg" if is_timer else (" h" if value >= 60 else " min")
     display_val = value / 60 if suffix == " h" else value
     fig = go.Figure(go.Indicator(
-        mode = "gauge+number",
-        value = display_val,
+        mode = "gauge+number", value = display_val,
         title = {'text': title, 'font': {'size': 14, 'color': "white"}},
         number = {'suffix': suffix, 'font': {'color': "white"}},
         gauge = {'axis': {'range': [0, 60 if is_timer else max(60, display_val*1.5)]}, 'bar': {'color': color}}
@@ -99,7 +90,6 @@ if df_raw is not None:
 
     st.title("🛡️ Hexágono S-Portal | Centro de Mando")
     total_positivos = int(df['T_POS_COUNT'].sum())
-    
     col_met1, col_met2 = st.columns(2)
     col_met1.metric("📊 EVENTOS TOTALES", f"{len(df):,}")
     col_met2.metric("✅ TOTAL POSITIVOS", f"{total_positivos:,}")
@@ -116,10 +106,28 @@ if df_raw is not None:
 
     st.markdown("---")
 
-    # --- SECCIÓN 1: MAPA ---
+    # --- SECCIÓN 1: MAPA (CORREGIDO CON TOP 5 + NUMERITOS + OTROS) ---
     st.subheader("📍 MAPA DE CALOR PROVINCIAL")
     if 'PROVINCIA' in df.columns:
+        cols_p = [c for c in df.columns if 'RESULTADO POSITIVO' in c.upper()]
+        df_long = pd.melt(df, id_vars=['PROVINCIA'], value_vars=cols_p, value_name='Tipo').dropna()
+        
+        def get_detailed_top(group):
+            counts = group['Tipo'].value_counts()
+            top_5 = counts.nlargest(5)
+            others_count = counts.iloc[5:].sum()
+            
+            # Formatear Top 5 con sus numeritos
+            lines = [f"• {tipo}: {cant}" for tipo, cant in top_5.items()]
+            # Agregar Otros si existen
+            if others_count > 0:
+                lines.append(f"• Otros: {others_count}")
+            return "<br>".join([""] + lines)
+
+        top_details = df_long.groupby('PROVINCIA').apply(get_detailed_top).reset_index(name='DETALLE_TOP')
         prov_stats = df.groupby('PROVINCIA')['T_POS_COUNT'].sum().reset_index().sort_values('T_POS_COUNT', ascending=True)
+        prov_stats = prov_stats.merge(top_details, on='PROVINCIA', how='left')
+        
         coords = {'Panamá':[8.98,-79.52], 'Chiriquí':[8.43,-82.43], 'Colón':[9.35,-79.9], 'Panamá Oeste':[8.88,-79.78], 'Coclé':[8.51,-80.35], 'Veraguas':[8.1,-80.97], 'Los Santos':[7.93,-80.48], 'Herrera':[7.96,-80.7], 'Darién':[8.4,-77.91], 'Bocas del Toro':[9.33,-82.24]}
         prov_stats['lat'] = prov_stats['PROVINCIA'].map(lambda x: coords.get(x, [8.5, -80.0])[0])
         prov_stats['lon'] = prov_stats['PROVINCIA'].map(lambda x: coords.get(x, [8.5, -80.0])[1])
@@ -127,37 +135,34 @@ if df_raw is not None:
         c_map, c_rank = st.columns([2, 1])
         with c_map:
             st.markdown(f'<div class="map-overlay-total"><small style="color:#00ebff;">TOTAL POSITIVOS</small><br><span style="font-size:24px; font-weight:bold;">{total_positivos:,}</span></div>', unsafe_allow_html=True)
-            st.plotly_chart(px.density_mapbox(prov_stats, lat='lat', lon='lon', z='T_POS_COUNT', radius=35, center=dict(lat=8.5, lon=-80.0), zoom=6, mapbox_style="carto-darkmatter"), use_container_width=True)
+            fig_mapa = px.density_mapbox(
+                prov_stats, lat='lat', lon='lon', z='T_POS_COUNT', radius=35, 
+                center=dict(lat=8.5, lon=-80.0), zoom=6, mapbox_style="carto-darkmatter",
+                hover_name='PROVINCIA',
+                hover_data={'lat': False, 'lon': False, 'T_POS_COUNT': True, 'DETALLE_TOP': True},
+                labels={'T_POS_COUNT': 'Total Positivos', 'DETALLE_TOP': 'Principales Incidencias'}
+            )
+            fig_mapa.update_layout(margin={"r":0,"t":0,"l":0,"b":0}, paper_bgcolor='rgba(0,0,0,0)')
+            st.plotly_chart(fig_mapa, use_container_width=True)
         with c_rank:
             fig_prov = px.bar(prov_stats, x='T_POS_COUNT', y='PROVINCIA', orientation='h', text='T_POS_COUNT', color='T_POS_COUNT', color_continuous_scale='Tealgrn')
             fig_prov.update_layout(showlegend=False, coloraxis_showscale=False, paper_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), height=450)
             st.plotly_chart(fig_prov, use_container_width=True)
 
     st.markdown("---")
-
-    # --- SECCIÓN 2: PASTELES ---
-    st.subheader("📊 DISTRIBUCIÓN POR CANALES Y CENTROS")
+    # --- SECCIONES RESTANTES (SIN TOCAR) ---
     cp1, cp2 = st.columns(2)
     with cp1: st.plotly_chart(px.pie(df, names='CANAL DE ENTRADA', values='T_POS_COUNT', title="Proporción por Canales", hole=0.5), use_container_width=True)
     with cp2: st.plotly_chart(px.pie(df, names='CENTRO', values='T_POS_COUNT', title="Proporción por Centros", hole=0.5, color_discrete_sequence=px.colors.sequential.Tealgrn), use_container_width=True)
-
-    # --- SECCIÓN 3: TABLA TIPOS VS CENTROS (Ordenada Mayor a Menor) ---
     st.subheader("📋 DETALLE: TIPOS VS CENTROS")
-    cols_p = [c for c in df.columns if 'RESULTADO POSITIVO' in c.upper()]
-    df_l = pd.melt(df, id_vars=['CENTRO'], value_vars=cols_p, value_name='Tipo').dropna()
-    if not df_l.empty:
-        t_c = df_l.groupby(['Tipo', 'CENTRO']).size().unstack(fill_value=0)
+    df_l_t = pd.melt(df, id_vars=['CENTRO'], value_vars=cols_p, value_name='Tipo').dropna()
+    if not df_l_t.empty:
+        t_c = df_l_t.groupby(['Tipo', 'CENTRO']).size().unstack(fill_value=0)
         t_c['TOTAL'] = t_c.sum(axis=1)
-        
-        # Ordenar columnas (Centros) de mayor a menor según volumen de positivos
         orden_centros = t_c.drop(columns='TOTAL').sum().sort_values(ascending=False).index.tolist()
         t_c = t_c[orden_centros + ['TOTAL']].sort_values('TOTAL', ascending=False)
-        
         st.dataframe(pd.concat([t_c, t_c.sum().to_frame(name='TOTAL GENERAL').T]), use_container_width=True)
-
     st.markdown("---")
-
-    # --- SECCIÓN 4: CIERRE (Ordenada Mayor a Menor) ---
     cn1, cn2 = st.columns(2)
     with cn1:
         st.subheader("📉 CIERRE DEL INCIDENTE-SUBTIPO")
@@ -165,7 +170,6 @@ if df_raw is not None:
         if col_cierre:
             t_sb = df.groupby([col_cierre, 'CENTRO']).size().unstack(fill_value=0)
             t_sb['TOTAL'] = t_sb.sum(axis=1)
-            # Ordenar columnas (Centros) de mayor a menor
             orden_c = t_sb.drop(columns='TOTAL').sum().sort_values(ascending=False).index.tolist()
             t_sb = t_sb[orden_c + ['TOTAL']].sort_values('TOTAL', ascending=False)
             st.dataframe(pd.concat([t_sb, t_sb.sum().to_frame(name='TOTAL GENERAL').T]), use_container_width=True, height=400)
@@ -175,38 +179,27 @@ if df_raw is not None:
         if col_zp:
             zp_s = df.groupby(col_zp)['T_POS_COUNT'].sum().reset_index().sort_values('T_POS_COUNT', ascending=False)
             st.dataframe(pd.concat([zp_s, pd.DataFrame({col_zp:['TOTAL GENERAL'], 'T_POS_COUNT':[zp_s['T_POS_COUNT'].sum()]})]), use_container_width=True, height=400, hide_index=True)
-
     st.markdown("---")
-
-    # --- SECCIÓN 5: ANÁLISIS DETALLADO (Totales y Sin Asignar) ---
     st.subheader("📊 ANÁLISIS POR UNIDAD Y TIEMPO")
     c_mes, c_vv, c_desp = st.columns(3)
-    
     with c_mes:
         if 'MES_NOMBRE' in df.columns:
             st.write("**📅 Positivos por Meses**")
             m_s = df.groupby('MES_NOMBRE')['T_POS_COUNT'].sum().reset_index()
             st.dataframe(pd.concat([m_s, pd.DataFrame({'MES_NOMBRE':['TOTAL'], 'T_POS_COUNT':[m_s['T_POS_COUNT'].sum()]})]), use_container_width=True, hide_index=True)
-    
     with c_vv:
         col_vv = next((c for c in df.columns if 'UNIDAD DE VV' in c.upper() or 'VV/104' in c.upper()), None)
         if col_vv:
             st.write("**📟 Unidad de VV/104**")
             df[col_vv] = df[col_vv].fillna("SIN ASIGNAR")
             vv_s = df.groupby([col_vv, 'CENTRO']).size().reset_index(name='E').sort_values('E', ascending=False)
-            # Agregar Fila Total
-            total_vv = vv_s['E'].sum()
-            st.dataframe(pd.concat([vv_s, pd.DataFrame({col_vv:['TOTAL GENERAL'], 'CENTRO':['-'], 'E':[total_vv]})]), use_container_width=True, hide_index=True)
-            
+            st.dataframe(pd.concat([vv_s, pd.DataFrame({col_vv:['TOTAL GENERAL'], 'CENTRO':['-'], 'E':[vv_s['E'].sum()]})]), use_container_width=True, hide_index=True)
     with c_desp:
         col_desp = next((c for c in df.columns if 'UNIDAD DE DESPACHO' in c.upper()), None)
         if col_desp:
             st.write("**🚨 Unidad de Despacho**")
             df[col_desp] = df[col_desp].fillna("SIN ASIGNAR")
             dp_s = df.groupby([col_desp, 'CENTRO']).size().reset_index(name='E').sort_values('E', ascending=False)
-            # Agregar Fila Total
-            total_dp = dp_s['E'].sum()
-            st.dataframe(pd.concat([dp_s, pd.DataFrame({col_desp:['TOTAL GENERAL'], 'CENTRO':['-'], 'E':[total_dp]})]), use_container_width=True, hide_index=True)
-
+            st.dataframe(pd.concat([dp_s, pd.DataFrame({col_desp:['TOTAL GENERAL'], 'CENTRO':['-'], 'E':[dp_s['E'].sum()]})]), use_container_width=True, hide_index=True)
     time.sleep(1)
     st.rerun()
