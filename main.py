@@ -16,7 +16,7 @@ st.markdown("""
     ul[data-testid="main-menu-list"] li:nth-child(5) {
         display: none !important;
     }
-    /*Ocultamos el pie de pagina de Streamlit para mayor limpieza */
+    /*Ocultamos el pie de página de Streamlit para mayor limpieza */
     footer {visibility: hidden;}
     
     /* Estilo Base */
