@@ -11,7 +11,6 @@ st.markdown("""
     <style>
     /*BLOQUE DE SEGURIDAD OPERATIVA*/
     #MainMenu {visibility: hidden;}
-    footer {visibility: hidden;}
     header {visibility: hidden;}
     
     /* Estilo Base */
