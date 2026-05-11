@@ -18,6 +18,12 @@ st.markdown("""
         padding: 10px 20px; border-radius: 10px; z-index: 100;
         width: fit-content; margin-bottom: -70px;
     }
+    .author-credit {
+        color: #00ebff;
+        font-size: 14px;
+        font-weight: bold;
+        text-align: right;
+    }
     </style>
     """, unsafe_allow_html=True)
 
@@ -45,7 +51,9 @@ def load_full_data():
         col_f = next((c for c in df.columns if 'FECHA' in c.upper()), None)
         if col_f: 
             df['FECHA_DT'] = pd.to_datetime(df[col_f], dayfirst=True, errors='coerce')
-            df['MES_NOMBRE'] = df['FECHA_DT'].dt.strftime('%m - %B')
+            # Usamos el número del mes para poder ordenar correctamente
+            df['MES_NUM'] = df['FECHA_DT'].dt.month
+            df['MES_NOMBRE'] = df['FECHA_DT'].dt.strftime('%B').str.capitalize()
         col_h = next((c for c in df.columns if 'HORA' in c.upper()), None)
         if col_h: 
             df['HORA_NUM'] = pd.to_datetime(df[col_h], errors='coerce').dt.hour.fillna(0).astype(int)
@@ -78,6 +86,7 @@ df_raw = load_full_data()
 
 if df_raw is not None:
     with st.sidebar:
+        st.markdown('<p class="author-credit">Elaborado por el Cabo 1ro E.Rodriguez</p>', unsafe_allow_html=True)
         st.header("🔎 Filtros")
         f1 = st.date_input("Desde:", df_raw['FECHA_DT'].min().date())
         f2 = st.date_input("Hasta:", df_raw['FECHA_DT'].max().date())
@@ -105,7 +114,7 @@ if df_raw is not None:
 
     st.markdown("---")
 
-    # --- SECCIÓN 1: MAPA SATELITAL (SIN TOKEN REQUERIDO) ---
+    # --- MAPA SATELITAL ---
     st.subheader("📍 MAPA SATELITAL DE INCIDENCIAS")
     if 'PROVINCIA' in df.columns:
         cols_p = [c for c in df.columns if 'RESULTADO POSITIVO' in c.upper()]
@@ -130,43 +139,28 @@ if df_raw is not None:
         c_map, c_rank = st.columns([2, 1])
         with c_map:
             st.markdown(f'<div class="map-overlay-total"><small style="color:#00ebff;">TOTAL POSITIVOS</small><br><span style="font-size:24px; font-weight:bold;">{total_positivos:,}</span></div>', unsafe_allow_html=True)
-            
-            # Scatter mapbox con capas de satélite públicas
             fig_mapa = px.scatter_mapbox(
                 prov_stats, lat='lat', lon='lon', size='T_POS_COUNT', color='T_POS_COUNT',
                 color_continuous_scale="Jet", size_max=40, zoom=6.5,
                 center=dict(lat=8.5, lon=-80.0),
                 hover_name='PROVINCIA',
-                hover_data={'lat': False, 'lon': False, 'T_POS_COUNT': True, 'DETALLE_TOP': True},
-                labels={'T_POS_COUNT': 'Total Positivos', 'DETALLE_TOP': 'Detalle'}
+                hover_data={'lat': False, 'lon': False, 'T_POS_COUNT': True, 'DETALLE_TOP': True}
             )
-            
-            # Configuración para forzar la vista satelital sin necesidad de Mapbox Token
             fig_mapa.update_layout(
-                mapbox=dict(
-                    style="white-bg",
-                    layers=[{
-                        "below": 'traces',
-                        "sourcetype": "raster",
-                        "source": ["https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}"]
-                    }]
-                ),
-                margin={"r":0,"t":0,"l":0,"b":0},
-                paper_bgcolor='rgba(0,0,0,0)',
-                coloraxis_showscale=False
+                mapbox=dict(style="white-bg", layers=[{"below": 'traces', "sourcetype": "raster", "source": ["https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}"]} ] ),
+                margin={"r":0,"t":0,"l":0,"b":0}, paper_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False
             )
             st.plotly_chart(fig_mapa, use_container_width=True)
-            
         with c_rank:
             fig_prov = px.bar(prov_stats, x='T_POS_COUNT', y='PROVINCIA', orientation='h', text='T_POS_COUNT', color='T_POS_COUNT', color_continuous_scale='Tealgrn')
             fig_prov.update_layout(showlegend=False, coloraxis_showscale=False, paper_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), height=450)
             st.plotly_chart(fig_prov, use_container_width=True)
 
     st.markdown("---")
-    # --- SECCIONES RESTANTES (SIN TOCAR) ---
     cp1, cp2 = st.columns(2)
     with cp1: st.plotly_chart(px.pie(df, names='CANAL DE ENTRADA', values='T_POS_COUNT', title="Proporción por Canales", hole=0.5), use_container_width=True)
     with cp2: st.plotly_chart(px.pie(df, names='CENTRO', values='T_POS_COUNT', title="Proporción por Centros", hole=0.5, color_discrete_sequence=px.colors.sequential.Tealgrn), use_container_width=True)
+    
     st.subheader("📋 DETALLE: TIPOS VS CENTROS")
     df_l_t = pd.melt(df, id_vars=['CENTRO'], value_vars=cols_p, value_name='Tipo').dropna()
     if not df_l_t.empty:
@@ -175,6 +169,7 @@ if df_raw is not None:
         orden_centros = t_c.drop(columns='TOTAL').sum().sort_values(ascending=False).index.tolist()
         t_c = t_c[orden_centros + ['TOTAL']].sort_values('TOTAL', ascending=False)
         st.dataframe(pd.concat([t_c, t_c.sum().to_frame(name='TOTAL GENERAL').T]), use_container_width=True)
+
     st.markdown("---")
     cn1, cn2 = st.columns(2)
     with cn1:
@@ -183,8 +178,9 @@ if df_raw is not None:
         if col_cierre:
             t_sb = df.groupby([col_cierre, 'CENTRO']).size().unstack(fill_value=0)
             t_sb['TOTAL'] = t_sb.sum(axis=1)
+            t_sb = t_sb.sort_values('TOTAL', ascending=False)
             orden_c = t_sb.drop(columns='TOTAL').sum().sort_values(ascending=False).index.tolist()
-            t_sb = t_sb[orden_c + ['TOTAL']].sort_values('TOTAL', ascending=False)
+            t_sb = t_sb[orden_c + ['TOTAL']]
             st.dataframe(pd.concat([t_sb, t_sb.sum().to_frame(name='TOTAL GENERAL').T]), use_container_width=True, height=400)
     with cn2:
         st.subheader("🚔 ZP., SERVICIO POLICIAL O ENLACE")
@@ -192,14 +188,24 @@ if df_raw is not None:
         if col_zp:
             zp_s = df.groupby(col_zp)['T_POS_COUNT'].sum().reset_index().sort_values('T_POS_COUNT', ascending=False)
             st.dataframe(pd.concat([zp_s, pd.DataFrame({col_zp:['TOTAL GENERAL'], 'T_POS_COUNT':[zp_s['T_POS_COUNT'].sum()]})]), use_container_width=True, height=400, hide_index=True)
+
     st.markdown("---")
     st.subheader("📊 ANÁLISIS POR UNIDAD Y TIEMPO")
     c_mes, c_vv, c_desp = st.columns(3)
     with c_mes:
         if 'MES_NOMBRE' in df.columns:
             st.write("**📅 Positivos por Meses**")
-            m_s = df.groupby('MES_NOMBRE')['T_POS_COUNT'].sum().reset_index()
-            st.dataframe(pd.concat([m_s, pd.DataFrame({'MES_NOMBRE':['TOTAL'], 'T_POS_COUNT':[m_s['T_POS_COUNT'].sum()]})]), use_container_width=True, hide_index=True)
+            # Agrupamos por nombre y número para ordenar cronológicamente
+            m_s = df.groupby(['MES_NOMBRE', 'MES_NUM'])['T_POS_COUNT'].sum().reset_index()
+            # ORDEN CRONOLÓGICO: De Enero a Diciembre (inverso para que en el gráfico horizontal Enero quede arriba)
+            m_s = m_s.sort_values('MES_NUM', ascending=False)
+            
+            fig_mes_bar = px.bar(m_s, x='T_POS_COUNT', y='MES_NOMBRE', orientation='h', text='T_POS_COUNT', color='T_POS_COUNT', color_continuous_scale='Tealgrn')
+            fig_mes_bar.update_layout(showlegend=False, coloraxis_showscale=False, paper_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), height=400, margin=dict(l=0,r=0,t=20,b=0))
+            # Aseguramos que el eje Y respete el orden cronológico del DataFrame
+            fig_mes_bar.update_yaxes(categoryorder='array', categoryarray=m_s['MES_NOMBRE'])
+            st.plotly_chart(fig_mes_bar, use_container_width=True)
+            
     with c_vv:
         col_vv = next((c for c in df.columns if 'UNIDAD DE VV' in c.upper() or 'VV/104' in c.upper()), None)
         if col_vv:
@@ -214,5 +220,6 @@ if df_raw is not None:
             df[col_desp] = df[col_desp].fillna("SIN ASIGNAR")
             dp_s = df.groupby([col_desp, 'CENTRO']).size().reset_index(name='E').sort_values('E', ascending=False)
             st.dataframe(pd.concat([dp_s, pd.DataFrame({col_desp:['TOTAL GENERAL'], 'CENTRO':['-'], 'E':[dp_s['E'].sum()]})]), use_container_width=True, hide_index=True)
+    
     time.sleep(1)
     st.rerun()
