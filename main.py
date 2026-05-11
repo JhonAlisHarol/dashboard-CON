@@ -4,7 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import time
 
-# 1. CONFIGURACIÓN Y ESTILO
+# 1. CONFIGURACIÓN Y ESTILO (Mantenido intacto)
 st.set_page_config(page_title="S-Portal Hexagon | Command Center", layout="wide")
 
 st.markdown("""
@@ -19,7 +19,6 @@ st.markdown("""
         padding: 10px; 
     }
 
-    /* ESTILO ANIMADO MULTICOLOR PARA CUADROS PRINCIPALES */
     .neon-container {
         position: relative;
         border-radius: 10px;
@@ -72,7 +71,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# 2. SISTEMA DE RECARGA
+# 2. SISTEMA DE RECARGA (Mantenido intacto)
 if 'last_update' not in st.session_state:
     st.session_state.last_update = time.time()
 
@@ -83,7 +82,7 @@ if remaining <= 0:
     st.session_state.last_update = time.time()
     st.rerun()
 
-# 3. CARGA DE DATOS
+# 3. CARGA DE DATOS (Mantenido intacto)
 URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQzIFyCT2C22Hlrz80szN7J2mEfA8N1R7hiAmFAUXaoorwDTOeWNh-ktv__d0vIBS-AQcuV5ws3ZU4C/pub?gid=229458966&single=true&output=csv"
 
 @st.cache_data(ttl=60)
@@ -143,16 +142,12 @@ if df_raw is not None:
     st.title("🛡️ Hexágono S-Portal | Centro de Mando")
     st.markdown('<p class="author-text">Elaborado por el Cabo 1° Elmer Rodriguez</p>', unsafe_allow_html=True)
 
-    # CUADROS NEÓN MULTICOLOR
-    total_positivos = int(df['T_POS_COUNT'].sum())
-    eventos_totales = len(df)
     c_m1, c_m2 = st.columns(2)
     with c_m1:
-        st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>📊 EVENTOS TOTALES</h3><p>{eventos_totales:,}</p></div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>📊 EVENTOS TOTALES</h3><p>{len(df):,}</p></div></div>', unsafe_allow_html=True)
     with c_m2:
-        st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>✅ TOTAL POSITIVOS</h3><p>{total_positivos:,}</p></div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>✅ TOTAL POSITIVOS</h3><p>{int(df["T_POS_COUNT"].sum()):,}</p></div></div>', unsafe_allow_html=True)
 
-    # GAUGES
     g1, g2, g3 = st.columns(3)
     v_desp = df['VARIANZA DE DESPACHO_M'].mean() if 'VARIANZA DE DESPACHO_M' in df.columns else 0
     v_aten = df['VARIANZA DE LA ATENCION_M'].mean() if 'VARIANZA DE LA ATENCION_M' in df.columns else 0
@@ -164,43 +159,45 @@ if df_raw is not None:
 
     st.markdown("---")
 
-    # MAPA DETALLADO (ESTILO GOOGLE MAPS / NAVIGATION)
+    # --- SECCIÓN DEL MAPA (CAMBIO DE COLOR A TURQUESA) ---
     st.subheader("📍 MAPA TÁCTICO DETALLADO DE INCIDENCIAS")
     if 'PROVINCIA' in df.columns:
         cols_p = [c for c in df.columns if 'RESULTADO POSITIVO' in c.upper()]
         df_long = pd.melt(df, id_vars=['PROVINCIA'], value_vars=cols_p, value_name='Tipo').dropna()
-        def get_top(group):
-            counts = group['Tipo'].value_counts().nlargest(5)
-            lines = [f"• {t}: {v}" for t, v in counts.items()]
-            return "<br>".join([""] + lines)
-        top_details = df_long.groupby('PROVINCIA').apply(get_top).reset_index(name='DETALLE_TOP')
+        top_details = df_long.groupby('PROVINCIA').apply(lambda g: "<br>".join([f"• {t}: {v}" for t, v in g['Tipo'].value_counts().nlargest(5).items()])).reset_index(name='DETALLE_TOP')
         prov_stats = df.groupby('PROVINCIA')['T_POS_COUNT'].sum().reset_index().sort_values('T_POS_COUNT', ascending=True)
         prov_stats = prov_stats.merge(top_details, on='PROVINCIA', how='left')
-        coords = {'Panamá':[8.98,-79.52], 'Chiriquí':[8.43,-82.43], 'Colón':[9.35,-79.9], 'Panamá Oeste':[8.88,-79.78], 'Coclé':[8.51,-80.35], 'Veraguas':[8.1,-80.97], 'Los Santos':[7.93,-80.48], 'Herrera':[7.96,-80.7], 'Darién':[8.4,-77.91], 'Bocas del Toro':[9.33,-82.24]}
+        
+        coords = {
+            'Panamá':[8.98,-79.52], 'Chiriquí':[8.43,-82.43], 'Colón':[9.35,-79.9], 
+            'Panamá Oeste':[8.88,-79.78], 'Coclé':[8.51,-80.35], 'Veraguas':[8.1,-80.97], 
+            'Los Santos':[7.93,-80.48], 'Herrera':[7.96,-80.7], 'Darién':[8.4,-77.91], 
+            'Bocas del Toro':[9.33,-82.24], 
+            'Comarca Ngäbe-Buglé':[8.41, -81.75]
+        }
+        
         prov_stats['lat'] = prov_stats['PROVINCIA'].map(lambda x: coords.get(x, [8.5, -80.0])[0])
         prov_stats['lon'] = prov_stats['PROVINCIA'].map(lambda x: coords.get(x, [8.5, -80.0])[1])
+        
         c_map, c_rank = st.columns([2, 1])
         with c_map:
-            st.markdown(f'<div class="map-overlay-total"><small style="color:#00ebff;">TOTAL POSITIVOS</small><br><span style="font-size:24px; font-weight:bold;">{total_positivos:,}</span></div>', unsafe_allow_html=True)
-            # Cambio a Mapbox con estilo detallado (navigation-night incluye calles y etiquetas detalladas)
+            st.markdown(f'<div class="map-overlay-total"><small style="color:#00ebff;">TOTAL POSITIVOS</small><br><span style="font-size:24px; font-weight:bold;">{int(df["T_POS_COUNT"].sum()):,}</span></div>', unsafe_allow_html=True)
+            
+            # COLOR CAMBIADO A TURQUESA BRILLANTE ('Darkmint')
             fig_m = px.scatter_mapbox(prov_stats, lat='lat', lon='lon', size='T_POS_COUNT', 
-                                      color='T_POS_COUNT', color_continuous_scale="Jet", 
-                                      zoom=7, center=dict(lat=8.5, lon=-80.0), 
+                                      color='T_POS_COUNT', color_continuous_scale="Darkmint", 
+                                      size_max=55, zoom=7.2, center=dict(lat=8.5, lon=-80.5), 
                                       hover_name='PROVINCIA', 
                                       hover_data={'lat':False, 'lon':False, 'T_POS_COUNT':True, 'DETALLE_TOP':True})
             
-            fig_m.update_layout(
-                mapbox_style="navigation-night", # Estilo con calles y detalles urbanos
-                margin={"r":0,"t":0,"l":0,"b":0}, 
-                paper_bgcolor='rgba(0,0,0,0)', 
-                coloraxis_showscale=False
-            )
+            fig_m.update_layout(mapbox_style="carto-darkmatter", margin={"r":0,"t":0,"l":0,"b":0}, 
+                                paper_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False)
             st.plotly_chart(fig_m, use_container_width=True)
         with c_rank:
             st.plotly_chart(px.bar(prov_stats, x='T_POS_COUNT', y='PROVINCIA', orientation='h', text='T_POS_COUNT', color='T_POS_COUNT', color_continuous_scale='Tealgrn').update_layout(showlegend=False, coloraxis_showscale=False, paper_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), height=400), use_container_width=True)
 
+    # --- RESTO DEL CÓDIGO (Mantenido intacto) ---
     st.markdown("---")
-    # PASTELES Y TABLAS (SIN TOCAR)
     cp1, cp2 = st.columns(2)
     with cp1: st.plotly_chart(px.pie(df, names='CANAL DE ENTRADA', values='T_POS_COUNT', title="Proporción por Canales", hole=0.5), use_container_width=True)
     with cp2: st.plotly_chart(px.pie(df, names='CENTRO', values='T_POS_COUNT', title="Proporción por Centros", hole=0.5, color_discrete_sequence=px.colors.sequential.Tealgrn), use_container_width=True)
