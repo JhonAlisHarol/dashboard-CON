@@ -16,9 +16,9 @@ st.markdown("""
         display: none !important;
     }
     /* 2. ELIMINAR EL LOGO DE GITHUB Y ENLACES AL REPOSITORIO */
-    .stApp a svg {display: none !important; }
+    .stApp a svg { display: none !important; }
     div[data-testid="stStatusWidget"] { visibility: hidden; }
-    footer {visibility: hidden; }
+    footer { visibility: hidden; }
     
     /* Estilo Base */
     .stApp { background-color: #0a0e17; }
