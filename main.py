@@ -164,8 +164,8 @@ if df_raw is not None:
 
     st.markdown("---")
 
-    # MAPA
-    st.subheader("📍 MAPA SATELITAL DE INCIDENCIAS")
+    # MAPA DETALLADO (ESTILO GOOGLE MAPS / NAVIGATION)
+    st.subheader("📍 MAPA TÁCTICO DETALLADO DE INCIDENCIAS")
     if 'PROVINCIA' in df.columns:
         cols_p = [c for c in df.columns if 'RESULTADO POSITIVO' in c.upper()]
         df_long = pd.melt(df, id_vars=['PROVINCIA'], value_vars=cols_p, value_name='Tipo').dropna()
@@ -182,14 +182,25 @@ if df_raw is not None:
         c_map, c_rank = st.columns([2, 1])
         with c_map:
             st.markdown(f'<div class="map-overlay-total"><small style="color:#00ebff;">TOTAL POSITIVOS</small><br><span style="font-size:24px; font-weight:bold;">{total_positivos:,}</span></div>', unsafe_allow_html=True)
-            fig_m = px.scatter_mapbox(prov_stats, lat='lat', lon='lon', size='T_POS_COUNT', color='T_POS_COUNT', color_continuous_scale="Jet", zoom=6.5, center=dict(lat=8.5, lon=-80.0), hover_name='PROVINCIA', hover_data={'lat':False, 'lon':False, 'T_POS_COUNT':True, 'DETALLE_TOP':True})
-            fig_m.update_layout(mapbox=dict(style="white-bg", layers=[{"below": 'traces', "sourcetype": "raster", "source": ["https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}"]} ] ), margin={"r":0,"t":0,"l":0,"b":0}, paper_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False)
+            # Cambio a Mapbox con estilo detallado (navigation-night incluye calles y etiquetas detalladas)
+            fig_m = px.scatter_mapbox(prov_stats, lat='lat', lon='lon', size='T_POS_COUNT', 
+                                      color='T_POS_COUNT', color_continuous_scale="Jet", 
+                                      zoom=7, center=dict(lat=8.5, lon=-80.0), 
+                                      hover_name='PROVINCIA', 
+                                      hover_data={'lat':False, 'lon':False, 'T_POS_COUNT':True, 'DETALLE_TOP':True})
+            
+            fig_m.update_layout(
+                mapbox_style="navigation-night", # Estilo con calles y detalles urbanos
+                margin={"r":0,"t":0,"l":0,"b":0}, 
+                paper_bgcolor='rgba(0,0,0,0)', 
+                coloraxis_showscale=False
+            )
             st.plotly_chart(fig_m, use_container_width=True)
         with c_rank:
             st.plotly_chart(px.bar(prov_stats, x='T_POS_COUNT', y='PROVINCIA', orientation='h', text='T_POS_COUNT', color='T_POS_COUNT', color_continuous_scale='Tealgrn').update_layout(showlegend=False, coloraxis_showscale=False, paper_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), height=400), use_container_width=True)
 
     st.markdown("---")
-    # PASTELES Y TABLAS
+    # PASTELES Y TABLAS (SIN TOCAR)
     cp1, cp2 = st.columns(2)
     with cp1: st.plotly_chart(px.pie(df, names='CANAL DE ENTRADA', values='T_POS_COUNT', title="Proporción por Canales", hole=0.5), use_container_width=True)
     with cp2: st.plotly_chart(px.pie(df, names='CENTRO', values='T_POS_COUNT', title="Proporción por Centros", hole=0.5, color_discrete_sequence=px.colors.sequential.Tealgrn), use_container_width=True)
@@ -199,9 +210,7 @@ if df_raw is not None:
     if not df_l_t.empty:
         t_c = df_l_t.groupby(['Tipo', 'CENTRO']).size().unstack(fill_value=0)
         t_c['TOTAL'] = t_c.sum(axis=1)
-        # ORDENAR COLUMNAS (CENTROS) POR VOLUMEN DE MAYOR A MENOR
         ord_c = t_c.drop(columns='TOTAL').sum().sort_values(ascending=False).index.tolist()
-        # ORDENAR FILAS POR TOTAL DE MAYOR A MENOR
         t_c = t_c[ord_c + ['TOTAL']].sort_values('TOTAL', ascending=False)
         st.dataframe(pd.concat([t_c, t_c.sum().to_frame(name='TOTAL GENERAL').T]), use_container_width=True)
     
@@ -213,9 +222,7 @@ if df_raw is not None:
         if col_c:
             t_sb = df.groupby([col_c, 'CENTRO']).size().unstack(fill_value=0)
             t_sb['TOTAL'] = t_sb.sum(axis=1)
-            # ORDENAR COLUMNAS (CENTROS) DE MAYOR A MENOR SEGÚN SU VOLUMEN
             ord_centros_cierre = t_sb.drop(columns='TOTAL').sum().sort_values(ascending=False).index.tolist()
-            # ORDENAR FILAS POR EL TOTAL DE MAYOR A MENOR
             t_sb = t_sb[ord_centros_cierre + ['TOTAL']].sort_values('TOTAL', ascending=False)
             st.dataframe(pd.concat([t_sb, t_sb.sum().to_frame(name='TOTAL GENERAL').T]), use_container_width=True, height=400)
     with cn2:
