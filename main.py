@@ -4,11 +4,12 @@ import plotly.express as px
 import plotly.graph_objects as go
 import time
 
-# 1. CONFIGURACIÓN Y ESTILO (Mantenido intacto)
+# 1. CONFIGURACIÓN Y ESTILO (Optimizado para Computadora y Teléfono)
 st.set_page_config(page_title="S-Portal Hexagon | Command Center", layout="wide")
 
 st.markdown("""
     <style>
+    /* Estilo Base */
     .stApp { background-color: #0a0e17; }
     h1, h2, h3, span, p, label { color: #ffffff !important; }
     
@@ -67,6 +68,16 @@ st.markdown("""
         background: rgba(10, 14, 23, 0.85); border: 2px solid #00ebff;
         padding: 10px 20px; border-radius: 10px; z-index: 100;
         width: fit-content; margin-bottom: -70px;
+    }
+
+    /* AJUSTES RESPONSIVOS PARA TELÉFONO */
+    @media (max-width: 768px) {
+        .neon-inner-content p { font-size: 22px !important; } /* Texto un poco más pequeño en móvil */
+        .map-overlay-total { 
+            position: relative; top: 10px; left: 10px; 
+            margin-bottom: 10px; width: 90%; 
+        } /* El indicador del mapa se ajusta para no estorbar en móvil */
+        .stPlotlyChart { height: 350px !important; } /* Ajuste de altura de gráficos */
     }
     </style>
     """, unsafe_allow_html=True)
@@ -159,7 +170,7 @@ if df_raw is not None:
 
     st.markdown("---")
 
-    # --- SECCIÓN DEL MAPA (CAMBIO DE COLOR A TURQUESA) ---
+    # --- SECCIÓN DEL MAPA ---
     st.subheader("📍 MAPA TÁCTICO DETALLADO DE INCIDENCIAS")
     if 'PROVINCIA' in df.columns:
         cols_p = [c for c in df.columns if 'RESULTADO POSITIVO' in c.upper()]
@@ -183,7 +194,6 @@ if df_raw is not None:
         with c_map:
             st.markdown(f'<div class="map-overlay-total"><small style="color:#00ebff;">TOTAL POSITIVOS</small><br><span style="font-size:24px; font-weight:bold;">{int(df["T_POS_COUNT"].sum()):,}</span></div>', unsafe_allow_html=True)
             
-            # COLOR CAMBIADO A TURQUESA BRILLANTE ('Darkmint')
             fig_m = px.scatter_mapbox(prov_stats, lat='lat', lon='lon', size='T_POS_COUNT', 
                                       color='T_POS_COUNT', color_continuous_scale="Darkmint", 
                                       size_max=55, zoom=7.2, center=dict(lat=8.5, lon=-80.5), 
