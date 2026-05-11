@@ -10,24 +10,69 @@ st.set_page_config(page_title="S-Portal Hexagon | Command Center", layout="wide"
 st.markdown("""
     <style>
     .stApp { background-color: #0a0e17; }
-    .stMetric { background: rgba(255, 255, 255, 0.05); border: 1px solid #00ebff; border-radius: 10px; padding: 10px; }
     h1, h2, h3, span, p, label { color: #ffffff !important; }
+    
+    .stMetric { 
+        background: rgba(255, 255, 255, 0.05); 
+        border: 1px solid #00ebff; 
+        border-radius: 10px; 
+        padding: 10px; 
+    }
+
+    /* ESTILO ANIMADO MULTICOLOR PARA CUADROS PRINCIPALES */
+    .neon-container {
+        position: relative;
+        border-radius: 10px;
+        padding: 4px;
+        background: rgba(10, 14, 23, 1);
+        background-clip: padding-box;
+        border: 1px solid transparent;
+        overflow: hidden;
+        margin-bottom: 1rem;
+    }
+
+    .neon-container::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: conic-gradient(
+            #ff0000, #ff7300, #fffb00, #48ff00, #00ffd5, #002bff, #7a00ff, #ff00c8, #ff0000
+        );
+        animation: rotate-neon 3s linear infinite;
+        z-index: 0;
+    }
+
+    .neon-inner-content {
+        position: relative;
+        background: #0d121f;
+        border-radius: 7px;
+        padding: 15px;
+        z-index: 1;
+    }
+
+    @keyframes rotate-neon {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
+
+    .neon-inner-content h3 { margin: 0; font-size: 14px; text-transform: uppercase; color: #ffffff !important; }
+    .neon-inner-content p { margin: 0; font-size: 28px; font-weight: bold; color: #00ebff !important; }
+
+    .author-text { color: #00ebff !important; font-size: 14px; font-style: italic; margin-top: -15px; margin-bottom: 15px; }
+    
     .map-overlay-total {
         position: relative; top: 60px; left: 20px;
         background: rgba(10, 14, 23, 0.85); border: 2px solid #00ebff;
         padding: 10px 20px; border-radius: 10px; z-index: 100;
         width: fit-content; margin-bottom: -70px;
     }
-    .author-credit {
-        color: #00ebff;
-        font-size: 14px;
-        font-weight: bold;
-        text-align: right;
-    }
     </style>
     """, unsafe_allow_html=True)
 
-# 2. SISTEMA DE RECARGA AUTOMÁTICA
+# 2. SISTEMA DE RECARGA
 if 'last_update' not in st.session_state:
     st.session_state.last_update = time.time()
 
@@ -38,7 +83,7 @@ if remaining <= 0:
     st.session_state.last_update = time.time()
     st.rerun()
 
-# 3. CARGA Y PROCESAMIENTO DE DATOS
+# 3. CARGA DE DATOS
 URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQzIFyCT2C22Hlrz80szN7J2mEfA8N1R7hiAmFAUXaoorwDTOeWNh-ktv__d0vIBS-AQcuV5ws3ZU4C/pub?gid=229458966&single=true&output=csv"
 
 @st.cache_data(ttl=60)
@@ -51,7 +96,6 @@ def load_full_data():
         col_f = next((c for c in df.columns if 'FECHA' in c.upper()), None)
         if col_f: 
             df['FECHA_DT'] = pd.to_datetime(df[col_f], dayfirst=True, errors='coerce')
-            # Usamos el número del mes para poder ordenar correctamente
             df['MES_NUM'] = df['FECHA_DT'].dt.month
             df['MES_NOMBRE'] = df['FECHA_DT'].dt.strftime('%B').str.capitalize()
         col_h = next((c for c in df.columns if 'HORA' in c.upper()), None)
@@ -86,7 +130,6 @@ df_raw = load_full_data()
 
 if df_raw is not None:
     with st.sidebar:
-        st.markdown('<p class="author-credit">Elaborado por el Cabo 1ro E.Rodriguez</p>', unsafe_allow_html=True)
         st.header("🔎 Filtros")
         f1 = st.date_input("Desde:", df_raw['FECHA_DT'].min().date())
         f2 = st.date_input("Hasta:", df_raw['FECHA_DT'].max().date())
@@ -98,65 +141,55 @@ if df_raw is not None:
                 (df_raw['HORA_NUM'] >= h1) & (df_raw['HORA_NUM'] <= h2)].copy()
 
     st.title("🛡️ Hexágono S-Portal | Centro de Mando")
-    total_positivos = int(df['T_POS_COUNT'].sum())
-    col_met1, col_met2 = st.columns(2)
-    col_met1.metric("📊 EVENTOS TOTALES", f"{len(df):,}")
-    col_met2.metric("✅ TOTAL POSITIVOS", f"{total_positivos:,}")
+    st.markdown('<p class="author-text">Elaborado por el Cabo 1° Elmer Rodriguez</p>', unsafe_allow_html=True)
 
+    # CUADROS NEÓN MULTICOLOR
+    total_positivos = int(df['T_POS_COUNT'].sum())
+    eventos_totales = len(df)
+    c_m1, c_m2 = st.columns(2)
+    with c_m1:
+        st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>📊 EVENTOS TOTALES</h3><p>{eventos_totales:,}</p></div></div>', unsafe_allow_html=True)
+    with c_m2:
+        st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>✅ TOTAL POSITIVOS</h3><p>{total_positivos:,}</p></div></div>', unsafe_allow_html=True)
+
+    # GAUGES
     g1, g2, g3 = st.columns(3)
     v_desp = df['VARIANZA DE DESPACHO_M'].mean() if 'VARIANZA DE DESPACHO_M' in df.columns else 0
     v_aten = df['VARIANZA DE LA ATENCION_M'].mean() if 'VARIANZA DE LA ATENCION_M' in df.columns else 0
-    v_cierre_col = 'VARIANZA DEL CIERRE_M' if 'VARIANZA DEL CIERRE_M' in df.columns else 'VARIANZA DE CIERRE_M'
-    v_cier = df[v_cierre_col].mean() if v_cierre_col in df.columns else 0
+    v_c_col = 'VARIANZA DEL CIERRE_M' if 'VARIANZA DEL CIERRE_M' in df.columns else 'VARIANZA DE CIERRE_M'
+    v_cier = df[v_c_col].mean() if v_c_col in df.columns else 0
     with g1: st.plotly_chart(create_gauge(v_desp, "VARIANZA DESPACHO", "#00ebff"), use_container_width=True)
     with g2: st.plotly_chart(create_gauge(v_aten, "VARIANZA ATENCIÓN", "#00ffaa"), use_container_width=True)
     with g3: st.plotly_chart(create_gauge(v_cier, "VARIANZA CIERRE", "#ffaa00"), use_container_width=True)
 
     st.markdown("---")
 
-    # --- MAPA SATELITAL ---
+    # MAPA
     st.subheader("📍 MAPA SATELITAL DE INCIDENCIAS")
     if 'PROVINCIA' in df.columns:
         cols_p = [c for c in df.columns if 'RESULTADO POSITIVO' in c.upper()]
         df_long = pd.melt(df, id_vars=['PROVINCIA'], value_vars=cols_p, value_name='Tipo').dropna()
-        
-        def get_detailed_top(group):
-            counts = group['Tipo'].value_counts()
-            top_5 = counts.nlargest(5)
-            others_count = counts.iloc[5:].sum()
-            lines = [f"• {tipo}: {cant}" for tipo, cant in top_5.items()]
-            if others_count > 0: lines.append(f"• Otros: {others_count}")
+        def get_top(group):
+            counts = group['Tipo'].value_counts().nlargest(5)
+            lines = [f"• {t}: {v}" for t, v in counts.items()]
             return "<br>".join([""] + lines)
-
-        top_details = df_long.groupby('PROVINCIA').apply(get_detailed_top).reset_index(name='DETALLE_TOP')
+        top_details = df_long.groupby('PROVINCIA').apply(get_top).reset_index(name='DETALLE_TOP')
         prov_stats = df.groupby('PROVINCIA')['T_POS_COUNT'].sum().reset_index().sort_values('T_POS_COUNT', ascending=True)
         prov_stats = prov_stats.merge(top_details, on='PROVINCIA', how='left')
-        
         coords = {'Panamá':[8.98,-79.52], 'Chiriquí':[8.43,-82.43], 'Colón':[9.35,-79.9], 'Panamá Oeste':[8.88,-79.78], 'Coclé':[8.51,-80.35], 'Veraguas':[8.1,-80.97], 'Los Santos':[7.93,-80.48], 'Herrera':[7.96,-80.7], 'Darién':[8.4,-77.91], 'Bocas del Toro':[9.33,-82.24]}
         prov_stats['lat'] = prov_stats['PROVINCIA'].map(lambda x: coords.get(x, [8.5, -80.0])[0])
         prov_stats['lon'] = prov_stats['PROVINCIA'].map(lambda x: coords.get(x, [8.5, -80.0])[1])
-        
         c_map, c_rank = st.columns([2, 1])
         with c_map:
             st.markdown(f'<div class="map-overlay-total"><small style="color:#00ebff;">TOTAL POSITIVOS</small><br><span style="font-size:24px; font-weight:bold;">{total_positivos:,}</span></div>', unsafe_allow_html=True)
-            fig_mapa = px.scatter_mapbox(
-                prov_stats, lat='lat', lon='lon', size='T_POS_COUNT', color='T_POS_COUNT',
-                color_continuous_scale="Jet", size_max=40, zoom=6.5,
-                center=dict(lat=8.5, lon=-80.0),
-                hover_name='PROVINCIA',
-                hover_data={'lat': False, 'lon': False, 'T_POS_COUNT': True, 'DETALLE_TOP': True}
-            )
-            fig_mapa.update_layout(
-                mapbox=dict(style="white-bg", layers=[{"below": 'traces', "sourcetype": "raster", "source": ["https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}"]} ] ),
-                margin={"r":0,"t":0,"l":0,"b":0}, paper_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False
-            )
-            st.plotly_chart(fig_mapa, use_container_width=True)
+            fig_m = px.scatter_mapbox(prov_stats, lat='lat', lon='lon', size='T_POS_COUNT', color='T_POS_COUNT', color_continuous_scale="Jet", zoom=6.5, center=dict(lat=8.5, lon=-80.0), hover_name='PROVINCIA', hover_data={'lat':False, 'lon':False, 'T_POS_COUNT':True, 'DETALLE_TOP':True})
+            fig_m.update_layout(mapbox=dict(style="white-bg", layers=[{"below": 'traces', "sourcetype": "raster", "source": ["https://basemap.nationalmap.gov/arcgis/rest/services/USGSImageryOnly/MapServer/tile/{z}/{y}/{x}"]} ] ), margin={"r":0,"t":0,"l":0,"b":0}, paper_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False)
+            st.plotly_chart(fig_m, use_container_width=True)
         with c_rank:
-            fig_prov = px.bar(prov_stats, x='T_POS_COUNT', y='PROVINCIA', orientation='h', text='T_POS_COUNT', color='T_POS_COUNT', color_continuous_scale='Tealgrn')
-            fig_prov.update_layout(showlegend=False, coloraxis_showscale=False, paper_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), height=450)
-            st.plotly_chart(fig_prov, use_container_width=True)
+            st.plotly_chart(px.bar(prov_stats, x='T_POS_COUNT', y='PROVINCIA', orientation='h', text='T_POS_COUNT', color='T_POS_COUNT', color_continuous_scale='Tealgrn').update_layout(showlegend=False, coloraxis_showscale=False, paper_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), height=400), use_container_width=True)
 
     st.markdown("---")
+    # PASTELES Y TABLAS
     cp1, cp2 = st.columns(2)
     with cp1: st.plotly_chart(px.pie(df, names='CANAL DE ENTRADA', values='T_POS_COUNT', title="Proporción por Canales", hole=0.5), use_container_width=True)
     with cp2: st.plotly_chart(px.pie(df, names='CENTRO', values='T_POS_COUNT', title="Proporción por Centros", hole=0.5, color_discrete_sequence=px.colors.sequential.Tealgrn), use_container_width=True)
@@ -166,21 +199,24 @@ if df_raw is not None:
     if not df_l_t.empty:
         t_c = df_l_t.groupby(['Tipo', 'CENTRO']).size().unstack(fill_value=0)
         t_c['TOTAL'] = t_c.sum(axis=1)
-        orden_centros = t_c.drop(columns='TOTAL').sum().sort_values(ascending=False).index.tolist()
-        t_c = t_c[orden_centros + ['TOTAL']].sort_values('TOTAL', ascending=False)
+        # ORDENAR COLUMNAS (CENTROS) POR VOLUMEN DE MAYOR A MENOR
+        ord_c = t_c.drop(columns='TOTAL').sum().sort_values(ascending=False).index.tolist()
+        # ORDENAR FILAS POR TOTAL DE MAYOR A MENOR
+        t_c = t_c[ord_c + ['TOTAL']].sort_values('TOTAL', ascending=False)
         st.dataframe(pd.concat([t_c, t_c.sum().to_frame(name='TOTAL GENERAL').T]), use_container_width=True)
-
+    
     st.markdown("---")
     cn1, cn2 = st.columns(2)
     with cn1:
         st.subheader("📉 CIERRE DEL INCIDENTE-SUBTIPO")
-        col_cierre = next((c for c in df.columns if 'CIERRE' in c.upper() and 'SUBTIPO' in c.upper()), None)
-        if col_cierre:
-            t_sb = df.groupby([col_cierre, 'CENTRO']).size().unstack(fill_value=0)
+        col_c = next((c for c in df.columns if 'CIERRE' in c.upper() and 'SUBTIPO' in c.upper()), None)
+        if col_c:
+            t_sb = df.groupby([col_c, 'CENTRO']).size().unstack(fill_value=0)
             t_sb['TOTAL'] = t_sb.sum(axis=1)
-            t_sb = t_sb.sort_values('TOTAL', ascending=False)
-            orden_c = t_sb.drop(columns='TOTAL').sum().sort_values(ascending=False).index.tolist()
-            t_sb = t_sb[orden_c + ['TOTAL']]
+            # ORDENAR COLUMNAS (CENTROS) DE MAYOR A MENOR SEGÚN SU VOLUMEN
+            ord_centros_cierre = t_sb.drop(columns='TOTAL').sum().sort_values(ascending=False).index.tolist()
+            # ORDENAR FILAS POR EL TOTAL DE MAYOR A MENOR
+            t_sb = t_sb[ord_centros_cierre + ['TOTAL']].sort_values('TOTAL', ascending=False)
             st.dataframe(pd.concat([t_sb, t_sb.sum().to_frame(name='TOTAL GENERAL').T]), use_container_width=True, height=400)
     with cn2:
         st.subheader("🚔 ZP., SERVICIO POLICIAL O ENLACE")
@@ -195,31 +231,24 @@ if df_raw is not None:
     with c_mes:
         if 'MES_NOMBRE' in df.columns:
             st.write("**📅 Positivos por Meses**")
-            # Agrupamos por nombre y número para ordenar cronológicamente
-            m_s = df.groupby(['MES_NOMBRE', 'MES_NUM'])['T_POS_COUNT'].sum().reset_index()
-            # ORDEN CRONOLÓGICO: De Enero a Diciembre (inverso para que en el gráfico horizontal Enero quede arriba)
-            m_s = m_s.sort_values('MES_NUM', ascending=False)
-            
-            fig_mes_bar = px.bar(m_s, x='T_POS_COUNT', y='MES_NOMBRE', orientation='h', text='T_POS_COUNT', color='T_POS_COUNT', color_continuous_scale='Tealgrn')
-            fig_mes_bar.update_layout(showlegend=False, coloraxis_showscale=False, paper_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), height=400, margin=dict(l=0,r=0,t=20,b=0))
-            # Aseguramos que el eje Y respete el orden cronológico del DataFrame
-            fig_mes_bar.update_yaxes(categoryorder='array', categoryarray=m_s['MES_NOMBRE'])
-            st.plotly_chart(fig_mes_bar, use_container_width=True)
-            
+            m_s = df.groupby(['MES_NOMBRE', 'MES_NUM'])['T_POS_COUNT'].sum().reset_index().sort_values('MES_NUM', ascending=False)
+            fig_m_b = px.bar(m_s, x='T_POS_COUNT', y='MES_NOMBRE', orientation='h', text='T_POS_COUNT', color='T_POS_COUNT', color_continuous_scale='Tealgrn')
+            fig_m_b.update_layout(showlegend=False, coloraxis_showscale=False, paper_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), height=400)
+            st.plotly_chart(fig_m_b, use_container_width=True)
     with c_vv:
         col_vv = next((c for c in df.columns if 'UNIDAD DE VV' in c.upper() or 'VV/104' in c.upper()), None)
         if col_vv:
             st.write("**📟 Unidad de VV/104**")
-            df[col_vv] = df[col_vv].fillna("SIN ASIGNAR")
+            df[col_vv] = df[col_vv].fillna("SIN ASIGNAR").astype(str)
             vv_s = df.groupby([col_vv, 'CENTRO']).size().reset_index(name='E').sort_values('E', ascending=False)
             st.dataframe(pd.concat([vv_s, pd.DataFrame({col_vv:['TOTAL GENERAL'], 'CENTRO':['-'], 'E':[vv_s['E'].sum()]})]), use_container_width=True, hide_index=True)
     with c_desp:
-        col_desp = next((c for c in df.columns if 'UNIDAD DE DESPACHO' in c.upper()), None)
-        if col_desp:
+        col_dp = next((c for c in df.columns if 'UNIDAD DE DESPACHO' in c.upper()), None)
+        if col_dp:
             st.write("**🚨 Unidad de Despacho**")
-            df[col_desp] = df[col_desp].fillna("SIN ASIGNAR")
-            dp_s = df.groupby([col_desp, 'CENTRO']).size().reset_index(name='E').sort_values('E', ascending=False)
-            st.dataframe(pd.concat([dp_s, pd.DataFrame({col_desp:['TOTAL GENERAL'], 'CENTRO':['-'], 'E':[dp_s['E'].sum()]})]), use_container_width=True, hide_index=True)
+            df[col_dp] = df[col_dp].fillna("SIN ASIGNAR").astype(str)
+            dp_s = df.groupby([col_dp, 'CENTRO']).size().reset_index(name='E').sort_values('E', ascending=False)
+            st.dataframe(pd.concat([dp_s, pd.DataFrame({col_dp:['TOTAL GENERAL'], 'CENTRO':['-'], 'E':[dp_s['E'].sum()]})]), use_container_width=True, hide_index=True)
     
     time.sleep(1)
     st.rerun()
