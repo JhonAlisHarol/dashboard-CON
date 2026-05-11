@@ -9,16 +9,10 @@ st.set_page_config(page_title="S-Portal Hexagon | Command Center", layout="wide"
 
 st.markdown("""
     <style>
-    /* 1. OCULTAR OPCIONES DE CÓDIGO EN EL MENÚ */
+    /* 1. ESTO BLOQUEA EL ACCESO AL MENU Y AL CODIGO FUENTE */
     #MainMenu {visibility: visible;}
-    ul[data-testid="main-menu-list"] li:nth-child(4),
-    ul[data-testid="main-menu-list"] li:nth-child(5) {
-        display: none !important;
-    }
-    /* 2. ELIMINAR EL LOGO DE GITHUB Y ENLACES AL REPOSITORIO */
-    .stApp a svg { display: none !important; }
-    div[data-testid="stStatusWidget"] { visibility: hidden; }
-    footer { visibility: hidden; }
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
     
     /* Estilo Base */
     .stApp { background-color: #0a0e17; }
