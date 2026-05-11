@@ -17,7 +17,7 @@ st.markdown("""
         display: none !important;
     }
     /*Ocultamos el pie de pagina de Streamlit para mayor limpieza */
-    footer {visibilty: hidden;}
+    footer {visibility: hidden;}
     
     /* Estilo Base */
     .stApp { background-color: #0a0e17; }
