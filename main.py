@@ -9,8 +9,7 @@ st.set_page_config(page_title="S-Portal Hexagon | Command Center", layout="wide"
 
 st.markdown("""
     <style>
-    /*--- BLOQUE DE SEGURIDAD OPERATIVA ---*/
-    /* Mantenemos el menu visible pero ocultamos las opciones de 'Ver Código' y 'Reportar' */
+    /* 1.OCULTAR OPCIONES DE CÓDIGO EN EL MENÚ */
     #MainMenu {visibility: visible;}
     ul[data-testid="main-menu-list"] li:nth-child(4),
     ul[data-testid="main-menu-list"] li:nth-child(5) {
