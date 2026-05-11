@@ -217,7 +217,7 @@ if df_raw is not None:
     with cp1: st.plotly_chart(px.pie(df, names='CANAL DE ENTRADA', values='T_POS_COUNT', title="Proporción por Canales", hole=0.5), use_container_width=True)
     with cp2: st.plotly_chart(px.pie(df, names='CENTRO', values='T_POS_COUNT', title="Proporción por Centros", hole=0.5, color_discrete_sequence=px.colors.sequential.Tealgrn), use_container_width=True)
     
-    st.subheader("📋 DETALLE: TIPOS VS CENTROS")
+    st.subheader("📋 DETALLE: POSITIVOS POR CENTROS")
     df_l_t = pd.melt(df, id_vars=['CENTRO'], value_vars=cols_p, value_name='Tipo').dropna()
     if not df_l_t.empty:
         t_c = df_l_t.groupby(['Tipo', 'CENTRO']).size().unstack(fill_value=0)
