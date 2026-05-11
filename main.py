@@ -9,7 +9,15 @@ st.set_page_config(page_title="S-Portal Hexagon | Command Center", layout="wide"
 
 st.markdown("""
     <style>
-    /*BLOQUE DE SEGURIDAD OPERATIVA*/
+    /*--- BLOQUE DE SEGURIDAD OPERATIVA ---*/
+    /* Mantenemos el menu visible pero ocultamos las opciones de 'Ver Código' y 'Reportar' */
+    #MainMenu {visibility: visible;}
+    ul[data-testid="main-menu-list"] li:nth-child(4),
+    ul[data-testid="main-menu-list"] li:nth-child(5) {
+        display: none !important;
+    }
+    /*Ocultamos el pie de pagina de Streamlit para mayor limpieza */
+    footer {visibilty: hidden;}
     
     /* Estilo Base */
     .stApp { background-color: #0a0e17; }
