@@ -145,7 +145,7 @@ df_raw = load_full_data()
 
 if df_raw is not None:
     with st.sidebar:
-        st.header("🔎 Filtros")
+        st.header("🔎 Fechas y Horas")
         f1 = st.date_input("Desde:", df_raw['FECHA_DT'].min().date())
         f2 = st.date_input("Hasta:", df_raw['FECHA_DT'].max().date())
         h1 = st.selectbox("Hora Inicial:", list(range(24)), index=0)
