@@ -16,8 +16,10 @@ st.markdown("""
     ul[data-testid="main-menu-list"] li:nth-child(5) {
         display: none !important;
     }
-    /*Ocultamos el pie de página de Streamlit para mayor limpieza */
-    footer {visibility: hidden;}
+    /* 2. ELIMINAR EL LOGO DE GITHUB Y ENLACE AL REPOSITORIO */
+    .stApp a svg {display: none !important; }
+    div[data-testid="stStatusWidget"] { visibility: hidden; }
+    footer {visibility: hidden; }
     
     /* Estilo Base */
     .stApp { background-color: #0a0e17; }
