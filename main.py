@@ -10,7 +10,6 @@ st.set_page_config(page_title="S-Portal Hexagon | Command Center", layout="wide"
 st.markdown("""
     <style>
     /*BLOQUE DE SEGURIDAD OPERATIVA*/
-    #MainMenu {visibility: hidden;}
     header {visibility: hidden;}
     
     /* Estilo Base */
