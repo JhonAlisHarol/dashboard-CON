@@ -237,7 +237,7 @@ if df_raw is not None:
     # --- RESTO DEL CÓDIGO ---
     st.markdown("---")
     cp1, cp2 = st.columns(2)
-    with cp1: st.plotly_chart(px.pie(df, names='CANAL DE ENTRADA', values='T_POS_COUNT', title="Positivos por Canales", hole=0.5), use_container_width=True)
+    with cp1: st.plotly_chart(px.pie(df, names='CANAL DE ENTRADA', values='T_POS_COUNT', title="Positivos por Canales", hole=0.5), color_discrete_map={"CALL-104": "#FF1493", "Video Vigilancia": "#FF69B4", "Radio Frecuencia": "#FFB6C1"}), use_container_width=True)
     with cp2: st.plotly_chart(px.pie(df, names='CENTRO', values='T_POS_COUNT', title="Positivos por Centros", hole=0.5, color_discrete_sequence=px.colors.sequential.Tealgrn), use_container_width=True)
     
     st.subheader("📋 DETALLE: POSITIVOS POR CENTROS")
