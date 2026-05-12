@@ -179,7 +179,7 @@ if df_raw is not None:
                 (df_raw['HORA_NUM'] >= h1) & (df_raw['HORA_NUM'] <= h2)].copy()
 
     st.title("🛡️ Centro de Operación Nacional | Datos Positivos-C.O.N-C5")
-    st.markdown('<p class="author-text">Elaborado por el Cabo 1° Elmer Rodriguez</p>', unsafe_allow_html=True)
+    st.markdown('<p class="author-text">Creado por= *Cabo 1° Elmer Rodriguez*</p>', unsafe_allow_html=True)
 
     c_m1, c_m2 = st.columns(2)
     with c_m1:
