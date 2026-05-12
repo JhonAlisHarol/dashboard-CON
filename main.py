@@ -75,19 +75,42 @@ st.markdown("""
         width: fit-content; margin-bottom: -70px;
     }
 
-    /* AJUSTES RESPONSIVOS PARA TELÉFONO */
+    /* BOTÓN DE DESCARGA PDF FLOTANTE */
+    .float-pdf {
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 999;
+        background: #00ebff;
+        color: #0a0e17 !important;
+        padding: 10px 20px;
+        border-radius: 30px;
+        font-weight: bold;
+        text-decoration: none;
+        box-shadow: 0 0 15px #00ebff;
+        border: none;
+        cursor: pointer;
+    }
+
     @media (max-width: 768px) {
-        .neon-inner-content p { font-size: 22px !important; } /* Texto un poco más pequeño en móvil */
-        .map-overlay-total { 
-            position: relative; top: 10px; left: 10px; 
-            margin-bottom: 10px; width: 90%; 
-        } /* El indicador del mapa se ajusta para no estorbar en móvil */
-        .stPlotlyChart { height: 350px !important; } /* Ajuste de altura de gráficos */
+        .neon-inner-content p { font-size: 22px !important; }
+        .map-overlay-total { position: relative; top: 10px; left: 10px; margin-bottom: 10px; width: 90%; }
+        .stPlotlyChart { height: 350px !important; }
+    }
+
+    /* ESTO AYUDA A QUE AL IMPRIMIR SE VEA TODO BIEN */
+    @media print {
+        .stSidebar, .float-pdf, button { display: none !important; }
+        .stApp { background-color: white !important; }
+        h1, h2, h3, p, span { color: black !important; }
     }
     </style>
     """, unsafe_allow_html=True)
 
-# 2. SISTEMA DE RECARGA (Mantenido intacto)
+# BOTÓN PDF (No afecta los datos)
+st.markdown('<button class="float-pdf" onclick="window.print()">📥 DESCARGAR INFORME (PDF)</button>', unsafe_allow_html=True)
+
+# 2. SISTEMA DE RECARGA
 if 'last_update' not in st.session_state:
     st.session_state.last_update = time.time()
 
@@ -98,7 +121,7 @@ if remaining <= 0:
     st.session_state.last_update = time.time()
     st.rerun()
 
-# 3. CARGA DE DATOS (Mantenido intacto)
+# 3. CARGA DE DATOS
 URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQzIFyCT2C22Hlrz80szN7J2mEfA8N1R7hiAmFAUXaoorwDTOeWNh-ktv__d0vIBS-AQcuV5ws3ZU4C/pub?gid=229458966&single=true&output=csv"
 
 @st.cache_data(ttl=60)
@@ -211,7 +234,7 @@ if df_raw is not None:
         with c_rank:
             st.plotly_chart(px.bar(prov_stats, x='T_POS_COUNT', y='PROVINCIA', orientation='h', text='T_POS_COUNT', color='T_POS_COUNT', color_continuous_scale='Tealgrn').update_layout(showlegend=False, coloraxis_showscale=False, paper_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), height=400), use_container_width=True)
 
-    # --- RESTO DEL CÓDIGO (Mantenido intacto) ---
+    # --- RESTO DEL CÓDIGO ---
     st.markdown("---")
     cp1, cp2 = st.columns(2)
     with cp1: st.plotly_chart(px.pie(df, names='CANAL DE ENTRADA', values='T_POS_COUNT', title="Proporción por Canales", hole=0.5), use_container_width=True)
