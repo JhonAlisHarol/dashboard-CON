@@ -80,7 +80,7 @@ st.markdown("""
         position: fixed;
         bottom: 20px;
         right: 20px;
-        z-index: 999;
+        z-i2ndex: 999;
         background: #00ebff;
         color: #0a0e17 !important;
         padding: 10px 20px;
@@ -261,7 +261,7 @@ if df_raw is not None:
             t_sb = t_sb[ord_centros_cierre + ['TOTAL']].sort_values('TOTAL', ascending=False)
             st.dataframe(pd.concat([t_sb, t_sb.sum().to_frame(name='TOTAL GENERAL').T]), use_container_width=True, height=400)
     with cn2:
-        st.subheader("🚔 ZP., SERVICIO POLICIAL O ENLACE")
+        st.subheader("🚔 ZONA POLICIAL O ENLACE")
         col_zp = next((c for c in df.columns if any(k in c.upper() for k in ['ZONA', 'ZP', 'SERVICIO'])), None)
         if col_zp:
             zp_s = df.groupby(col_zp)['T_POS_COUNT'].sum().reset_index().sort_values('T_POS_COUNT', ascending=False)
