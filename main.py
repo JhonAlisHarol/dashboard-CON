@@ -3,6 +3,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import time
+import unicodedata
 
 # 1. CONFIGURACIÓN Y ESTILO (Optimizado para Computadora y Teléfono)
 st.set_page_config(page_title="S-Portal Hexagon | Command Center", layout="wide")
@@ -80,7 +81,7 @@ st.markdown("""
         position: fixed;
         bottom: 20px;
         right: 20px;
-        z-i2ndex: 999;
+        z-index: 999;
         background: #00ebff;
         color: #0a0e17 !important;
         padding: 10px 20px;
@@ -139,16 +140,129 @@ def load_full_data():
         col_h = next((c for c in df.columns if 'HORA' in c.upper()), None)
         if col_h: 
             df['HORA_NUM'] = pd.to_datetime(df[col_h], errors='coerce').dt.hour.fillna(0).astype(int)
+        
         def to_m(v):
             try:
                 if pd.isna(v) or v == "" or v == 0: return 0.0
                 p = str(v).split(':')
                 return float(int(p[0])*60 + int(p[1])) if len(p) >= 2 else float(v)
             except: return 0.0
+            
         for c in ['VARIANZA DE DESPACHO', 'VARIANZA DE LA ATENCION', 'VARIANZA DEL CIERRE', 'VARIANZA DE CIERRE']:
             if c in df.columns: df[c+'_M'] = df[c].apply(to_m)
+            
         cols_pos = [c for c in df.columns if 'RESULTADO POSITIVO' in c.upper()]
         df['T_POS_COUNT'] = df[cols_pos].notna().sum(axis=1)
+        
+        # --- DICCIONARIO TÁCTICO DE INCIDENCIAS ---
+        map_tactico_raw = {
+            # CAPTURAS
+            'Aprehensión de Menor por Alerta de Custodia': 'CAPTURAS', 'Ciudadana Aprehendida por Violencia Doméstica': 'CAPTURAS',
+            'Ciudadano Aprehendido': 'CAPTURAS', 'Ciudadano Aprehendido por Inviolabilidad Del Domicilio': 'CAPTURAS',
+            'Ciudadano Aprehendido por Libertad Vigilada': 'CAPTURAS', 'Ciudadano Aprehendido con Accesorio De Arma De Fuego': 'CAPTURAS',
+            'Ciudadano Aprehendido con Arma Blanca': 'CAPTURAS', 'Ciudadano Aprehendido con Arma de Fuego': 'CAPTURAS',
+            'Ciudadano Aprehendido con Sustancias Ilícitas': 'CAPTURAS', 'Ciudadano Aprehendido por Agresiones Fisicas': 'CAPTURAS',
+            'Ciudadano Aprehendido por Agresiones Verbales': 'CAPTURAS', 'Ciudadano Aprehendido por Alteración De La Convivencia Pacífica': 'CAPTURAS',
+            'Ciudadano Aprehendido por Consumo de Licor en Vía Pública': 'CAPTURAS', 'Ciudadano Aprehendido por Daño A La Prop. Privada': 'CAPTURAS',
+            'Ciudadano Aprehendido por Estafa Simple': 'CAPTURAS', 'Ciudadano Aprehendido por Falsificación De Documentos': 'CAPTURAS',
+            'Ciudadano Aprehendido por Falsificación De Monedas': 'CAPTURAS', 'Ciudadano Aprehendido por Hurto': 'CAPTURAS',
+            'Ciudadano Aprehendido por Hurto A local Comercial': 'CAPTURAS', 'Ciudadano Aprehendido por Hurto A Propiedad': 'CAPTURAS',
+            'Ciudadano Aprehendido por Hurto A Residencia': 'CAPTURAS', 'Ciudadano Aprehendido por Hurto de Accesorio De Vehículo': 'CAPTURAS',
+            'Ciudadano Aprehendido por Hurto De Vehículo': 'CAPTURAS', 'Ciudadano Aprehendido por Hurto Simple A Persona': 'CAPTURAS',
+            'Ciudadano Aprehendido por Hurto Simple a Propiedad': 'CAPTURAS', 'Ciudadano Aprehendido por Intento de Hurto': 'CAPTURAS',
+            'Ciudadano Aprehendido por Intento De Violación': 'CAPTURAS', 'Ciudadano Aprehendido por Lesiones Personales': 'CAPTURAS',
+            'Ciudadano Aprehendido por Lesiones Personales Con Arma Blanca': 'CAPTURAS', 'Ciudadano Aprehendido por Maltrato De Niños(As)-Adolescentes': 'CAPTURAS',
+            'Ciudadano Aprehendido por No Portar Documento de Identidad Personal': 'CAPTURAS', 'Ciudadano Aprehendido por Oficio de Captura': 'CAPTURAS',
+            'Ciudadano Aprehendido por Oficio de Conducción': 'CAPTURAS', 'Ciudadano Aprehendido por Privación De Libertad': 'CAPTURAS',
+            'Ciudadano Aprehendido por Quebrantamiento De Boleta De Protección': 'CAPTURAS', 'Ciudadano Aprehendido por Riña o Pelea': 'CAPTURAS',
+            'Ciudadano Aprehendido por Robo A local Comercial': 'CAPTURAS', 'Ciudadano Aprehendido por Robo A Persona Con Arma De Fuego': 'CAPTURAS',
+            'Ciudadano Aprehendido por Robo A Propiedad': 'CAPTURAS', 'Ciudadano Aprehendido por Robo de Vehículo (Alerta Temprana)': 'CAPTURAS',
+            'Ciudadano Aprehendido por Robo Simple (carterista)': 'CAPTURAS', 'Ciudadano Aprehendido por Robo Simple a Persona': 'CAPTURAS',
+            'Ciudadano Aprehendido por Subrogado Penal': 'CAPTURAS', 'Ciudadano Aprehendido por Supuesta Vinculación A Delito': 'CAPTURAS',
+            'Ciudadano Aprehendido por Violencia Doméstica': 'CAPTURAS', 'Ciudadano Capturado por Alerta Penitenciaria': 'CAPTURAS',
+            'Ciudadano Notificado por Oficio de Citación': 'CAPTURAS', 'Menor Infractor por Hurto': 'CAPTURAS', 'Menor Infractor por Robo': 'CAPTURAS',
+            # RECUPERACIONES
+            'Arma de Fuego - Decomiso - Escopeta': 'RECUPERACIONES', 'Arma de Fuego - Decomiso - Fusil': 'RECUPERACIONES',
+            'Arma de Fuego - Decomiso - Pistola': 'RECUPERACIONES', 'Arma de Fuego - Decomiso - Revolver': 'RECUPERACIONES',
+            'Arma de Fuego - Decomiso - Rifle': 'RECUPERACIONES', 'Arma de Fuego - Hallazgo - Escopeta': 'RECUPERACIONES',
+            'Arma de Fuego - Hallazgo - Fusil': 'RECUPERACIONES', 'Arma de Fuego - Hallazgo - Pistola': 'RECUPERACIONES',
+            'Arma de Fuego - Hallazgo - Revolver': 'RECUPERACIONES', 'Arma de Fuego - Replica Decomiso': 'RECUPERACIONES',
+            'Arma de Fuego - Replica Hallazgo': 'RECUPERACIONES', 'Articulo de Dudosa Procedencia': 'RECUPERACIONES',
+            'Articulo Recuperados': 'RECUPERACIONES', 'Decomiso de Articulos Prohibidos': 'RECUPERACIONES',
+            'Decomiso de Cajetillas Cigarrillos': 'RECUPERACIONES', 'Decomiso de Sustancia Ilícita': 'RECUPERACIONES',
+            'Hallazgo de Sustancia Ilícita': 'RECUPERACIONES', 'Recuperación de Articulos': 'RECUPERACIONES',
+            'Recuperación de Menor Evadido': 'RECUPERACIONES', 'Remoción de Vehículo en Grúa': 'RECUPERACIONES',
+            'Vehículo Recuperado': 'RECUPERACIONES', 'Vehículo Recuperado por Apropiación Indebida': 'RECUPERACIONES',
+            'Vehículo Recuperado por Hurto (Alerta Temprana)': 'RECUPERACIONES', 'Vehículo Recuperado por Oficio de Hurto': 'RECUPERACIONES',
+            'Vehículo Recuperado por Oficio de Robo': 'RECUPERACIONES', 'Vehículo Recuperado por Robo (Alerta Temprana)': 'RECUPERACIONES',
+            # SEGURIDAD VIAL
+            'Atención de Atropello': 'SEGURIDAD VIAL', 'Atención de Atropello con victima fatal': 'SEGURIDAD VIAL',
+            'Atención de Caida de Vehiculo en la Cuneta': 'SEGURIDAD VIAL', 'Atención de Choque con Objeto Fijo': 'SEGURIDAD VIAL',
+            'Atención de Colisión de Alto Impacto': 'SEGURIDAD VIAL', 'Atención de Colisión menor': 'SEGURIDAD VIAL',
+            'Atención de Colisión multiple': 'SEGURIDAD VIAL', 'Atención de Colision y Fuga': 'SEGURIDAD VIAL',
+            'Atención de Colision y vuelco': 'SEGURIDAD VIAL', 'Atención de Derrame de Combustible': 'SEGURIDAD VIAL',
+            'Atención de Derrape de Motorizado': 'SEGURIDAD VIAL', 'Atención de Derrape de Motorizado con Víctima Fatal': 'SEGURIDAD VIAL',
+            'Atención de Triple Colisión': 'SEGURIDAD VIAL', 'Atención de Vuelco': 'SEGURIDAD VIAL',
+            'Infracción por Ceder el Manejo a Persona No Autorizada': 'SEGURIDAD VIAL', 'Infracción por Circular en Vía Contraria': 'SEGURIDAD VIAL',
+            'Infracción por Conducir a Velocidad Superior al Limite': 'SEGURIDAD VIAL', 'Infracción por Conducir con Aliento Alcohólico': 'SEGURIDAD VIAL',
+            'Infracción por Conducir de Forma Desordenada': 'SEGURIDAD VIAL', 'Infracción por Conducir por el Carril Indebido': 'SEGURIDAD VIAL',
+            'Infracción por Conductor en Estado de Embriaguez Comprobado': 'SEGURIDAD VIAL', 'Infracción por Estado Etilico': 'SEGURIDAD VIAL',
+            'Infracción por Conductor en Estado Etilico': 'SEGURIDAD VIAL', 'Infracción por Daño a la Propiedad': 'SEGURIDAD VIAL',
+            'Infracción por Desatender lineas de no pare, paso peatonal e indications del': 'SEGURIDAD VIAL', 'Infracción por Desatender señales': 'SEGURIDAD VIAL',
+            'Infracción por Emitir Gases, Ruidos o Sonidos Excesivos': 'SEGURIDAD VIAL', 'Infracción por Hablar por Teléfono Celular al Conducir': 'SEGURIDAD VIAL',
+            'Infracción por Licencia de Conducir Vencida': 'SEGURIDAD VIAL', 'Infracción por Licencia no Adecuada al Vehiculo': 'SEGURIDAD VIAL',
+            'Infracción Nunca ha Sacado Licencia': 'SEGURIDAD VIAL', 'Infracción por Luces Inadecuadas': 'SEGURIDAD VIAL',
+            'Infracción por Negarse a hacerse la Prueba de Alcoholemia': 'SEGURIDAD VIAL', 'Infracción por No portar licencia de Conducir': 'SEGURIDAD VIAL',
+            'Infracción por No utilizar el Cinturón de Seguridad': 'SEGURIDAD VIAL', 'Infracción por Papel ahumado en Tono o Lugar no Autorizado': 'SEGURIDAD VIAL',
+            'Infracción por Pasar Semáforo en Luz Roja': 'SEGURIDAD VIAL', 'Infracción por Poliza Vencida': 'SEGURIDAD VIAL',
+            'Infracción por Portar Placa con Diseño Diferente a la Oficial': 'SEGURIDAD VIAL', 'Infracción por Prestar el Servicio en Ruta Distinta a la Establecida': 'SEGURIDAD VIAL',
+            'Infracción por Prestar servicio de tránsporte público en vehículo no autorizado': 'SEGURIDAD VIAL', 'Infracción por Realizar Giros Prohibidos': 'SEGURIDAD VIAL',
+            'Infracción por Sin Condiciones Adecuadas de Seguridad': 'SEGURIDAD VIAL', 'Infracción por Sin Equipos de Seguridad': 'SEGURIDAD VIAL',
+            'Infracción por Transportar Exeso de Pasajero': 'SEGURIDAD VIAL', 'Infracción por Vehiculo con luces no Adecuadas': 'SEGURIDAD VIAL',
+            'Infracción por Vehículo sin Cinta Reflectiva': 'SEGURIDAD VIAL', 'Infracción por Vehículos de transporte público y Comercial sin identificación': 'SEGURIDAD VIAL',
+            'Infracción por Vehículos mal Estacionados': 'SEGURIDAD VIAL', 'Infracción por Remolcar otro Vehículo sin las Debidas Medidas de Seguridad': 'SEGURIDAD VIAL',
+            'Restablecimiento de la Segurida Víal': 'SEGURIDAD VIAL',
+            # EMERGENCIAS
+            'Apoyo a Vehiculo de Valores Desperfectos': 'EMERGENCIAS', 'Apoyo al Ciudadano': 'EMERGENCIAS',
+            'Apoyo al Ciudadano Brindar Seguridad a una Prosecion': 'EMERGENCIAS', 'Apoyo al Ciudadano Cruce de Peatón': 'EMERGENCIAS',
+            'Apoyo al Ciudadano para Reparar Vehículo': 'EMERGENCIAS', 'Apoyo al Ciudadano Rescate de Embarcacion': 'EMERGENCIAS',
+            'Apoyo al Ciudadano Rescate de Persona': 'EMERGENCIAS', 'Atención Prehospitalaria BCBPA': 'EMERGENCIAS',
+            'Atención Prehospitalaria CSS': 'EMERGENCIAS', 'Atención Prehospitalaria MINSACAPSI': 'EMERGENCIAS',
+            'Atención Prehospitalaria Policía Nacional': 'EMERGENCIAS', 'Atención Prehospitalaria Privada': 'EMERGENCIAS',
+            'Atención Prehospitalaria SUME 911': 'EMERGENCIAS', 'Coordinación con Atención Primaria': 'EMERGENCIAS',
+            'Extinción de Incendio': 'EMERGENCIAS', 'Extinción del Conato de Incendio': 'EMERGENCIAS',
+            'Proveedor': 'EMERGENCIAS', 'Rescate de Animal Domestico': 'EMERGENCIAS',
+            'Rescate de Menor por Alerta AMBER': 'EMERGENCIAS', 'Rescate de Menor por Riego Social': 'EMERGENCIAS',
+            'Rescate de Persona': 'EMERGENCIAS', 'Rescate de Vida y fauna Silvestre': 'EMERGENCIAS',
+            'Restitución de Propiedad Extraviada': 'EMERGENCIAS', 'Traslado a Hospital': 'EMERGENCIAS',
+            'Traslado a Hospital por BCBPA': 'EMERGENCIAS', 'Traslado a Hospital por CSS': 'EMERGENCIAS',
+            'Traslado a Hospital por Policía Nacional': 'EMERGENCIAS', 'Traslado a Hospital por Serv. Privado': 'EMERGENCIAS',
+            'Traslado a Hospital por SUME 911': 'EMERGENCIAS'
+        }
+
+        # Función auxiliar para remover acentos, tildes y dejar en minúscula limpia
+        def normalizar_texto(texto):
+            if not texto or pd.isna(texto):
+                return ""
+            texto = str(texto).strip().lower()
+            # Quita acentos/tildes usando NFKD
+            return "".join(c for c in unicodedata.normalize('NFKD', texto) if not unicodedata.combining(c))
+
+        # Crear el diccionario de mapeo completamente normalizado
+        map_tactico = {normalizar_texto(k): v for k, v in map_tactico_raw.items()}
+
+        # Calcular el Grupo Táctico barriendo filas de Resultados Positivos limpiando tildes
+        def asignar_grupo(row):
+            for col in cols_pos:
+                val_raw = str(row[col]).strip() if pd.notna(row[col]) else ""
+                if val_raw:
+                    val_norm = normalizar_texto(val_raw)
+                    if val_norm in map_tactico:
+                        return map_tactico[val_norm]
+            # Si el incidente no coincide exactamente con la lista, se asigna automáticamente a EMERGENCIAS
+            return "EMERGENCIAS"
+
+        df['GRUPO_TACTICO'] = df.apply(asignar_grupo, axis=1)
         return df[df['T_POS_COUNT'] > 0].copy()
     except: return None
 
@@ -234,12 +348,17 @@ if df_raw is not None:
         with c_rank:
             st.plotly_chart(px.bar(prov_stats, x='T_POS_COUNT', y='PROVINCIA', orientation='h', text='T_POS_COUNT', color='T_POS_COUNT', color_continuous_scale='Tealgrn').update_layout(showlegend=False, coloraxis_showscale=False, paper_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), height=400), use_container_width=True)
 
-    # --- RESTO DEL CÓDIGO ---
+    # --- SECCIÓN DE GRÁFICOS DE PASTEL (OPTIMIZADA CON 4 ITEMS ESTRICTOS) ---
     st.markdown("---")
-    cp1, cp2 = st.columns(2)
-    with cp1: st.plotly_chart(px.pie(df, names='CANAL DE ENTRADA', values='T_POS_COUNT', title="Positivos por Canales", hole=0.5, color_discrete_map={"CLL-104": "#FF1493", "Video Vigilancia": "#FF69B4", "Radio Frecuencia": "#FFB6C1"}), use_container_width=True)
-    with cp2: st.plotly_chart(px.pie(df, names='CENTRO', values='T_POS_COUNT', title="Positivos por Centros", hole=0.5, color_discrete_sequence=px.colors.sequential.Tealgrn), use_container_width=True)
-    
+    cp1, cp2, cp3 = st.columns(3)
+    with cp1: 
+        st.plotly_chart(px.pie(df, names='CANAL DE ENTRADA', values='T_POS_COUNT', title="Positivos por Canales", hole=0.5, color_discrete_map={"CLL-104": "#FF1493", "Video Vigilancia": "#FF69B4", "Radio Frecuencia": "#FFB6C1"}), use_container_width=True)
+    with cp2: 
+        st.plotly_chart(px.pie(df, names='CENTRO', values='T_POS_COUNT', title="Positivos por Centros", hole=0.5, color_discrete_sequence=px.colors.sequential.Tealgrn), use_container_width=True)
+    with cp3: 
+        # Gráfico mejorado para los 4 ítems operativos sin "Otros"
+        st.plotly_chart(px.pie(df, names='GRUPO_TACTICO', values='T_POS_COUNT', title="Distribución por Grupo Táctico", hole=0.5, color_discrete_sequence=px.colors.qualitative.G10), use_container_width=True)
+        
     st.subheader("📋 DETALLE: POSITIVOS POR CENTROS")
     df_l_t = pd.melt(df, id_vars=['CENTRO'], value_vars=cols_p, value_name='Tipo').dropna()
     if not df_l_t.empty:
