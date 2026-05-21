@@ -26,6 +26,7 @@ st.markdown("""
         padding: 10px; 
     }
 
+    /* CONTENEDOR NEÓN GLOBAL ROTATIVO */
     .neon-container {
         position: relative;
         border-radius: 10px;
@@ -37,6 +38,7 @@ st.markdown("""
         margin-bottom: 1rem;
     }
 
+    /* NEÓN MULTICOLOR PARA MÉTRICAS */
     .neon-container::before {
         content: '';
         position: absolute;
@@ -49,6 +51,52 @@ st.markdown("""
         );
         animation: rotate-neon 3s linear infinite;
         z-index: 0;
+    }
+
+    /* --- NUEVO: NEÓN CIAN EXCLUSIVO PARA EL TÍTULO PRINCIPAL --- */
+    .neon-title-container {
+        position: relative;
+        border-radius: 12px;
+        padding: 4px;
+        background: rgba(10, 14, 23, 1);
+        background-clip: padding-box;
+        border: 1px solid transparent;
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+    }
+    
+    .neon-title-container::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: conic-gradient(
+            #00ffff, #00ebff, #00aaff, #0077ff, #00ffff
+        );
+        animation: rotate-neon 3s linear infinite;
+        z-index: 0;
+    }
+
+    .neon-title-inner {
+        position: relative;
+        background: #0d121f;
+        border-radius: 9px;
+        padding: 20px;
+        z-index: 1;
+        text-align: center;
+    }
+
+    .neon-title-inner h1 {
+        margin: 0;
+        font-size: 32px;
+        font-weight: 800;
+        letter-spacing: 1px;
+        text-transform: uppercase;
+        background: linear-gradient(45deg, #ffffff, #00ebff);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
     }
 
     .neon-inner-content {
@@ -67,7 +115,7 @@ st.markdown("""
     .neon-inner-content h3 { margin: 0; font-size: 14px; text-transform: uppercase; color: #ffffff !important; }
     .neon-inner-content p { margin: 0; font-size: 28px; font-weight: bold; color: #00ebff !important; }
 
-    .author-text { color: #00ebff !important; font-size: 14px; font-style: italic; margin-top: -15px; margin-bottom: 15px; }
+    .author-text { color: #00ebff !important; font-size: 14px; font-style: italic; margin-top: -5px; margin-bottom: 20px; text-align: center; }
     
     .map-overlay-total {
         position: relative; top: 60px; left: 20px;
@@ -94,6 +142,7 @@ st.markdown("""
     }
 
     @media (max-width: 768px) {
+        .neon-title-inner h1 { font-size: 22px !important; }
         .neon-inner-content p { font-size: 22px !important; }
         .map-overlay-total { position: relative; top: 10px; left: 10px; margin-bottom: 10px; width: 90%; }
         .stPlotlyChart { height: 350px !important; }
@@ -108,7 +157,7 @@ st.markdown("""
     </style>
     """, unsafe_allow_html=True)
 
-# BOTÓN PDF (No afecta los datos)
+# BOTÓN PDF
 st.markdown('<button class="float-pdf" onclick="window.print()">📥 DESCARGAR INFORME (PDF)</button>', unsafe_allow_html=True)
 
 # 2. SISTEMA DE RECARGA
@@ -154,9 +203,8 @@ def load_full_data():
         cols_pos = [c for c in df.columns if 'RESULTADO POSITIVO' in c.upper()]
         df['T_POS_COUNT'] = df[cols_pos].notna().sum(axis=1)
         
-        # --- DICCIONARIO TÁCTICO DE INCIDENCIAS ---
+        # --- MAPEO TÁCTICO DE INCIDENCIAS ---
         map_tactico_raw = {
-            # CAPTURAS
             'Aprehensión de Menor por Alerta de Custodia': 'CAPTURAS', 'Ciudadana Aprehendida por Violencia Doméstica': 'CAPTURAS',
             'Ciudadano Aprehendido': 'CAPTURAS', 'Ciudadano Aprehendido por Inviolabilidad Del Domicilio': 'CAPTURAS',
             'Ciudadano Aprehendido por Libertad Vigilada': 'CAPTURAS', 'Ciudadano Aprehendido con Accesorio De Arma De Fuego': 'CAPTURAS',
@@ -181,7 +229,6 @@ def load_full_data():
             'Ciudadano Aprehendido por Subrogado Penal': 'CAPTURAS', 'Ciudadano Aprehendido por Supuesta Vinculación A Delito': 'CAPTURAS',
             'Ciudadano Aprehendido por Violencia Doméstica': 'CAPTURAS', 'Ciudadano Capturado por Alerta Penitenciaria': 'CAPTURAS',
             'Ciudadano Notificado por Oficio de Citación': 'CAPTURAS', 'Menor Infractor por Hurto': 'CAPTURAS', 'Menor Infractor por Robo': 'CAPTURAS',
-            # RECUPERACIONES
             'Arma de Fuego - Decomiso - Escopeta': 'RECUPERACIONES', 'Arma de Fuego - Decomiso - Fusil': 'RECUPERACIONES',
             'Arma de Fuego - Decomiso - Pistola': 'RECUPERACIONES', 'Arma de Fuego - Decomiso - Revolver': 'RECUPERACIONES',
             'Arma de Fuego - Decomiso - Rifle': 'RECUPERACIONES', 'Arma de Fuego - Hallazgo - Escopeta': 'RECUPERACIONES',
@@ -195,11 +242,10 @@ def load_full_data():
             'Vehículo Recuperado': 'RECUPERACIONES', 'Vehículo Recuperado por Apropiación Indebida': 'RECUPERACIONES',
             'Vehículo Recuperado por Hurto (Alerta Temprana)': 'RECUPERACIONES', 'Vehículo Recuperado por Oficio de Hurto': 'RECUPERACIONES',
             'Vehículo Recuperado por Oficio de Robo': 'RECUPERACIONES', 'Vehículo Recuperado por Robo (Alerta Temprana)': 'RECUPERACIONES',
-            # SEGURIDAD VIAL
             'Atención de Atropello': 'SEGURIDAD VIAL', 'Atención de Atropello con victima fatal': 'SEGURIDAD VIAL',
             'Atención de Caida de Vehiculo en la Cuneta': 'SEGURIDAD VIAL', 'Atención de Choque con Objeto Fijo': 'SEGURIDAD VIAL',
             'Atención de Colisión de Alto Impacto': 'SEGURIDAD VIAL', 'Atención de Colisión menor': 'SEGURIDAD VIAL',
-            'Atención de Colisión multiple': 'SEGURIDAD VIAL', 'Atención de Colision y Fuga': 'SEGURIDAD VIAL',
+            'Atención de Colisión multiple': 'SEGURIDAD VIAL', 'Atención de Colision y fuga': 'SEGURIDAD VIAL',
             'Atención de Colision y vuelco': 'SEGURIDAD VIAL', 'Atención de Derrame de Combustible': 'SEGURIDAD VIAL',
             'Atención de Derrape de Motorizado': 'SEGURIDAD VIAL', 'Atención de Derrape de Motorizado con Víctima Fatal': 'SEGURIDAD VIAL',
             'Atención de Triple Colisión': 'SEGURIDAD VIAL', 'Atención de Vuelco': 'SEGURIDAD VIAL',
@@ -207,24 +253,21 @@ def load_full_data():
             'Infracción por Conducir a Velocidad Superior al Limite': 'SEGURIDAD VIAL', 'Infracción por Conducir con Aliento Alcohólico': 'SEGURIDAD VIAL',
             'Infracción por Conducir de Forma Desordenada': 'SEGURIDAD VIAL', 'Infracción por Conducir por el Carril Indebido': 'SEGURIDAD VIAL',
             'Infracción por Conductor en Estado de Embriaguez Comprobado': 'SEGURIDAD VIAL', 'Infracción por Estado Etilico': 'SEGURIDAD VIAL',
-            'Infracción por Conductor en Estado Etilico': 'SEGURIDAD VIAL', 'Infracción por Daño a la Propiedad': 'SEGURIDAD VIAL',
-            'Infracción por Desatender lineas de no pare, paso peatonal e indications del': 'SEGURIDAD VIAL', 'Infracción por Desatender señales': 'SEGURIDAD VIAL',
-            'Infracción por Emitir Gases, Ruidos o Sonidos Excesivos': 'SEGURIDAD VIAL', 'Infracción por Hablar por Teléfono Celular al Conducir': 'SEGURIDAD VIAL',
-            'Infracción por Licencia de Conducir Vencida': 'SEGURIDAD VIAL', 'Infracción por Licencia no Adecuada al Vehiculo': 'SEGURIDAD VIAL',
-            'Infracción Nunca ha Sacado Licencia': 'SEGURIDAD VIAL', 'Infracción por Luces Inadecuadas': 'SEGURIDAD VIAL',
-            'Infracción por Negarse a hacerse la Prueba de Alcoholemia': 'SEGURIDAD VIAL', 'Infracción por No portar licencia de Conducir': 'SEGURIDAD VIAL',
-            'Infracción por No utilizar el Cinturón de Seguridad': 'SEGURIDAD VIAL', 'Infracción por Papel ahumado en Tono o Lugar no Autorizado': 'SEGURIDAD VIAL',
-            'Infracción por Pasar Semáforo en Luz Roja': 'SEGURIDAD VIAL', 'Infracción por Poliza Vencida': 'SEGURIDAD VIAL',
-            'Infracción por Portar Placa con Diseño Diferente a la Oficial': 'SEGURIDAD VIAL', 'Infracción por Prestar el Servicio en Ruta Distinta a la Establecida': 'SEGURIDAD VIAL',
-            'Infracción por Prestar servicio de tránsporte público en vehículo no autorizado': 'SEGURIDAD VIAL', 'Infracción por Realizar Giros Prohibidos': 'SEGURIDAD VIAL',
-            'Infracción por Sin Condiciones Adecuadas de Seguridad': 'SEGURIDAD VIAL', 'Infracción por Sin Equipos de Seguridad': 'SEGURIDAD VIAL',
-            'Infracción por Transportar Exeso de Pasajero': 'SEGURIDAD VIAL', 'Infracción por Vehiculo con luces no Adecuadas': 'SEGURIDAD VIAL',
-            'Infracción por Vehículo sin Cinta Reflectiva': 'SEGURIDAD VIAL', 'Infracción por Vehículos de transporte público y Comercial sin identificación': 'SEGURIDAD VIAL',
-            'Infracción por Vehículos mal Estacionados': 'SEGURIDAD VIAL', 'Infracción por Remolcar otro Vehículo sin las Debidas Medidas de Seguridad': 'SEGURIDAD VIAL',
-            'Restablecimiento de la Segurida Víal': 'SEGURIDAD VIAL',
-            # EMERGENCIAS
+            'Infracción por Daño a la Propiedad': 'SEGURIDAD VIAL', 'Infracción por Desatender lineas de no pare': 'SEGURIDAD VIAL',
+            'Infracción por Desatender señales': 'SEGURIDAD VIAL', 'Infracción por Emitir Gases, Ruidos o Sonidos Excesivos': 'SEGURIDAD VIAL',
+            'Infracción por Hablar por Teléfono Celular': 'SEGURIDAD VIAL', 'Infracción por Licencia Vencida': 'SEGURIDAD VIAL',
+            'Infracción por Licencia no Adecuada': 'SEGURIDAD VIAL', 'Infracción Nunca ha Sacado Licencia': 'SEGURIDAD VIAL',
+            'Infracción por Luces Inadecuadas': 'SEGURIDAD VIAL', 'Infracción por Negarse a Prueba de Alcoholemia': 'SEGURIDAD VIAL',
+            'Infracción por No portar licencia': 'SEGURIDAD VIAL', 'Infracción por No utilizar el Cinturón': 'SEGURIDAD VIAL',
+            'Infracción por Papel ahumado no Autorizado': 'SEGURIDAD VIAL', 'Infracción por Pasar Semáforo en Rojo': 'SEGURIDAD VIAL',
+            'Infracción por Poliza Vencida': 'SEGURIDAD VIAL', 'Infracción por Portar Placa Diferente': 'SEGURIDAD VIAL',
+            'Infracción por Prestar el Servicio en Ruta Distinta': 'SEGURIDAD VIAL', 'Infracción por Vehículo no Autorizado': 'SEGURIDAD VIAL',
+            'Infracción por Realizar Giros Prohibidos': 'SEGURIDAD VIAL', 'Infracción por Sin Condiciones de Seguridad': 'SEGURIDAD VIAL',
+            'Infracción por Sin Equipos de Seguridad': 'SEGURIDAD VIAL', 'Infracción por Exceso de Pasajero': 'SEGURIDAD VIAL',
+            'Infracción por Vehículo sin Cinta Reflectiva': 'SEGURIDAD VIAL', 'Infracción por Vehículos mal Estacionados': 'SEGURIDAD VIAL',
+            'Infracción por Remolcar sin Seguridad': 'SEGURIDAD VIAL', 'Restablecimiento de la Segurida Víal': 'SEGURIDAD VIAL',
             'Apoyo a Vehiculo de Valores Desperfectos': 'EMERGENCIAS', 'Apoyo al Ciudadano': 'EMERGENCIAS',
-            'Apoyo al Ciudadano Brindar Seguridad a una Prosecion': 'EMERGENCIAS', 'Apoyo al Ciudadano Cruce de Peatón': 'EMERGENCIAS',
+            'Apoyo al Ciudadano Brindar Seguridad': 'EMERGENCIAS', 'Apoyo al Ciudadano Cruce de Peatón': 'EMERGENCIAS',
             'Apoyo al Ciudadano para Reparar Vehículo': 'EMERGENCIAS', 'Apoyo al Ciudadano Rescate de Embarcacion': 'EMERGENCIAS',
             'Apoyo al Ciudadano Rescate de Persona': 'EMERGENCIAS', 'Atención Prehospitalaria BCBPA': 'EMERGENCIAS',
             'Atención Prehospitalaria CSS': 'EMERGENCIAS', 'Atención Prehospitalaria MINSACAPSI': 'EMERGENCIAS',
@@ -240,26 +283,19 @@ def load_full_data():
             'Traslado a Hospital por SUME 911': 'EMERGENCIAS'
         }
 
-        # Función auxiliar para remover acentos, tildes y dejar en minúscula limpia
         def normalizar_texto(texto):
-            if not texto or pd.isna(texto):
-                return ""
+            if not texto or pd.isna(texto): return ""
             texto = str(texto).strip().lower()
-            # Quita acentos/tildes usando NFKD
             return "".join(c for c in unicodedata.normalize('NFKD', texto) if not unicodedata.combining(c))
 
-        # Crear el diccionario de mapeo completamente normalizado
         map_tactico = {normalizar_texto(k): v for k, v in map_tactico_raw.items()}
 
-        # Calcular el Grupo Táctico barriendo filas de Resultados Positivos limpiando tildes
         def asignar_grupo(row):
             for col in cols_pos:
                 val_raw = str(row[col]).strip() if pd.notna(row[col]) else ""
                 if val_raw:
                     val_norm = normalizar_texto(val_raw)
-                    if val_norm in map_tactico:
-                        return map_tactico[val_norm]
-            # Si el incidente no coincide exactamente con la lista, se asigna automáticamente a EMERGENCIAS
+                    if val_norm in map_tactico: return map_tactico[val_norm]
             return "EMERGENCIAS"
 
         df['GRUPO_TACTICO'] = df.apply(asignar_grupo, axis=1)
@@ -292,7 +328,14 @@ if df_raw is not None:
     df = df_raw[(df_raw['FECHA_DT'].dt.date >= f1) & (df_raw['FECHA_DT'].dt.date <= f2) & 
                 (df_raw['HORA_NUM'] >= h1) & (df_raw['HORA_NUM'] <= h2)].copy()
 
-    st.title("🛡️ Centro de Operación Nacional | Datos Positivos-C.O.N-C5")
+    # --- TÍTULO ENMARCADO EN CUADRO NEÓN CIAN GIRATORIO ---
+    st.markdown("""
+        <div class="neon-title-container">
+            <div class="neon-title-inner">
+                <h1>🛡️ Centro de Operación Nacional | Datos Positivos-C.O.N-C5</h1>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
     st.markdown('<p class="author-text">Creado por= *Cabo 1° Elmer Rodriguez*</p>', unsafe_allow_html=True)
 
     c_m1, c_m2 = st.columns(2)
@@ -321,34 +364,20 @@ if df_raw is not None:
         prov_stats = df.groupby('PROVINCIA')['T_POS_COUNT'].sum().reset_index().sort_values('T_POS_COUNT', ascending=True)
         prov_stats = prov_stats.merge(top_details, on='PROVINCIA', how='left')
         
-        coords = {
-            'Panamá':[8.98,-79.52], 'Chiriquí':[8.43,-82.43], 'Colón':[9.35,-79.9], 
-            'Panamá Oeste':[8.88,-79.78], 'Coclé':[8.51,-80.35], 'Veraguas':[8.1,-80.97], 
-            'Los Santos':[7.93,-80.48], 'Herrera':[7.96,-80.7], 'Darién':[8.4,-77.91], 
-            'Bocas del Toro':[9.33,-82.24], 
-            'Comarca Ngäbe-Buglé':[8.41, -81.75]
-        }
-        
+        coords = {'Panamá':[8.98,-79.52], 'Chiriquí':[8.43,-82.43], 'Colón':[9.35,-79.9], 'Panamá Oeste':[8.88,-79.78], 'Coclé':[8.51,-80.35], 'Veraguas':[8.1,-80.97], 'Los Santos':[7.93,-80.48], 'Herrera':[7.96,-80.7], 'Darién':[8.4,-77.91], 'Bocas del Toro':[9.33,-82.24], 'Comarca Ngäbe-Buglé':[8.41, -81.75]}
         prov_stats['lat'] = prov_stats['PROVINCIA'].map(lambda x: coords.get(x, [8.5, -80.0])[0])
         prov_stats['lon'] = prov_stats['PROVINCIA'].map(lambda x: coords.get(x, [8.5, -80.0])[1])
         
         c_map, c_rank = st.columns([2, 1])
         with c_map:
             st.markdown(f'<div class="map-overlay-total"><small style="color:#00ebff;">TOTAL POSITIVOS</small><br><span style="font-size:24px; font-weight:bold;">{int(df["T_POS_COUNT"].sum()):,}</span></div>', unsafe_allow_html=True)
-            
-            fig_m = px.scatter_mapbox(prov_stats, lat='lat', lon='lon', size='T_POS_COUNT', 
-                                      color='T_POS_COUNT', color_continuous_scale="Darkmint", 
-                                      size_max=55, zoom=7.2, center=dict(lat=8.5, lon=-80.5), 
-                                      hover_name='PROVINCIA', 
-                                      hover_data={'lat':False, 'lon':False, 'T_POS_COUNT':True, 'DETALLE_TOP':True})
-            
-            fig_m.update_layout(mapbox_style="carto-darkmatter", margin={"r":0,"t":0,"l":0,"b":0}, 
-                                paper_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False)
+            fig_m = px.scatter_mapbox(prov_stats, lat='lat', lon='lon', size='T_POS_COUNT', color='T_POS_COUNT', color_continuous_scale="Darkmint", size_max=55, zoom=7.2, center=dict(lat=8.5, lon=-80.5), hover_name='PROVINCIA', hover_data={'lat':False, 'lon':False, 'T_POS_COUNT':True, 'DETALLE_TOP':True})
+            fig_m.update_layout(mapbox_style="carto-darkmatter", margin={"r":0,"t":0,"l":0,"b":0}, paper_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False)
             st.plotly_chart(fig_m, use_container_width=True)
         with c_rank:
             st.plotly_chart(px.bar(prov_stats, x='T_POS_COUNT', y='PROVINCIA', orientation='h', text='T_POS_COUNT', color='T_POS_COUNT', color_continuous_scale='Tealgrn').update_layout(showlegend=False, coloraxis_showscale=False, paper_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), height=400), use_container_width=True)
 
-    # --- SECCIÓN DE GRÁFICOS DE PASTEL (OPTIMIZADA CON 4 ITEMS ESTRICTOS) ---
+    # --- SECCIÓN DE GRÁFICOS DE PASTEL (3 EN PARALELO) ---
     st.markdown("---")
     cp1, cp2, cp3 = st.columns(3)
     with cp1: 
@@ -356,7 +385,6 @@ if df_raw is not None:
     with cp2: 
         st.plotly_chart(px.pie(df, names='CENTRO', values='T_POS_COUNT', title="Positivos por Centros", hole=0.5, color_discrete_sequence=px.colors.sequential.Tealgrn), use_container_width=True)
     with cp3: 
-        # Gráfico mejorado para los 4 ítems operativos sin "Otros"
         st.plotly_chart(px.pie(df, names='GRUPO_TACTICO', values='T_POS_COUNT', title="Distribución por Grupo Táctico", hole=0.5, color_discrete_sequence=px.colors.qualitative.G10), use_container_width=True)
         
     st.subheader("📋 DETALLE: POSITIVOS POR CENTROS")
