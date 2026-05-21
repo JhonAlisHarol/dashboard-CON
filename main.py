@@ -53,37 +53,42 @@ st.markdown("""
         z-index: 0;
     }
 
-    /* --- NUEVO: NEÓN CIAN EXCLUSIVO PARA EL TÍTULO PRINCIPAL --- */
+    /* --- NUEVO: EFECTO CINTA DE NEÓN FLUIDA ALREDEDOR DEL TÍTULO --- */
     .neon-title-container {
         position: relative;
         border-radius: 12px;
-        padding: 4px;
-        background: rgba(10, 14, 23, 1);
-        background-clip: padding-box;
-        border: 1px solid transparent;
+        padding: 3px; /* Grosor de la cinta de neón */
+        background: #0d121f;
         overflow: hidden;
         margin-bottom: 1.5rem;
+        box-shadow: 0 0 20px rgba(0, 235, 255, 0.2); /* Destello sutil hacia afuera */
     }
     
+    /* Esta es la cinta que gira en el fondo simulando una manguera de luz continua */
     .neon-title-container::before {
         content: '';
         position: absolute;
-        top: -50%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
+        top: -150%;
+        left: -150%;
+        width: 400%;
+        height: 400%;
         background: conic-gradient(
-            #00ffff, #00ebff, #00aaff, #0077ff, #00ffff
+            from 0deg,
+            #00ffff 0%,
+            #0077ff 25%,
+            #001133 50%,
+            #0077ff 75%,
+            #00ffff 100%
         );
-        animation: rotate-neon 3s linear infinite;
+        animation: rotate-neon 4s linear infinite;
         z-index: 0;
     }
 
     .neon-title-inner {
         position: relative;
-        background: #0d121f;
+        background: #0d121f; /* Tapa el centro para que solo se vea el borde como cinta */
         border-radius: 9px;
-        padding: 20px;
+        padding: 22px;
         z-index: 1;
         text-align: center;
     }
@@ -97,6 +102,7 @@ st.markdown("""
         background: linear-gradient(45deg, #ffffff, #00ebff);
         -webkit-background-clip: text;
         -webkit-text-fill-color: transparent;
+        display: inline-block;
     }
 
     .neon-inner-content {
@@ -328,7 +334,7 @@ if df_raw is not None:
     df = df_raw[(df_raw['FECHA_DT'].dt.date >= f1) & (df_raw['FECHA_DT'].dt.date <= f2) & 
                 (df_raw['HORA_NUM'] >= h1) & (df_raw['HORA_NUM'] <= h2)].copy()
 
-    # --- TÍTULO ENMARCADO EN CUADRO NEÓN CIAN GIRATORIO ---
+    # --- TÍTULO ENMARCADO EN CINTA NEÓN CONTINUA ---
     st.markdown("""
         <div class="neon-title-container">
             <div class="neon-title-inner">
