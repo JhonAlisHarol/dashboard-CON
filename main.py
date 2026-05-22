@@ -316,12 +316,12 @@ if df_master is not None:
             </div>
         </div>
     """, unsafe_allow_html=True)
-    st.markdown('<p class="author-text">Creado por= *Cabo 1° Elmer Rodriguez*</p>', unsafe_allow_html=True)
+    st.markdown('<p class="author-text">Creado por= *Elmer H Rodriguez P*</p>', unsafe_allow_html=True)
 
     # =========================================================================
     # --- SECCIÓN DE CONTROL OPERATIVO DE LLAMADAS MODIFICADO -----------------
     # =========================================================================
-    st.subheader("📞 MONITOREO GENERAL DE LLAMADAS DE EMERGENCIA")
+    st.subheader("📞 REPORTES GENERAL DE LLAMADAS DE EMERGENCIAS")
     
     col_req1, col_req2 = st.columns([2, 1])
 
