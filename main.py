@@ -19,7 +19,7 @@ def create_gauge(value, title, color, is_timer=False):
         number = {'suffix': suffix, 'font': {'color': "white"}},
         gauge = {'axis': {'range': [0, 60 if is_timer else max(60, display_val*1.5)]}, 'bar': {'color': color}}
     ))
-    fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', height=200, margin=dict(l=20, r=20, t=40, b=20))
+    fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', height=180, margin=dict(l=20, r=20, t=40, b=20))
     return fig
 
 st.markdown("""
@@ -99,7 +99,7 @@ st.markdown("""
     }
 
     .neon-dialog-box {
-        background: rgba(13, 18, 31, 0.9); border: 2px solid #00ebff; border-radius: 12px; padding: 20px;
+        background: rgba(13, 18, 31, 0.9); border: 2px solid #00ebff; border-radius: 12px; padding: 18px;
         box-shadow: 0 0 15px rgba(0, 235, 255, 0.15); height: 100%;
     }
 
@@ -119,6 +119,18 @@ st.markdown("""
         position: fixed; bottom: 20px; right: 20px; z-index: 999; background: #00ebff; color: #0a0e17 !important;
         padding: 10px 20px; border-radius: 30px; font-weight: bold; box-shadow: 0 0 15px #00ebff; border: none; cursor: pointer;
     }
+
+    /* Estilos específicos para la tabla interna de estadísticas */
+    .stats-table {
+        width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; color: white;
+    }
+    .stats-table th {
+        background: rgba(0, 235, 255, 0.15); color: #00ebff; text-align: left; padding: 6px; border-bottom: 1px solid #00ebff;
+    }
+    .stats-table td {
+        padding: 6px; border-bottom: 1px solid rgba(255,255,255,0.05);
+    }
+    .stats-table tr:hover { background: rgba(255,255,255,0.02); }
 
     @media (max-width: 768px) {
         .neon-title-inner h1 { font-size: 22px !important; }
@@ -316,80 +328,140 @@ if df_master is not None:
             </div>
         </div>
     """, unsafe_allow_html=True)
-    st.markdown('<p class="author-text">Creado por= *Elmer H Rodriguez P*</p>', unsafe_allow_html=True)
+    st.markdown('<p class="author-text">Creado por= *Cabo 1° Elmer Rodriguez*</p>', unsafe_allow_html=True)
 
     # =========================================================================
-    # --- SECCIÓN DE CONTROL OPERATIVO DE LLAMADAS MODIFICADO -----------------
+    # --- MONITOREO GENERAL DE LLAMADAS (REDISTRIBUCIÓN A 3 COLUMNAS) ---------
     # =========================================================================
-    st.subheader("📞 REPORTES GENERAL DE LLAMADAS DE EMERGENCIAS")
+    st.subheader("📞 MONITOREO GENERAL DE LLAMADAS DE EMERGENCIA")
     
-    col_req1, col_req2 = st.columns([2, 1])
+    # Ajustamos la proporción de columnas: Gráfico (medio), Estadísticas (nuevo), Métricas (derecha)
+    col_req1, col_req2, col_req3 = st.columns([1.6, 1.4, 1.0])
 
     mes_inicio = f1.month
     mes_fin = f2.month
 
+    # Diccionario histórico mensual de Drive
     datos_central_drive = {
         "ENERO":      {"pres": 97362, "cont": 86407, "aban": 10955, "orie": 44679, "ocio": 19148, "ns": 85.82, "inc": 22580},
         "FEBRERO":    {"pres": 81167, "cont": 75019, "aban": 6147,  "orie": 35797, "ocio": 15342, "ns": 92.10, "inc": 23880},
         "MARZO":      {"pres": 73725, "cont": 69471, "aban": 4253,  "orie": 30031, "ocio": 12870, "ns": 92.94, "inc": 26570},
         "ABRIL":      {"pres": 76105, "cont": 71886, "aban": 4219,  "orie": 32292, "ocio": 13839, "ns": 95.90, "inc": 25755},
-        "MAYO":       {"pres": 56113, "cont": 52388, "aban": 3725,  "orie": 32292, "ocio": 10244, "ns": 94.85, "inc": 18241},
-        "TOTAL_ANUAL":{"pres": 384472,"cont": 355171,"aban": 29299, "orie": 175090,"ocio": 71444, "ns": 91.82, "inc": 117026}
+        "MAYO":       {"pres": 56113, "cont": 52388, "aban": 3725,  "orie": 32292, "ocio": 10244, "ns": 94.85, "inc": 18241}
     }
 
-    if mes_inicio == df_master['FECHA_DT'].min().date().month and mes_fin == df_master['FECHA_DT'].max().date().month:
-        selec = datos_central_drive["TOTAL_ANUAL"]
-    else:
-        selec = {"pres": 0, "cont": 0, "aban": 0, "orie": 0, "ocio": 0, "inc": 0, "ns": 0.0}
-        meses_a_sumar = [meses_map[m] for m in range(mes_inicio, mes_fin + 1) if m in meses_map]
-        
-        for m_name in meses_a_sumar:
-            if m_name in datos_central_drive:
-                selec["pres"] += datos_central_drive[m_name]["pres"]
-                selec["cont"] += datos_central_drive[m_name]["cont"]
-                selec["aban"] += datos_central_drive[m_name]["aban"]
-                selec["orie"] += datos_central_drive[m_name]["orie"]
-                selec["ocio"] += datos_central_drive[m_name]["ocio"]
-                selec["inc"]  += datos_central_drive[m_name]["inc"]
-        
-        if selec["pres"] > 0:
-            selec["ns"] = (selec["cont"] / selec["pres"]) * 100
-        else:
-            selec = datos_central_drive["TOTAL_ANUAL"]
+    # Determinamos los meses activos en base al filtro
+    meses_activos = [meses_map[m] for m in range(mes_inicio, mes_fin + 1) if m in meses_map and meses_map[m] in datos_central_drive]
+    if not meses_activos:
+        meses_activos = list(datos_central_drive.keys())
+
+    # Inicializar totales seleccionados
+    selec = {"pres": 0, "cont": 0, "aban": 0, "orie": 0, "ocio": 0, "inc": 0, "ns": 0.0}
+    for m_name in meses_activos:
+        selec["pres"] += datos_central_drive[m_name]["pres"]
+        selec["cont"] += datos_central_drive[m_name]["cont"]
+        selec["aban"] += datos_central_drive[m_name]["aban"]
+        selec["orie"] += datos_central_drive[m_name]["orie"]
+        selec["ocio"] += datos_central_drive[m_name]["ocio"]
+        selec["inc"]  += datos_central_drive[m_name]["inc"]
+    if selec["pres"] > 0:
+        selec["ns"] = (selec["cont"] / selec["pres"]) * 100
+
+    # LÓGICA DE PROMEDIOS, MÁXIMOS Y MÍNIMOS DINÁMICOS
+    claves = ["pres", "cont", "aban", "orie", "ocio"]
+    stats_res = {}
+    for c in claves:
+        vals = [datos_central_drive[m][c] for m in meses_activos]
+        stats_res[c] = {
+            "max": max(vals),
+            "min": min(vals),
+            "avg": sum(vals) / len(vals)
+        }
 
     valores_ll = [selec["pres"], selec["cont"], selec["aban"], selec["orie"], selec["ocio"]]
     categorías_ll = ["LL. PRESENTADAS", "LL. CONTESTADAS", "LL. ABANDONADAS", "LL. ORIENTACION", "LL. OCIOSA"]
 
+    # COLUMNA 1: Gráfico de Barras Reducido
     with col_req1:
         fig_bar_ll = go.Figure(data=[
             go.Bar(
                 x=categorías_ll,
                 y=valores_ll,
-                # CONFIGURACIÓN OPTIMIZADA: Solo muestra el número total sin % y con fuente más grande (size=16)
                 text=[f"<b>{val:,}</b>" for val in valores_ll],
                 textposition='auto',
-                textfont=dict(size=16, color="white"),
+                textfont=dict(size=14, color="white"),
                 marker_color=['#00ebff', '#00ffaa', '#ff4444', '#ffaa00', '#aaaaaa']
             )
         ])
         fig_bar_ll.update_layout(
             paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(10, 14, 23, 0.5)',
-            font=dict(color="white"), margin=dict(l=20, r=20, t=20, b=20), height=320,
+            font=dict(color="white"), margin=dict(l=10, r=10, t=10, b=10), height=320,
             yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.05)')
         )
         st.plotly_chart(fig_bar_ll, use_container_width=True)
         
+    # COLUMNA 2: Cuadro de Máximos, Promedios y Mínimos (Nuevo)
     with col_req2:
         st.markdown(f"""
+            <div class="neon-dialog-box" style="overflow-x:auto;">
+                <h3 style="color:#00ebff; margin-top:0; font-size:15px; border-bottom:1px solid #00ebff; padding-bottom:6px; text-align:center;">📐 ANÁLISIS ESTADÍSTICO MENSUAL</h3>
+                <table class="stats-table">
+                    <thead>
+                        <tr>
+                            <th>INDICADOR</th>
+                            <th style="color:#ff4444;">MÍNIMO</th>
+                            <th style="color:#ffaa00;">PROMEDIO</th>
+                            <th style="color:#00ffaa;">MÁXIMO</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr>
+                            <td><b>LL. Presentadas</b></td>
+                            <td>{stats_res['pres']['min']:,}</td>
+                            <td>{int(stats_res['pres']['avg']):,}</td>
+                            <td>{stats_res['pres']['max']:,}</td>
+                        </tr>
+                        <tr>
+                            <td><b>LL. Contestadas</b></td>
+                            <td>{stats_res['cont']['min']:,}</td>
+                            <td>{int(stats_res['cont']['avg']):,}</td>
+                            <td>{stats_res['cont']['max']:,}</td>
+                        </tr>
+                        <tr>
+                            <td><b>LL. Abandonadas</b></td>
+                            <td>{stats_res['aban']['min']:,}</td>
+                            <td>{int(stats_res['aban']['avg']):,}</td>
+                            <td>{stats_res['aban']['max']:,}</td>
+                        </tr>
+                        <tr>
+                            <td><b>LL. Orientación</b></td>
+                            <td>{stats_res['orie']['min']:,}</td>
+                            <td>{int(stats_res['orie']['avg']):,}</td>
+                            <td>{stats_res['orie']['max']:,}</td>
+                        </tr>
+                        <tr>
+                            <td><b>LL. Ociosa</b></td>
+                            <td>{stats_res['ocio']['min']:,}</td>
+                            <td>{int(stats_res['ocio']['avg']):,}</td>
+                            <td>{stats_res['ocio']['max']:,}</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        """, unsafe_allow_html=True)
+
+    # COLUMNA 3: Métricas de Gestión Estilo Neon
+    with col_req3:
+        st.markdown(f"""
             <div class="neon-dialog-box">
-                <h3 style="color:#00ebff; margin-top:0; font-size:16px; border-bottom:1px solid #00ebff; padding-bottom:8px; text-align:center;">📊 METRICAS DE GESTIÓN</h3>
-                <div style="margin-top:20px; text-align:center;">
-                    <p style="color:#ffffff !important; margin:0; font-size:14px; text-transform:uppercase; letter-spacing:1px;">🎯 NIVEL DE SERVICIO</p>
-                    <p style="color:#00ffaa !important; margin:5px 0 0 0; font-size:36px; font-weight:800; text-shadow: 0 0 10px rgba(0,255,170,0.3);">{selec['ns']:.2f}%</p>
+                <h3 style="color:#00ebff; margin-top:0; font-size:15px; border-bottom:1px solid #00ebff; padding-bottom:6px; text-align:center;">📊 GESTIÓN</h3>
+                <div style="margin-top:15px; text-align:center;">
+                    <p style="color:#ffffff !important; margin:0; font-size:12px; text-transform:uppercase; letter-spacing:1px;">🎯 N. SERVICIO</p>
+                    <p style="color:#00ffaa !important; margin:2px 0 0 0; font-size:30px; font-weight:800; text-shadow: 0 0 10px rgba(0,255,170,0.3);">{selec['ns']:.2f}%</p>
                 </div>
-                <div style="margin-top:25px; text-align:center;">
-                    <p style="color:#ffffff !important; margin:0; font-size:14px; text-transform:uppercase; letter-spacing:1px;">🚨 INCIDENTES CREADOS</p>
-                    <p style="color:#00ebff !important; margin:5px 0 0 0; font-size:36px; font-weight:800; text-shadow: 0 0 10px rgba(0,235,255,0.3);">{selec['inc']:,}</p>
+                <div style="margin-top:15px; text-align:center;">
+                    <p style="color:#ffffff !important; margin:0; font-size:12px; text-transform:uppercase; letter-spacing:1px;">🚨 INCIDENCIAS</p>
+                    <p style="color:#00ebff !important; margin:2px 0 0 0; font-size:30px; font-weight:800; text-shadow: 0 0 10px rgba(0,235,255,0.3);">{selec['inc']:,}</p>
                 </div>
             </div>
         """, unsafe_allow_html=True)
