@@ -5,29 +5,17 @@ import plotly.graph_objects as go
 import time
 import unicodedata
 
-# =========================================================================
-# 1. CONFIGURACIÓN, FUNCIONES DE APOYO Y ESTILOS
-# =========================================================================
+# 1. CONFIGURACIÓN Y ESTILO (Optimizado para Computadora y Teléfono)
 st.set_page_config(page_title="S-Portal Hexagon | Command Center", layout="wide")
-
-def create_gauge(value, title, color, is_timer=False):
-    suffix = " seg" if is_timer else (" h" if value >= 60 else " min")
-    display_val = value / 60 if (not is_timer and suffix == " h") else value
-    fig = go.Figure(go.Indicator(
-        mode = "gauge+number", value = display_val,
-        title = {'text': title, 'font': {'size': 14, 'color': "white"}},
-        number = {'suffix': suffix, 'font': {'color': "white"}},
-        gauge = {'axis': {'range': [0, 60 if is_timer else max(60, display_val*1.5)]}, 'bar': {'color': color}}
-    ))
-    fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', height=180, margin=dict(l=20, r=20, t=40, b=20))
-    return fig
 
 st.markdown("""
     <style>
+    /* 1. ESTO BLOQUEA EL ACCESO AL MENU Y AL CODIGO FUENTE */
     #MainMenu {visibility: visible;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
     
+    /* Estilo Base */
     .stApp { background-color: #0a0e17; }
     h1, h2, h3, span, p, label { color: #ffffff !important; }
     
@@ -38,6 +26,7 @@ st.markdown("""
         padding: 10px; 
     }
 
+    /* CONTENEDOR NEÓN GLOBAL ROTATIVO */
     .neon-container {
         position: relative;
         border-radius: 10px;
@@ -49,6 +38,7 @@ st.markdown("""
         margin-bottom: 1rem;
     }
 
+    /* NEÓN MULTICOLOR PARA MÉTRICAS */
     .neon-container::before {
         content: '';
         position: absolute;
@@ -56,21 +46,25 @@ st.markdown("""
         left: -50%;
         width: 200%;
         height: 200%;
-        background: conic-gradient(#ff0000, #ff7300, #fffb00, #48ff00, #00ffd5, #002bff, #7a00ff, #ff00c8, #ff0000);
+        background: conic-gradient(
+            #ff0000, #ff7300, #fffb00, #48ff00, #00ffd5, #002bff, #7a00ff, #ff00c8, #ff0000
+        );
         animation: rotate-neon 3s linear infinite;
         z-index: 0;
     }
 
+    /* --- NUEVO: EFECTO CINTA DE NEÓN FLUIDA ALREDEDOR DEL TÍTULO --- */
     .neon-title-container {
         position: relative;
         border-radius: 12px;
-        padding: 3px;
+        padding: 3px; /* Grosor de la cinta de neón */
         background: #0d121f;
         overflow: hidden;
         margin-bottom: 1.5rem;
-        box-shadow: 0 0 20px rgba(0, 235, 255, 0.2);
+        box-shadow: 0 0 20px rgba(0, 235, 255, 0.2); /* Destello sutil hacia afuera */
     }
     
+    /* Esta es la cinta que gira en el fondo simulando una manguera de luz continua */
     .neon-title-container::before {
         content: '';
         position: absolute;
@@ -78,14 +72,21 @@ st.markdown("""
         left: -150%;
         width: 400%;
         height: 400%;
-        background: conic-gradient(from 0deg, #00ffff 0%, #0077ff 25%, #001133 50%, #0077ff 75%, #00ffff 100%);
+        background: conic-gradient(
+            from 0deg,
+            #00ffff 0%,
+            #0077ff 25%,
+            #001133 50%,
+            #0077ff 75%,
+            #00ffff 100%
+        );
         animation: rotate-neon 4s linear infinite;
         z-index: 0;
     }
 
     .neon-title-inner {
         position: relative;
-        background: #0d121f;
+        background: #0d121f; /* Tapa el centro para que solo se vea el borde como cinta */
         border-radius: 9px;
         padding: 22px;
         z-index: 1;
@@ -93,44 +94,58 @@ st.markdown("""
     }
 
     .neon-title-inner h1 {
-        margin: 0; font-size: 32px; font-weight: 800; letter-spacing: 1px; text-transform: uppercase;
+        margin: 0;
+        font-size: 32px;
+        font-weight: 800;
+        letter-spacing: 1px;
+        text-transform: uppercase;
         background: linear-gradient(45deg, #ffffff, #00ebff);
-        -webkit-background-clip: text; -webkit-text-fill-color: transparent; display: inline-block;
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        display: inline-block;
     }
 
-    .neon-dialog-box {
-        background: rgba(13, 18, 31, 0.9); border: 2px solid #00ebff; border-radius: 12px; padding: 18px;
-        box-shadow: 0 0 15px rgba(0, 235, 255, 0.15); height: 100%;
+    .neon-inner-content {
+        position: relative;
+        background: #0d121f;
+        border-radius: 7px;
+        padding: 15px;
+        z-index: 1;
     }
 
-    .neon-inner-content { position: relative; background: #0d121f; border-radius: 7px; padding: 15px; z-index: 1; }
-    @keyframes rotate-neon { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+    @keyframes rotate-neon {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+    }
 
     .neon-inner-content h3 { margin: 0; font-size: 14px; text-transform: uppercase; color: #ffffff !important; }
     .neon-inner-content p { margin: 0; font-size: 28px; font-weight: bold; color: #00ebff !important; }
+
     .author-text { color: #00ebff !important; font-size: 14px; font-style: italic; margin-top: -5px; margin-bottom: 20px; text-align: center; }
     
     .map-overlay-total {
-        position: relative; top: 60px; left: 20px; background: rgba(10, 14, 23, 0.85); border: 2px solid #00ebff;
-        padding: 10px 20px; border-radius: 10px; z-index: 100; width: fit-content; margin-bottom: -70px;
+        position: relative; top: 60px; left: 20px;
+        background: rgba(10, 14, 23, 0.85); border: 2px solid #00ebff;
+        padding: 10px 20px; border-radius: 10px; z-index: 100;
+        width: fit-content; margin-bottom: -70px;
     }
 
+    /* BOTÓN DE DESCARGA PDF FLOTANTE */
     .float-pdf {
-        position: fixed; bottom: 20px; right: 20px; z-index: 999; background: #00ebff; color: #0a0e17 !important;
-        padding: 10px 20px; border-radius: 30px; font-weight: bold; box-shadow: 0 0 15px #00ebff; border: none; cursor: pointer;
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 999;
+        background: #00ebff;
+        color: #0a0e17 !important;
+        padding: 10px 20px;
+        border-radius: 30px;
+        font-weight: bold;
+        text-decoration: none;
+        box-shadow: 0 0 15px #00ebff;
+        border: none;
+        cursor: pointer;
     }
-
-    /* Estilos específicos para la tabla interna de estadísticas */
-    .stats-table {
-        width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 12px; color: white;
-    }
-    .stats-table th {
-        background: rgba(0, 235, 255, 0.15); color: #00ebff; text-align: left; padding: 6px; border-bottom: 1px solid #00ebff;
-    }
-    .stats-table td {
-        padding: 6px; border-bottom: 1px solid rgba(255,255,255,0.05);
-    }
-    .stats-table tr:hover { background: rgba(255,255,255,0.02); }
 
     @media (max-width: 768px) {
         .neon-title-inner h1 { font-size: 22px !important; }
@@ -138,14 +153,20 @@ st.markdown("""
         .map-overlay-total { position: relative; top: 10px; left: 10px; margin-bottom: 10px; width: 90%; }
         .stPlotlyChart { height: 350px !important; }
     }
+
+    /* ESTO AYUDA A QUE AL IMPRIMIR SE VEA TODO BIEN */
+    @media print {
+        .stSidebar, .float-pdf, button { display: none !important; }
+        .stApp { background-color: white !important; }
+        h1, h2, h3, p, span { color: black !important; }
+    }
     </style>
     """, unsafe_allow_html=True)
 
+# BOTÓN PDF
 st.markdown('<button class="float-pdf" onclick="window.print()">📥 DESCARGAR INFORME (PDF)</button>', unsafe_allow_html=True)
 
-# =========================================================================
-# 2. MANEJO DE TIEMPOS Y REFRESH
-# =========================================================================
+# 2. SISTEMA DE RECARGA
 if 'last_update' not in st.session_state:
     st.session_state.last_update = time.time()
 
@@ -156,9 +177,7 @@ if remaining <= 0:
     st.session_state.last_update = time.time()
     st.rerun()
 
-# =========================================================================
-# 3. CONTROLADOR DE CARGA DE LA BASE DE DATOS
-# =========================================================================
+# 3. CARGA DE DATOS
 URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQzIFyCT2C22Hlrz80szN7J2mEfA8N1R7hiAmFAUXaoorwDTOeWNh-ktv__d0vIBS-AQcuV5ws3ZU4C/pub?gid=229458966&single=true&output=csv"
 
 @st.cache_data(ttl=60)
@@ -166,16 +185,13 @@ def load_full_data():
     try:
         df = pd.read_csv(URL_CSV)
         df.columns = df.columns.str.strip()
-        
         if 'CENTRO' in df.columns:
             df['CENTRO'] = df['CENTRO'].astype(str).str.replace('CONTRA', 'CON', case=False).str.strip()
-            
         col_f = next((c for c in df.columns if 'FECHA' in c.upper()), None)
         if col_f: 
             df['FECHA_DT'] = pd.to_datetime(df[col_f], dayfirst=True, errors='coerce')
             df['MES_NUM'] = df['FECHA_DT'].dt.month
-            df['MES_NOMBRE'] = df['FECHA_DT'].dt.strftime('%B').str.upper()
-            
+            df['MES_NOMBRE'] = df['FECHA_DT'].dt.strftime('%B').str.capitalize()
         col_h = next((c for c in df.columns if 'HORA' in c.upper()), None)
         if col_h: 
             df['HORA_NUM'] = pd.to_datetime(df[col_h], errors='coerce').dt.hour.fillna(0).astype(int)
@@ -193,7 +209,7 @@ def load_full_data():
         cols_pos = [c for c in df.columns if 'RESULTADO POSITIVO' in c.upper()]
         df['T_POS_COUNT'] = df[cols_pos].notna().sum(axis=1)
         
-        # --- MAPEO DE GRUPOS TÁCTICOS ---
+        # --- MAPEO TÁCTICO DE INCIDENCIAS ---
         map_tactico_raw = {
             'Aprehensión de Menor por Alerta de Custodia': 'CAPTURAS', 'Ciudadana Aprehendida por Violencia Doméstica': 'CAPTURAS',
             'Ciudadano Aprehendido': 'CAPTURAS', 'Ciudadano Aprehendido por Inviolabilidad Del Domicilio': 'CAPTURAS',
@@ -289,38 +305,36 @@ def load_full_data():
             return "EMERGENCIAS"
 
         df['GRUPO_TACTICO'] = df.apply(asignar_grupo, axis=1)
-        return df
-    except:
-        return None
+        return df[df['T_POS_COUNT'] > 0].copy()
+    except: return None
 
-df_master = load_full_data()
+def create_gauge(value, title, color, is_timer=False):
+    suffix = " seg" if is_timer else (" h" if value >= 60 else " min")
+    display_val = value / 60 if suffix == " h" else value
+    fig = go.Figure(go.Indicator(
+        mode = "gauge+number", value = display_val,
+        title = {'text': title, 'font': {'size': 14, 'color': "white"}},
+        number = {'suffix': suffix, 'font': {'color': "white"}},
+        gauge = {'axis': {'range': [0, 60 if is_timer else max(60, display_val*1.5)]}, 'bar': {'color': color}}
+    ))
+    fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', height=200, margin=dict(l=20, r=20, t=40, b=20))
+    return fig
 
-if df_master is not None:
-    meses_map = {
-        1: "ENERO", 2: "FEBRERO", 3: "MARZO", 4: "ABRIL", 
-        5: "MAYO", 6: "JUNIO", 7: "JULIO", 8: "AGOSTO", 
-        9: "SEPTIEMBRE", 10: "OCTUBRE", 11: "NOVIEMBRE", 12: "DICIEMBRE"
-    }
+df_raw = load_full_data()
 
+if df_raw is not None:
     with st.sidebar:
         st.header("🔎 Fechas y Horas")
-        min_date = df_master['FECHA_DT'].min().date() if not df_master['FECHA_DT'].isnull().all() else pd.Timestamp.now().date()
-        max_date = df_master['FECHA_DT'].max().date() if not df_master['FECHA_DT'].isnull().all() else pd.Timestamp.now().date()
-        
-        f1 = st.date_input("Desde:", min_date)
-        f2 = st.date_input("Hasta:", max_date)
+        f1 = st.date_input("Desde:", df_raw['FECHA_DT'].min().date())
+        f2 = st.date_input("Hasta:", df_raw['FECHA_DT'].max().date())
         h1 = st.selectbox("Hora Inicial:", list(range(24)), index=0)
         h2 = st.selectbox("Hora Final:", list(range(24)), index=23)
-        
         st.plotly_chart(create_gauge(remaining, "ACTUALIZACIÓN", "#00ebff", is_timer=True), use_container_width=True)
 
-    df_filtrado_completo = df_master[
-        (df_master['FECHA_DT'].dt.date >= f1) & (df_master['FECHA_DT'].dt.date <= f2) & 
-        (df_master['HORA_NUM'] >= h1) & (df_master['HORA_NUM'] <= h2)
-    ].copy()
+    df = df_raw[(df_raw['FECHA_DT'].dt.date >= f1) & (df_raw['FECHA_DT'].dt.date <= f2) & 
+                (df_raw['HORA_NUM'] >= h1) & (df_raw['HORA_NUM'] <= h2)].copy()
 
-    df = df_filtrado_completo[df_filtrado_completo['T_POS_COUNT'] > 0].copy()
-
+    # --- TÍTULO ENMARCADO EN CINTA NEÓN CONTINUA ---
     st.markdown("""
         <div class="neon-title-container">
             <div class="neon-title-inner">
@@ -330,152 +344,12 @@ if df_master is not None:
     """, unsafe_allow_html=True)
     st.markdown('<p class="author-text">Creado por= *Cabo 1° Elmer Rodriguez*</p>', unsafe_allow_html=True)
 
-    # =========================================================================
-    # --- MONITOREO GENERAL DE LLAMADAS (REDISTRIBUCIÓN A 3 COLUMNAS) ---------
-    # =========================================================================
-    st.subheader("📞 MONITOREO GENERAL DE LLAMADAS DE EMERGENCIA")
-    
-    # Ajustamos la proporción de columnas: Gráfico (medio), Estadísticas (nuevo), Métricas (derecha)
-    col_req1, col_req2, col_req3 = st.columns([1.6, 1.4, 1.0])
-
-    mes_inicio = f1.month
-    mes_fin = f2.month
-
-    # Diccionario histórico mensual de Drive
-    datos_central_drive = {
-        "ENERO":      {"pres": 97362, "cont": 86407, "aban": 10955, "orie": 44679, "ocio": 19148, "ns": 85.82, "inc": 22580},
-        "FEBRERO":    {"pres": 81167, "cont": 75019, "aban": 6147,  "orie": 35797, "ocio": 15342, "ns": 92.10, "inc": 23880},
-        "MARZO":      {"pres": 73725, "cont": 69471, "aban": 4253,  "orie": 30031, "ocio": 12870, "ns": 92.94, "inc": 26570},
-        "ABRIL":      {"pres": 76105, "cont": 71886, "aban": 4219,  "orie": 32292, "ocio": 13839, "ns": 95.90, "inc": 25755},
-        "MAYO":       {"pres": 56113, "cont": 52388, "aban": 3725,  "orie": 32292, "ocio": 10244, "ns": 94.85, "inc": 18241}
-    }
-
-    # Determinamos los meses activos en base al filtro
-    meses_activos = [meses_map[m] for m in range(mes_inicio, mes_fin + 1) if m in meses_map and meses_map[m] in datos_central_drive]
-    if not meses_activos:
-        meses_activos = list(datos_central_drive.keys())
-
-    # Inicializar totales seleccionados
-    selec = {"pres": 0, "cont": 0, "aban": 0, "orie": 0, "ocio": 0, "inc": 0, "ns": 0.0}
-    for m_name in meses_activos:
-        selec["pres"] += datos_central_drive[m_name]["pres"]
-        selec["cont"] += datos_central_drive[m_name]["cont"]
-        selec["aban"] += datos_central_drive[m_name]["aban"]
-        selec["orie"] += datos_central_drive[m_name]["orie"]
-        selec["ocio"] += datos_central_drive[m_name]["ocio"]
-        selec["inc"]  += datos_central_drive[m_name]["inc"]
-    if selec["pres"] > 0:
-        selec["ns"] = (selec["cont"] / selec["pres"]) * 100
-
-    # LÓGICA DE PROMEDIOS, MÁXIMOS Y MÍNIMOS DINÁMICOS
-    claves = ["pres", "cont", "aban", "orie", "ocio"]
-    stats_res = {}
-    for c in claves:
-        vals = [datos_central_drive[m][c] for m in meses_activos]
-        stats_res[c] = {
-            "max": max(vals),
-            "min": min(vals),
-            "avg": sum(vals) / len(vals)
-        }
-
-    valores_ll = [selec["pres"], selec["cont"], selec["aban"], selec["orie"], selec["ocio"]]
-    categorías_ll = ["LL. PRESENTADAS", "LL. CONTESTADAS", "LL. ABANDONADAS", "LL. ORIENTACION", "LL. OCIOSA"]
-
-    # COLUMNA 1: Gráfico de Barras Reducido
-    with col_req1:
-        fig_bar_ll = go.Figure(data=[
-            go.Bar(
-                x=categorías_ll,
-                y=valores_ll,
-                text=[f"<b>{val:,}</b>" for val in valores_ll],
-                textposition='auto',
-                textfont=dict(size=14, color="white"),
-                marker_color=['#00ebff', '#00ffaa', '#ff4444', '#ffaa00', '#aaaaaa']
-            )
-        ])
-        fig_bar_ll.update_layout(
-            paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(10, 14, 23, 0.5)',
-            font=dict(color="white"), margin=dict(l=10, r=10, t=10, b=10), height=320,
-            yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.05)')
-        )
-        st.plotly_chart(fig_bar_ll, use_container_width=True)
-        
-    # COLUMNA 2: Cuadro de Máximos, Promedios y Mínimos (Nuevo)
-    with col_req2:
-        st.markdown(f"""
-            <div class="neon-dialog-box" style="overflow-x:auto;">
-                <h3 style="color:#00ebff; margin-top:0; font-size:15px; border-bottom:1px solid #00ebff; padding-bottom:6px; text-align:center;">📐 ANÁLISIS ESTADÍSTICO MENSUAL</h3>
-                <table class="stats-table">
-                    <thead>
-                        <tr>
-                            <th>INDICADOR</th>
-                            <th style="color:#ff4444;">MÍNIMO</th>
-                            <th style="color:#ffaa00;">PROMEDIO</th>
-                            <th style="color:#00ffaa;">MÁXIMO</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        <tr>
-                            <td><b>LL. Presentadas</b></td>
-                            <td>{stats_res['pres']['min']:,}</td>
-                            <td>{int(stats_res['pres']['avg']):,}</td>
-                            <td>{stats_res['pres']['max']:,}</td>
-                        </tr>
-                        <tr>
-                            <td><b>LL. Contestadas</b></td>
-                            <td>{stats_res['cont']['min']:,}</td>
-                            <td>{int(stats_res['cont']['avg']):,}</td>
-                            <td>{stats_res['cont']['max']:,}</td>
-                        </tr>
-                        <tr>
-                            <td><b>LL. Abandonadas</b></td>
-                            <td>{stats_res['aban']['min']:,}</td>
-                            <td>{int(stats_res['aban']['avg']):,}</td>
-                            <td>{stats_res['aban']['max']:,}</td>
-                        </tr>
-                        <tr>
-                            <td><b>LL. Orientación</b></td>
-                            <td>{stats_res['orie']['min']:,}</td>
-                            <td>{int(stats_res['orie']['avg']):,}</td>
-                            <td>{stats_res['orie']['max']:,}</td>
-                        </tr>
-                        <tr>
-                            <td><b>LL. Ociosa</b></td>
-                            <td>{stats_res['ocio']['min']:,}</td>
-                            <td>{int(stats_res['ocio']['avg']):,}</td>
-                            <td>{stats_res['ocio']['max']:,}</td>
-                        </tr>
-                    </tbody>
-                </table>
-            </div>
-        """, unsafe_allow_html=True)
-
-    # COLUMNA 3: Métricas de Gestión Estilo Neon
-    with col_req3:
-        st.markdown(f"""
-            <div class="neon-dialog-box">
-                <h3 style="color:#00ebff; margin-top:0; font-size:15px; border-bottom:1px solid #00ebff; padding-bottom:6px; text-align:center;">📊 GESTIÓN</h3>
-                <div style="margin-top:15px; text-align:center;">
-                    <p style="color:#ffffff !important; margin:0; font-size:12px; text-transform:uppercase; letter-spacing:1px;">🎯 N. SERVICIO</p>
-                    <p style="color:#00ffaa !important; margin:2px 0 0 0; font-size:30px; font-weight:800; text-shadow: 0 0 10px rgba(0,255,170,0.3);">{selec['ns']:.2f}%</p>
-                </div>
-                <div style="margin-top:15px; text-align:center;">
-                    <p style="color:#ffffff !important; margin:0; font-size:12px; text-transform:uppercase; letter-spacing:1px;">🚨 INCIDENCIAS</p>
-                    <p style="color:#00ebff !important; margin:2px 0 0 0; font-size:30px; font-weight:800; text-shadow: 0 0 10px rgba(0,235,255,0.3);">{selec['inc']:,}</p>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
-        
-    st.markdown("---")
-
-    # --- SECCIÓN DE CONTADORES ---
     c_m1, c_m2 = st.columns(2)
     with c_m1:
-        st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>📊 EVENTOS TOTALES</h3><p>{len(df_filtrado_completo):,}</p></div></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>📊 EVENTOS TOTALES</h3><p>{len(df):,}</p></div></div>', unsafe_allow_html=True)
     with c_m2:
         st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>✅ TOTAL POSITIVOS</h3><p>{int(df["T_POS_COUNT"].sum()):,}</p></div></div>', unsafe_allow_html=True)
 
-    # --- GAUGES DE VARIANZAS ---
     g1, g2, g3 = st.columns(3)
     v_desp = df['VARIANZA DE DESPACHO_M'].mean() if 'VARIANZA DE DESPACHO_M' in df.columns else 0
     v_aten = df['VARIANZA DE LA ATENCION_M'].mean() if 'VARIANZA DE LA ATENCION_M' in df.columns else 0
@@ -487,7 +361,7 @@ if df_master is not None:
 
     st.markdown("---")
 
-    # --- MAPA TÁCTICO DETALLADO ---
+    # --- SECCIÓN DEL MAPA ---
     st.subheader("📍 MAPA TÁCTICO DETALLADO DE INCIDENCIAS")
     if 'PROVINCIA' in df.columns:
         cols_p = [c for c in df.columns if 'RESULTADO POSITIVO' in c.upper()]
@@ -509,7 +383,7 @@ if df_master is not None:
         with c_rank:
             st.plotly_chart(px.bar(prov_stats, x='T_POS_COUNT', y='PROVINCIA', orientation='h', text='T_POS_COUNT', color='T_POS_COUNT', color_continuous_scale='Tealgrn').update_layout(showlegend=False, coloraxis_showscale=False, paper_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), height=400), use_container_width=True)
 
-    # --- SECCIÓN DE GRÁFICOS DE PASTEL ---
+    # --- SECCIÓN DE GRÁFICOS DE PASTEL (3 EN PARALELO) ---
     st.markdown("---")
     cp1, cp2, cp3 = st.columns(3)
     with cp1: 
