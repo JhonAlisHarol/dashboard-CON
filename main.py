@@ -5,12 +5,13 @@ import plotly.graph_objects as go
 import time
 import unicodedata
 
-# 1. CONFIGURACIÓN Y ESTILO (Optimizado para Computadora y Teléfono)
+# ==============================================================================
+# 1. CONFIGURACIÓN, FUNCIONES DE LIMPIEZA Y MEDIDORES (GAUGES)
+# ==============================================================================
 st.set_page_config(page_title="S-Portal Hexagon | Command Center", layout="wide")
 
 st.markdown("""
     <style>
-    /* 1. ESTO BLOQUEA EL ACCESO AL MENU Y AL CODIGO FUENTE */
     #MainMenu {visibility: visible;}
     footer {visibility: hidden;}
     header {visibility: hidden;}
@@ -38,7 +39,6 @@ st.markdown("""
         margin-bottom: 1rem;
     }
 
-    /* NEÓN MULTICOLOR PARA MÉTRICAS */
     .neon-container::before {
         content: '';
         position: absolute;
@@ -53,18 +53,17 @@ st.markdown("""
         z-index: 0;
     }
 
-    /* --- NUEVO: EFECTO CINTA DE NEÓN FLUIDA ALREDEDOR DEL TÍTULO --- */
+    /* EFECTO CINTA DE NEÓN FLUIDA ALREDEDOR DEL TÍTULO */
     .neon-title-container {
         position: relative;
         border-radius: 12px;
-        padding: 3px; /* Grosor de la cinta de neón */
+        padding: 3px; 
         background: #0d121f;
         overflow: hidden;
         margin-bottom: 1.5rem;
-        box-shadow: 0 0 20px rgba(0, 235, 255, 0.2); /* Destello sutil hacia afuera */
+        box-shadow: 0 0 20px rgba(0, 235, 255, 0.2); 
     }
     
-    /* Esta es la cinta que gira en el fondo simulando una manguera de luz continua */
     .neon-title-container::before {
         content: '';
         position: absolute;
@@ -86,7 +85,7 @@ st.markdown("""
 
     .neon-title-inner {
         position: relative;
-        background: #0d121f; /* Tapa el centro para que solo se vea el borde como cinta */
+        background: #0d121f; 
         border-radius: 9px;
         padding: 22px;
         z-index: 1;
@@ -130,7 +129,6 @@ st.markdown("""
         width: fit-content; margin-bottom: -70px;
     }
 
-    /* BOTÓN DE DESCARGA PDF FLOTANTE */
     .float-pdf {
         position: fixed;
         bottom: 20px;
@@ -153,20 +151,49 @@ st.markdown("""
         .map-overlay-total { position: relative; top: 10px; left: 10px; margin-bottom: 10px; width: 90%; }
         .stPlotlyChart { height: 350px !important; }
     }
-
-    /* ESTO AYUDA A QUE AL IMPRIMIR SE VEA TODO BIEN */
-    @media print {
-        .stSidebar, .float-pdf, button { display: none !important; }
-        .stApp { background-color: white !important; }
-        h1, h2, h3, p, span { color: black !important; }
-    }
     </style>
     """, unsafe_allow_html=True)
 
-# BOTÓN PDF
+# BOTÓN PDF FLOTANTE
 st.markdown('<button class="float-pdf" onclick="window.print()">📥 DESCARGAR INFORME (PDF)</button>', unsafe_allow_html=True)
 
-# 2. SISTEMA DE RECARGA
+# --- FUNCIÓN DE LIMPIEZA DE NÚMEROS (Evita decimales flotantes incorrectos de miles) ---
+def clean_num(val):
+    if pd.isna(val):
+        return 0
+    if isinstance(val, (int, float)):
+        if val < 1000 and val % 1 != 0:
+            return int(round(val * 1000))
+        return int(val)
+    val_str = str(val).strip().replace(' ', '')
+    if not val_str:
+        return 0
+    try:
+        val_str = val_str.replace('.', '')
+        return int(val_str)
+    except ValueError:
+        try:
+            return int(float(val_str))
+        except ValueError:
+            return 0
+
+# --- FUNCIÓN DEFINIDA PARA LOS MEDIDORES (GAUGES) ---
+def create_gauge(value, title, color, is_timer=False):
+    suffix = " seg" if is_timer else (" h" if value >= 60 else " min")
+    display_val = value / 60 if (not is_timer and suffix == " h") else value
+    
+    fig = go.Figure(go.Indicator(
+        mode = "gauge+number", value = display_val,
+        title = {'text': title, 'font': {'size': 14, 'color': "white"}},
+        number = {'suffix': suffix, 'font': {'color': "white"}},
+        gauge = {'axis': {'range': [0, 60 if is_timer else max(60, display_val * 1.5)], 'tickcolor': "white"}, 'bar': {'color': color}}
+    ))
+    fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', height=200, margin=dict(l=20, r=20, t=40, b=20))
+    return fig
+
+# ==============================================================================
+# 2. SISTEMA DE RECARGA AUTOMÁTICA
+# ==============================================================================
 if 'last_update' not in st.session_state:
     st.session_state.last_update = time.time()
 
@@ -177,8 +204,11 @@ if remaining <= 0:
     st.session_state.last_update = time.time()
     st.rerun()
 
-# 3. CARGA DE DATOS
+# ==============================================================================
+# 3. ENLACES Y LOGICA DE CARGA DE DATOS
+# ==============================================================================
 URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQzIFyCT2C22Hlrz80szN7J2mEfA8N1R7hiAmFAUXaoorwDTOeWNh-ktv__d0vIBS-AQcuV5ws3ZU4C/pub?gid=229458966&single=true&output=csv"
+URL_LLAMADAS_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRJjM8N55oQ9GLvCm72Jz8kbJpqze5ouhbBudOkYACwCIDGq9KmwLYX9Tz9lPmDPYEBzefNXqIE13PM/pub?gid=1939702068&single=true&output=csv"
 
 @st.cache_data(ttl=60)
 def load_full_data():
@@ -191,7 +221,7 @@ def load_full_data():
         if col_f: 
             df['FECHA_DT'] = pd.to_datetime(df[col_f], dayfirst=True, errors='coerce')
             df['MES_NUM'] = df['FECHA_DT'].dt.month
-            df['MES_NOMBRE'] = df['FECHA_DT'].dt.strftime('%B').str.capitalize()
+            df['MES_NOMBRE'] = df['FECHA_DT'].dt.strftime('%B').str.upper()
         col_h = next((c for c in df.columns if 'HORA' in c.upper()), None)
         if col_h: 
             df['HORA_NUM'] = pd.to_datetime(df[col_h], errors='coerce').dt.hour.fillna(0).astype(int)
@@ -209,7 +239,6 @@ def load_full_data():
         cols_pos = [c for c in df.columns if 'RESULTADO POSITIVO' in c.upper()]
         df['T_POS_COUNT'] = df[cols_pos].notna().sum(axis=1)
         
-        # --- MAPEO TÁCTICO DE INCIDENCIAS ---
         map_tactico_raw = {
             'Aprehensión de Menor por Alerta de Custodia': 'CAPTURAS', 'Ciudadana Aprehendida por Violencia Doméstica': 'CAPTURAS',
             'Ciudadano Aprehendido': 'CAPTURAS', 'Ciudadano Aprehendido por Inviolabilidad Del Domicilio': 'CAPTURAS',
@@ -274,8 +303,8 @@ def load_full_data():
             'Infracción por Remolcar sin Seguridad': 'SEGURIDAD VIAL', 'Restablecimiento de la Segurida Víal': 'SEGURIDAD VIAL',
             'Apoyo a Vehiculo de Valores Desperfectos': 'EMERGENCIAS', 'Apoyo al Ciudadano': 'EMERGENCIAS',
             'Apoyo al Ciudadano Brindar Seguridad': 'EMERGENCIAS', 'Apoyo al Ciudadano Cruce de Peatón': 'EMERGENCIAS',
-            'Apoyo al Ciudadano para Reparar Vehículo': 'EMERGENCIAS', 'Apoyo al Ciudadano Rescate de Embarcacion': 'EMERGENCIAS',
-            'Apoyo al Ciudadano Rescate de Persona': 'EMERGENCIAS', 'Atención Prehospitalaria BCBPA': 'EMERGENCIAS',
+            'Apoyo al Ciudadano para Reparar Vehículo': 'EMERGENCIAS', 'Apoyo al Ciudadano Reskate de Embarcacion': 'EMERGENCIAS',
+            'Apoyo al Ciudadano Reskate de Persona': 'EMERGENCIAS', 'Atención Prehospitalaria BCBPA': 'EMERGENCIAS',
             'Atención Prehospitalaria CSS': 'EMERGENCIAS', 'Atención Prehospitalaria MINSACAPSI': 'EMERGENCIAS',
             'Atención Prehospitalaria Policía Nacional': 'EMERGENCIAS', 'Atención Prehospitalaria Privada': 'EMERGENCIAS',
             'Atención Prehospitalaria SUME 911': 'EMERGENCIAS', 'Coordinación con Atención Primaria': 'EMERGENCIAS',
@@ -308,20 +337,21 @@ def load_full_data():
         return df[df['T_POS_COUNT'] > 0].copy()
     except: return None
 
-def create_gauge(value, title, color, is_timer=False):
-    suffix = " seg" if is_timer else (" h" if value >= 60 else " min")
-    display_val = value / 60 if suffix == " h" else value
-    fig = go.Figure(go.Indicator(
-        mode = "gauge+number", value = display_val,
-        title = {'text': title, 'font': {'size': 14, 'color': "white"}},
-        number = {'suffix': suffix, 'font': {'color': "white"}},
-        gauge = {'axis': {'range': [0, 60 if is_timer else max(60, display_val*1.5)]}, 'bar': {'color': color}}
-    ))
-    fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', height=200, margin=dict(l=20, r=20, t=40, b=20))
-    return fig
+@st.cache_data(ttl=10)
+def cargar_llamadas_drive():
+    try:
+        df_ll = pd.read_csv(URL_LLAMADAS_CSV, skiprows=4)
+        df_ll.columns = df_ll.columns.astype(str).str.strip().str.replace('\n', '', regex=False)
+        return df_ll
+    except:
+        return None
 
 df_raw = load_full_data()
+df_llamadas_raw = cargar_llamadas_drive()
 
+# ==============================================================================
+# 4. DISPOSICIÓN DE LA INTERFAZ DE USUARIO (DASHBOARD)
+# ==============================================================================
 if df_raw is not None:
     with st.sidebar:
         st.header("🔎 Fechas y Horas")
@@ -334,7 +364,7 @@ if df_raw is not None:
     df = df_raw[(df_raw['FECHA_DT'].dt.date >= f1) & (df_raw['FECHA_DT'].dt.date <= f2) & 
                 (df_raw['HORA_NUM'] >= h1) & (df_raw['HORA_NUM'] <= h2)].copy()
 
-    # --- TÍTULO ENMARCADO EN CINTA NEÓN CONTINUA ---
+    # --- TÍTULO DE LA INTERFAZ ---
     st.markdown("""
         <div class="neon-title-container">
             <div class="neon-title-inner">
@@ -344,6 +374,97 @@ if df_raw is not None:
     """, unsafe_allow_html=True)
     st.markdown('<p class="author-text">Creado por= *Cabo 1° Elmer Rodriguez*</p>', unsafe_allow_html=True)
 
+    # =========================================================================
+    # SECCIÓN: GRÁFICO DE LLAMADAS DE EMERGENCIA (CON ACTUALIZACIÓN AUTOMÁTICA)
+    # =========================================================================
+    st.subheader("📞 MONITOREO GENERAL DE LLAMADAS DE EMERGENCIA")
+    
+    col_req1, col_req3 = st.columns([6.5, 3.5])
+
+    selec = {"pres": 0, "cont": 0, "aban": 0, "orie": 0, "ocio": 0, "inc": 0, "ns": 0.0}
+
+    if df_llamadas_raw is not None and not df_llamadas_raw.empty:
+        mes_inicio = f1.month
+        mes_fin = f2.month
+        meses_map_num = {
+            1: "ENERO", 2: "FEBRERO", 3: "MARZO", 4: "ABRIL", 5: "MAYO", 6: "JUNIO",
+            7: "JULIO", 8: "AGOSTO", 9: "SEPTIEMBRE", 10: "OCTUBRE", 11: "NOVIEMBRE", 12: "DICIEMBRE"
+        }
+        
+        meses_seleccionados = [meses_map_num[m] for m in range(mes_inicio, mes_fin + 1) if m in meses_map_num]
+        primera_col = df_llamadas_raw.columns[0]
+        
+        df_filtrado_ll = df_llamadas_raw[df_llamadas_raw[primera_col].astype(str).str.upper().str.strip().isin(meses_seleccionados)].copy()
+        
+        if not df_filtrado_ll.empty:
+            def obtener_total_columna(nombres_posibles):
+                for col in df_filtrado_ll.columns:
+                    if any(posible.upper() in col.upper() for posible in nombres_posibles):
+                        return df_filtrado_ll[col].apply(clean_num).sum()
+                return 0
+
+            # Extracción y suma dinámica de cada columna desde el archivo Sheets original
+            selec["pres"] = obtener_total_columna(["Presentadas", "Presentada", "PRES"])
+            selec["cont"] = obtener_total_columna(["Contestadas", "Contestada", "CONT"])
+            selec["aban"] = obtener_total_columna(["Abandonadas", "Abandonada", "ABAN"])
+            selec["orie"] = obtener_total_columna(["Orientación", "Orientacion", "ORIE"])
+            selec["ocio"] = obtener_total_columna(["Ociosa", "Ociosas", "OCIO"])
+            
+            col_inc_creados = next((c for c in df_filtrado_ll.columns if 'INCIDENTE' in c.upper()), df_filtrado_ll.columns[-1])
+            selec["inc"] = df_filtrado_ll[col_inc_creados].apply(clean_num).sum()
+            
+            # Recálculo matemático inmediato del Nivel de Servicio
+            if selec["pres"] > 0:
+                selec["ns"] = (selec["cont"] / selec["pres"]) * 100
+    
+    # Listas de datos que alimentan el gráfico de barras de forma dinámica
+    valores_ll = [selec["pres"], selec["cont"], selec["aban"], selec["orie"], selec["ocio"]]
+    categorías_ll = ["LL. PRESENTADAS", "LL. CONTESTADAS", "LL. ABANDONADAS", "LL. ORIENTACIÓN", "LL. OCIOSA"]
+    
+    # Formateo de etiquetas de miles con puntos (.) de manera automática
+    etiquetas_ll = [f"<b>{int(val):,}</b>".replace(",", ".") for val in valores_ll]
+
+    # --- COLUMNA Izquierda: Gráfico de Barras Auto-Actualizable ---
+    with col_req1:
+        fig_bar_ll = go.Figure(data=[
+            go.Bar(
+                x=categorías_ll,
+                y=valores_ll,
+                text=etiquetas_ll, 
+                textposition='inside',
+                textfont=dict(size=14, color="white", family="Arial", weight="bold"),
+                marker_color=['#00ebff', '#00ffaa', '#ff4444', '#ffaa00', '#aaaaaa']
+            )
+        ])
+        fig_bar_ll.update_layout(
+            paper_bgcolor='rgba(0,0,0,0)',
+            plot_bgcolor='rgba(0,0,0,0)',
+            font=dict(color="white"),
+            height=360,
+            margin=dict(l=40, r=20, t=10, b=30),
+            xaxis=dict(tickfont=dict(size=11, color='white'), showgrid=False),
+            yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.08)', tickfont=dict(color='white'), range=[0, max(valores_ll) * 1.15])
+        )
+        st.plotly_chart(fig_bar_ll, use_container_width=True, config={'displayModeBar': False})
+        
+    # --- COLUMNA Derecha: Panel de Nivel de Servicio Auto-Actualizable ---
+    with col_req3:
+        str_ns = f"{selec['ns']:.2f}".replace(".", ",")
+
+        st.markdown(f"""
+            <div style="background: rgba(13, 18, 31, 0.85); border: 2px solid #00ebff; box-shadow: 0 0 15px rgba(0, 235, 255, 0.2); border-radius: 10px; height: 360px; display: flex; flex-direction: column; justify-content: center; padding: 20px; box-sizing: border-box; overflow: hidden; font-family: 'Arial', sans-serif;">
+                <div style="text-align: center;">
+                    <p style="color: #a1a8b8 !important; font-size: 15px; margin-bottom: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">% NIVEL DE SERVICIO</p>
+                    <p style="color: #00ffff !important; font-size: 42px; font-weight: 800; margin: 0; text-shadow: 0 0 15px rgba(0,255,255,0.5); font-family: 'Arial Black', Gadget, sans-serif;">{str_ns}%</p>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+
+    st.markdown("---")
+
+    # =========================================================================
+    # 5. RESTO DE COMPONENTES DEL DASHBOARD (SIN MODIFICACIONES)
+    # =========================================================================
     c_m1, c_m2 = st.columns(2)
     with c_m1:
         st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>📊 EVENTOS TOTALES</h3><p>{len(df):,}</p></div></div>', unsafe_allow_html=True)
@@ -355,13 +476,14 @@ if df_raw is not None:
     v_aten = df['VARIANZA DE LA ATENCION_M'].mean() if 'VARIANZA DE LA ATENCION_M' in df.columns else 0
     v_c_col = 'VARIANZA DEL CIERRE_M' if 'VARIANZA DEL CIERRE_M' in df.columns else 'VARIANZA DE CIERRE_M'
     v_cier = df[v_c_col].mean() if v_c_col in df.columns else 0
+    
     with g1: st.plotly_chart(create_gauge(v_desp, "VARIANZA DESPACHO", "#00ebff"), use_container_width=True)
     with g2: st.plotly_chart(create_gauge(v_aten, "VARIANZA ATENCIÓN", "#00ffaa"), use_container_width=True)
     with g3: st.plotly_chart(create_gauge(v_cier, "VARIANZA CIERRE", "#ffaa00"), use_container_width=True)
 
     st.markdown("---")
 
-    # --- SECCIÓN DEL MAPA ---
+    # MAPA TÁCTICO POR PROVINCIAS
     st.subheader("📍 MAPA TÁCTICO DETALLADO DE INCIDENCIAS")
     if 'PROVINCIA' in df.columns:
         cols_p = [c for c in df.columns if 'RESULTADO POSITIVO' in c.upper()]
@@ -376,14 +498,14 @@ if df_raw is not None:
         
         c_map, c_rank = st.columns([2, 1])
         with c_map:
-            st.markdown(f'<div class="map-overlay-total"><small style="color:#00ebff;">TOTAL POSITIVOS</small><br><span style="font-size:24px; font-weight:bold;">{int(df["T_POS_COUNT"].sum()):,}</span></div>', unsafe_allow_html=True)
+            st.markdown(f'<div class="map-overlay-total"><small style="color:#00ebff;">TOTAL POSITIVOS</small><br><span style="font-size:24px; font-weight:bold;">{int(df["T_POS_COUNT"].sum()):}</span></div>', unsafe_allow_html=True)
             fig_m = px.scatter_mapbox(prov_stats, lat='lat', lon='lon', size='T_POS_COUNT', color='T_POS_COUNT', color_continuous_scale="Darkmint", size_max=55, zoom=7.2, center=dict(lat=8.5, lon=-80.5), hover_name='PROVINCIA', hover_data={'lat':False, 'lon':False, 'T_POS_COUNT':True, 'DETALLE_TOP':True})
             fig_m.update_layout(mapbox_style="carto-darkmatter", margin={"r":0,"t":0,"l":0,"b":0}, paper_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False)
             st.plotly_chart(fig_m, use_container_width=True)
         with c_rank:
             st.plotly_chart(px.bar(prov_stats, x='T_POS_COUNT', y='PROVINCIA', orientation='h', text='T_POS_COUNT', color='T_POS_COUNT', color_continuous_scale='Tealgrn').update_layout(showlegend=False, coloraxis_showscale=False, paper_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), height=400), use_container_width=True)
 
-    # --- SECCIÓN DE GRÁFICOS DE PASTEL (3 EN PARALELO) ---
+    # GRÁFICOS DE ROSA REQUERIDOS (CON FILTRO 'CON')
     st.markdown("---")
     cp1, cp2, cp3 = st.columns(3)
     with cp1: 
