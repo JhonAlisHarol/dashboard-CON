@@ -372,7 +372,7 @@ if df_raw is not None:
             </div>
         </div>
     """, unsafe_allow_html=True)
-    st.markdown('<p class="author-text">Creado por= *Cabo 1° Elmer Rodriguez*</p>', unsafe_allow_html=True)
+    st.markdown('<p class="author-text">Creado por= *Elmer H Rodriguez P*</p>', unsafe_allow_html=True)
 
     # =========================================================================
     # SECCIÓN: GRÁFICO DE LLAMADAS DE EMERGENCIA (CON ACTUALIZACIÓN AUTOMÁTICA)
@@ -434,7 +434,7 @@ if df_raw is not None:
     
     # Listas de datos que alimentan el gráfico de barras de forma dinámica
     valores_ll = [selec["pres"], selec["cont"], selec["aban"], selec["orie"], selec["ocio"]]
-    categorías_ll = ["LL. PRESENTADAS", "LL. CONTESTADAS", "LL. ABANDONADAS", "LL. ORIENTACIÓN", "LL. OCIOSA"]
+    categorías_ll = ["LLAMADAS PRESENTADAS", "LL. CONTESTADAS", "LL. ABANDONADAS", "LL. ORIENTACIÓN", "LL. OCIOSA"]
     
     # Formateo de etiquetas de miles con puntos (.) de manera automática
     etiquetas_ll = [f"<b>{int(val):,}</b>".replace(",", ".") for val in valores_ll]
