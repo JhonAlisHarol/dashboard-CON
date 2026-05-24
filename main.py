@@ -413,9 +413,24 @@ if df_raw is not None:
             col_inc_creados = next((c for c in df_filtrado_ll.columns if 'INCIDENTE' in c.upper()), df_filtrado_ll.columns[-1])
             selec["inc"] = df_filtrado_ll[col_inc_creados].apply(clean_num).sum()
             
-            # Recálculo matemático inmediato del Nivel de Servicio
-            if selec["pres"] > 0:
-                selec["ns"] = (selec["cont"] / selec["pres"]) * 100
+          # 1. Definimos las columnas exactas según tu imagen
+        a = obtener_total_columna(["Contestadas"])
+        b = obtener_total_columna(["Abandonadas"])
+        c = obtener_total_columna(["Contestadas despues de 05 seg"])
+        d = obtener_total_columna(["Abandonadas despues de 05 seg"])
+        
+        # 2. Aplicamos tu fórmula: (((A+B)-(C+D))/(A+B))*100
+        total_base = (a + b)
+        llamadas_fuera_meta = (c + d)
+        
+        if total_base > 0:
+            selec["ns"] = ((total_base - llamadas_fuera_meta) / total_base) * 100
+        else:
+            selec["ns"] = 0.0
+
+        # 3. Mantenemos las variables para el resto del dashboard
+        selec["cont"] = a
+        selec["aban"] = b
     
     # Listas de datos que alimentan el gráfico de barras de forma dinámica
     valores_ll = [selec["pres"], selec["cont"], selec["aban"], selec["orie"], selec["ocio"]]
