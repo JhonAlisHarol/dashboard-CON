@@ -208,7 +208,7 @@ if remaining <= 0:
 # 3. ENLACES Y LOGICA DE CARGA DE DATOS
 # ==============================================================================
 URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQzIFyCT2C22Hlrz80szN7J2mEfA8N1R7hiAmFAUXaoorwDTOeWNh-ktv__d0vIBS-AQcuV5ws3ZU4C/pub?gid=229458966&single=true&output=csv"
-URL_LLAMADAS_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRJjM8N55oQ9GLvCm72Jz8kbJpqze5ouhbBudOkYACwCIDGq9KmwLYX9Tz9lPmDPYEBzefNXqIE13PM/pub?gid=1939702068&single=true&output=csv"
+URL_LLAMADAS_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRJjM8N55oQ9GLvCm72Jz8kbJpqze5ouhbBudOkYACwCIDGq9KmwLYX9Tz9lPmDPYEBzefNXqIE13PM/pubhtml?gid=1939702068&single=true&output=csv"
 
 @st.cache_data(ttl=60)
 def load_full_data():
