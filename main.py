@@ -208,7 +208,7 @@ if remaining <= 0:
 # 3. ENLACES Y LOGICA DE CARGA DE DATOS
 # ==============================================================================
 URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQzIFyCT2C22Hlrz80szN7J2mEfA8N1R7hiAmFAUXaoorwDTOeWNh-ktv__d0vIBS-AQcuV5ws3ZU4C/pub?gid=229458966&single=true&output=csv"
-URL_LLAMADAS_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRJjM8N55oQ9GLvCm72Jz8kbJpqze5ouhbBudOkYACwCIDGq9KmwLYX9Tz9lPmDPYEBzefNXqIE13PM/pubhtml?gid=1939702068&single=true&output=csv"
+URL_LLAMADAS_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRJjM8N55oQ9GLvCm72Jz8kbJpqze5ouhbBudOkYACwCIDGq9KmwLYX9Tz9lPmDPYEBzefNXqIE13PM/pub?gid=1939702068&single=true&output=csv"
 
 @st.cache_data(ttl=60)
 def load_full_data():
@@ -372,7 +372,7 @@ if df_raw is not None:
             </div>
         </div>
     """, unsafe_allow_html=True)
-    st.markdown('<p class="author-text">Creado por= *Elmer H Rodriguez P*</p>', unsafe_allow_html=True)
+    st.markdown('<p class="author-text">Creado por= Cabo 1° Elmer Rodriguez</p>', unsafe_allow_html=True)
 
     # =========================================================================
     # SECCIÓN: GRÁFICO DE LLAMADAS DE EMERGENCIA (CON ACTUALIZACIÓN AUTOMÁTICA)
@@ -413,24 +413,9 @@ if df_raw is not None:
             col_inc_creados = next((c for c in df_filtrado_ll.columns if 'INCIDENTE' in c.upper()), df_filtrado_ll.columns[-1])
             selec["inc"] = df_filtrado_ll[col_inc_creados].apply(clean_num).sum()
             
-          # 1. Definimos las columnas exactas según tu imagen
-        a = obtener_total_columna(["Contestadas"])
-        b = obtener_total_columna(["Abandonadas"])
-        c = obtener_total_columna(["Contestadas despues de 05 seg"])
-        d = obtener_total_columna(["Abandonadas despues de 05 seg"])
-        
-        # 2. Aplicamos tu fórmula: (((A+B)-(C+D))/(A+B))*100
-        total_base = (a + b)
-        llamadas_fuera_meta = (c + d)
-        
-        if total_base > 0:
-            selec["ns"] = ((total_base - llamadas_fuera_meta) / total_base) * 100
-        else:
-            selec["ns"] = 0.0
-
-        # 3. Mantenemos las variables para el resto del dashboard
-        selec["cont"] = a
-        selec["aban"] = b
+            # Recálculo matemático inmediato del Nivel de Servicio
+            if selec["pres"] > 0:
+                selec["ns"] = (selec["cont"] / selec["pres"]) * 100
     
     # Listas de datos que alimentan el gráfico de barras de forma dinámica
     valores_ll = [selec["pres"], selec["cont"], selec["aban"], selec["orie"], selec["ocio"]]
@@ -485,7 +470,6 @@ if df_raw is not None:
         st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>📊 EVENTOS TOTALES</h3><p>{len(df):,}</p></div></div>', unsafe_allow_html=True)
     with c_m2:
         st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>✅ TOTAL POSITIVOS</h3><p>{int(df["T_POS_COUNT"].sum()):,}</p></div></div>', unsafe_allow_html=True)
-        
 
     g1, g2, g3 = st.columns(3)
     v_desp = df['VARIANZA DE DESPACHO_M'].mean() if 'VARIANZA DE DESPACHO_M' in df.columns else 0
@@ -563,7 +547,7 @@ if df_raw is not None:
     c_mes, c_vv, c_desp = st.columns(3)
     with c_mes:
         if 'MES_NOMBRE' in df.columns:
-            st.write("**📅 Positivos por Meses**")
+            st.write("*📅 Positivos por Meses*")
             m_s = df.groupby(['MES_NOMBRE', 'MES_NUM'])['T_POS_COUNT'].sum().reset_index().sort_values('MES_NUM', ascending=False)
             fig_m_b = px.bar(m_s, x='T_POS_COUNT', y='MES_NOMBRE', orientation='h', text='T_POS_COUNT', color='T_POS_COUNT', color_continuous_scale='Tealgrn')
             fig_m_b.update_layout(showlegend=False, coloraxis_showscale=False, paper_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), height=400)
@@ -571,14 +555,14 @@ if df_raw is not None:
     with c_vv:
         col_vv = next((c for c in df.columns if 'UNIDAD DE VV' in c.upper() or 'VV/104' in c.upper()), None)
         if col_vv:
-            st.write("**📟 Unidad de VV/104**")
+            st.write("*📟 Unidad de VV/104*")
             df[col_vv] = df[col_vv].fillna("SIN ASIGNAR").astype(str)
             vv_s = df.groupby([col_vv, 'CENTRO']).size().reset_index(name='E').sort_values('E', ascending=False)
             st.dataframe(pd.concat([vv_s, pd.DataFrame({col_vv:['TOTAL GENERAL'], 'CENTRO':['-'], 'E':[vv_s['E'].sum()]})]), use_container_width=True, hide_index=True)
     with c_desp:
         col_dp = next((c for c in df.columns if 'UNIDAD DE DESPACHO' in c.upper()), None)
         if col_dp:
-            st.write("**🚨 Unidad de Despacho**")
+            st.write("*🚨 Unidad de Despacho*")
             df[col_dp] = df[col_dp].fillna("SIN ASIGNAR").astype(str)
             dp_s = df.groupby([col_dp, 'CENTRO']).size().reset_index(name='E').sort_values('E', ascending=False)
             st.dataframe(pd.concat([dp_s, pd.DataFrame({col_dp:['TOTAL GENERAL'], 'CENTRO':['-'], 'E':[dp_s['E'].sum()]})]), use_container_width=True, hide_index=True)
