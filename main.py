@@ -42,8 +42,11 @@ if not st.session_state.autenticado:
 # ==============================================================================
 # 1. CONFIGURACIÓN, FUNCIONES DE LIMPIEZA Y MEDIDORES (GAUGES)
 # ==============================================================================
-st.set_page_config(page_title="S-Portal Hexagon | Command Center", layout="wide")
-
+st.set_page_config(
+    page_title="S-Portal Hexagon | Traffic Center", 
+    layout="wide",
+    initial_sidebar_state="expanded"  # <--- Esto fuerza a que siempre inicie abierta
+)
 st.markdown("""
     <style>
     #MainMenu {visibility: visible;}
