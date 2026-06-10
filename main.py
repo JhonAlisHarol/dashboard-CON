@@ -45,8 +45,8 @@ if not st.session_state.autenticado:
 st.set_page_config(
     page_title="S-Portal Hexagon | Traffic Center", 
     layout="wide",
-    initial_sidebar_state="expanded"  # <--- Esto fuerza a que siempre inicie abierta
-)
+    initial_sidebar_state="expanded"
+    
 st.markdown("""
     <style>
     #MainMenu {visibility: visible;}
