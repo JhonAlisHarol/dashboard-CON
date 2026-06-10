@@ -9,7 +9,7 @@ import unicodedata
 # 1. SEGURIDAD: DEFINICIÓN DE USUARIOS
 # ==============================================================================
 USUARIOS_AUTORIZADOS = {
-    "centro1": "hex123", "centro2": "hex123", "centro3": "hex123",
+    "CON-C5": "12345", "CORCOL": "12345", "COMDA": "12345",
     "centro4": "hex123", "centro5": "hex123", "centro6": "hex123",
     "centro7": "hex123", "centro8": "hex123"
 }
