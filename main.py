@@ -17,6 +17,14 @@ USUARIOS_AUTORIZADOS = {
 def login():
     st.markdown("""
         <style>
+        #MainMenu {visibility: hidden;}
+        footer {visibility: hidden;}
+        header {visibility: hidden;}
+        </style>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("""
+        <style>
         .stApp { background-color: #0a0e17; }
         h1, label { color: #ffffff !important; }
         </style>
