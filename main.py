@@ -6,6 +6,40 @@ import time
 import unicodedata
 
 # ==============================================================================
+# 1. SEGURIDAD: DEFINICIÓN DE USUARIOS
+# ==============================================================================
+USUARIOS_AUTORIZADOS = {
+    "centro1": "hex123", "centro2": "hex123", "centro3": "hex123",
+    "centro4": "hex123", "centro5": "hex123", "centro6": "hex123",
+    "centro7": "hex123", "centro8": "hex123"
+}
+
+def login():
+    st.markdown("""
+        <style>
+        .stApp { background-color: #0a0e17; }
+        h1, label { color: #ffffff !important; }
+        </style>
+    """, unsafe_allow_html=True)
+    st.title("S-Portal Hexagon | Login")
+    usuario = st.text_input("Usuario del Centro:")
+    clave = st.text_input("Contraseña:", type="password")
+    if st.button("Ingresar"):
+        if usuario in USUARIOS_AUTORIZADOS and USUARIOS_AUTORIZADOS[usuario] == clave:
+            st.session_state.autenticado = True
+            st.session_state.usuario = usuario
+            st.rerun()
+        else:
+            st.error("Credenciales inválidas")
+
+if "autenticado" not in st.session_state: st.session_state.autenticado = False
+
+if not st.session_state.autenticado:
+    login()
+    st.stop()
+
+
+# ==============================================================================
 # 1. CONFIGURACIÓN, FUNCIONES DE LIMPIEZA Y MEDIDORES (GAUGES)
 # ==============================================================================
 st.set_page_config(page_title="S-Portal Hexagon | Command Center", layout="wide")
@@ -60,7 +94,7 @@ st.markdown("""
         padding: 3px; 
         background: #0d121f;
         overflow: hidden;
-        margin-bottom: 1.5rem;
+        margin-bottom: 1.5rem;z
         box-shadow: 0 0 20px rgba(0, 235, 255, 0.2);
     }
     
@@ -138,6 +172,17 @@ st.markdown("""
     }
     </style>
 """, unsafe_allow_html=True)
+
+# ==============================================================================
+# BARRA LATERAL DE USUARIO (Cerrar Sesión)
+# ==============================================================================
+with st.sidebar:
+    st.write("---")
+    st.write(f"👤 Usuario: **{st.session_state.usuario.upper()}**")
+    if st.button("Cerrar Sesión"):
+        st.session_state.autenticado = False
+        st.rerun()
+    st.write("---")
 
 # --- FUNCIÓN DE LIMPIEZA DE NÚMEROS ---
 def clean_num(val):
