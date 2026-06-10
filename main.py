@@ -61,7 +61,7 @@ st.markdown("""
         background: #0d121f;
         overflow: hidden;
         margin-bottom: 1.5rem;
-        box-shadow: 0 0 20px rgba(0, 235, 255, 0.2); 
+        box-shadow: 0 0 20px rgba(0, 235, 255, 0.2);
     }
     
     .neon-title-container::before {
@@ -123,26 +123,11 @@ st.markdown("""
     .author-text { color: #00ebff !important; font-size: 14px; font-style: italic; margin-top: -5px; margin-bottom: 20px; text-align: center; }
     
     .map-overlay-total {
-        position: relative; top: 60px; left: 20px;
+        position: relative;
+        top: 60px; left: 20px;
         background: rgba(10, 14, 23, 0.85); border: 2px solid #00ebff;
         padding: 10px 20px; border-radius: 10px; z-index: 100;
         width: fit-content; margin-bottom: -70px;
-    }
-
-    .float-pdf {
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        z-index: 999;
-        background: #00ebff;
-        color: #0a0e17 !important;
-        padding: 10px 20px;
-        border-radius: 30px;
-        font-weight: bold;
-        text-decoration: none;
-        box-shadow: 0 0 15px #00ebff;
-        border: none;
-        cursor: pointer;
     }
 
     @media (max-width: 768px) {
@@ -152,36 +137,27 @@ st.markdown("""
         .stPlotlyChart { height: 350px !important; }
     }
     </style>
-    """, unsafe_allow_html=True)
+""", unsafe_allow_html=True)
 
-# BOTÓN PDF FLOTANTE
-st.markdown('<button class="float-pdf" onclick="window.print()">📥 DESCARGAR INFORME (PDF)</button>', unsafe_allow_html=True)
-
-# --- FUNCIÓN DE LIMPIEZA DE NÚMEROS (Evita decimales flotantes incorrectos de miles) ---
+# --- FUNCIÓN DE LIMPIEZA DE NÚMEROS ---
 def clean_num(val):
-    if pd.isna(val):
-        return 0
+    if pd.isna(val): return 0
     if isinstance(val, (int, float)):
-        if val < 1000 and val % 1 != 0:
-            return int(round(val * 1000))
+        if val < 1000 and val % 1 != 0: return int(round(val * 1000))
         return int(val)
     val_str = str(val).strip().replace(' ', '')
-    if not val_str:
-        return 0
+    if not val_str: return 0
     try:
         val_str = val_str.replace('.', '')
         return int(val_str)
     except ValueError:
-        try:
-            return int(float(val_str))
-        except ValueError:
-            return 0
+        try: return int(float(val_str))
+        except ValueError: return 0
 
-# --- FUNCIÓN DEFINIDA PARA LOS MEDIDORES (GAUGES) ---
+# --- FUNCIÓN DE GAUGES ---
 def create_gauge(value, title, color, is_timer=False):
     suffix = " seg" if is_timer else (" h" if value >= 60 else " min")
     display_val = value / 60 if (not is_timer and suffix == " h") else value
-    
     fig = go.Figure(go.Indicator(
         mode = "gauge+number", value = display_val,
         title = {'text': title, 'font': {'size': 14, 'color': "white"}},
@@ -205,10 +181,9 @@ if remaining <= 0:
     st.rerun()
 
 # ==============================================================================
-# 3. ENLACES Y LOGICA DE CARGA DE DATOS
+# 3. CARGA DE DATOS Y MAPEO TÁCTICO
 # ==============================================================================
 URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQzIFyCT2C22Hlrz80szN7J2mEfA8N1R7hiAmFAUXaoorwDTOeWNh-ktv__d0vIBS-AQcuV5ws3ZU4C/pub?gid=229458966&single=true&output=csv"
-URL_LLAMADAS_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRJjM8N55oQ9GLvCm72Jz8kbJpqze5ouhbBudOkYACwCIDGq9KmwLYX9Tz9lPmDPYEBzefNXqIE13PM/pub?gid=1939702068&single=true&output=csv"
 
 @st.cache_data(ttl=60)
 def load_full_data():
@@ -337,21 +312,11 @@ def load_full_data():
         return df[df['T_POS_COUNT'] > 0].copy()
     except: return None
 
-@st.cache_data(ttl=10)
-def cargar_llamadas_drive():
-    try:
-        df_ll = pd.read_csv(URL_LLAMADAS_CSV, skiprows=4)
-        df_ll.columns = df_ll.columns.astype(str).str.strip().str.replace('\n', '', regex=False)
-        return df_ll
-    except:
-        return None
-
-df_raw = load_full_data()
-df_llamadas_raw = cargar_llamadas_drive()
-
 # ==============================================================================
 # 4. DISPOSICIÓN DE LA INTERFAZ DE USUARIO (DASHBOARD)
 # ==============================================================================
+df_raw = load_full_data()
+
 if df_raw is not None:
     with st.sidebar:
         st.header("🔎 Fechas y Horas")
@@ -364,7 +329,7 @@ if df_raw is not None:
     df = df_raw[(df_raw['FECHA_DT'].dt.date >= f1) & (df_raw['FECHA_DT'].dt.date <= f2) & 
                 (df_raw['HORA_NUM'] >= h1) & (df_raw['HORA_NUM'] <= h2)].copy()
 
-    # --- TÍTULO DE LA INTERFAZ ---
+    # --- TÍTULO ---
     st.markdown("""
         <div class="neon-title-container">
             <div class="neon-title-inner">
@@ -374,96 +339,104 @@ if df_raw is not None:
     """, unsafe_allow_html=True)
     st.markdown('<p class="author-text">Creado por= Cabo 1° Elmer Rodriguez</p>', unsafe_allow_html=True)
 
-    # =========================================================================
-    # SECCIÓN: GRÁFICO DE LLAMADAS DE EMERGENCIA (CON ACTUALIZACIÓN AUTOMÁTICA)
-    # =========================================================================
-    st.subheader("📞 MONITOREO GENERAL DE LLAMADAS DE EMERGENCIA")
+    # ==============================================================================
+# 1. CONFIGURACIÓN (Intacta)
+# ==============================================================================
+st.set_page_config(page_title="S-Portal Hexagon | Traffic Center", layout="wide")
+
+st.markdown("""
+    <style>
+    #MainMenu {visibility: visible;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+    .stApp { background-color: #0a0e17; }
+    h1, h2, h3, span, p, label { color: #ffffff !important; }
+    </style>
+""", unsafe_allow_html=True)
+
+# ==============================================================================
+# 2. CARGA DE DATOS (Intacta)
+# ==============================================================================
+URL_HOJA_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRJjM8N55oQ9GLvCm72Jz8kbJpqze5ouhbBudOkYACwCIDGq9KmwLYX9Tz9lPmDPYEBzefNXqIE13PM/pub?gid=2008069627&single=true&output=csv"
+
+@st.cache_data(ttl=60)
+def load_traffic_only():
+    try:
+        df_c = pd.read_csv(URL_HOJA_CSV, header=None, dtype=str)
+        df_con = df_c.iloc[6:12].copy()
+        df_con.columns = [str(x).strip() for x in df_c.iloc[5]]
+        df_con['CENTRO_ID'] = 'CON-C5'
+        df_cor = df_c.iloc[37:43].copy()
+        df_cor.columns = [str(x).strip() for x in df_c.iloc[36]]
+        df_cor['CENTRO_ID'] = 'CORCOL'
+        
+        df_all = pd.concat([df_con, df_cor], ignore_index=True)
+        df_all.columns = df_all.columns.str.replace(r'\s+', ' ', regex=True).str.strip()
+        
+        cols_convertir = ['Presentadas', 'Contestadas', 'Abandonadas', 'Orientación', 'Ociosa', 
+                          'Contestadas Despues de 05 seg.', 'Abandonadas Despues de 05 seg.']
+        for col in cols_convertir:
+            if col in df_all.columns:
+                df_all[col] = pd.to_numeric(df_all[col].str.replace('.', '', regex=False), errors='coerce').fillna(0).astype(int)
+        return df_all
+    except: return None
+
+df_traffic = load_traffic_only()
+
+# ==============================================================================
+# 3. LÓGICA DE CÁLCULO (Ajustada para AMBOS)
+# ==============================================================================
+if df_traffic is not None and not df_traffic.empty:
+    c_filt_1, c_filt_2, _ = st.columns([3, 2, 1])
     
-    col_req1, col_req3 = st.columns([6.5, 3.5])
+    with c_filt_1:
+        centro_filtro = st.radio("Centro:", ["AMBOS CENTROS (Sumados)", "CON-C5", "CORCOL"], horizontal=True)
+    with c_filt_2:
+        mes_seleccionado = st.selectbox("Período:", ["TODOS LOS MESES"] + list(df_traffic.iloc[:,0].unique()))
 
-    selec = {"pres": 0, "cont": 0, "aban": 0, "orie": 0, "ocio": 0, "inc": 0, "ns": 0.0}
-
-    if df_llamadas_raw is not None and not df_llamadas_raw.empty:
-        mes_inicio = f1.month
-        mes_fin = f2.month
-        meses_map_num = {
-            1: "ENERO", 2: "FEBRERO", 3: "MARZO", 4: "ABRIL", 5: "MAYO", 6: "JUNIO",
-            7: "JULIO", 8: "AGOSTO", 9: "SEPTIEMBRE", 10: "OCTUBRE", 11: "NOVIEMBRE", 12: "DICIEMBRE"
-        }
-        
-        meses_seleccionados = [meses_map_num[m] for m in range(mes_inicio, mes_fin + 1) if m in meses_map_num]
-        primera_col = df_llamadas_raw.columns[0]
-        
-        df_filtrado_ll = df_llamadas_raw[df_llamadas_raw[primera_col].astype(str).str.upper().str.strip().isin(meses_seleccionados)].copy()
-        
-        if not df_filtrado_ll.empty:
-            def obtener_total_columna(nombres_posibles):
-                for col in df_filtrado_ll.columns:
-                    if any(posible.upper() in col.upper() for posible in nombres_posibles):
-                        return df_filtrado_ll[col].apply(clean_num).sum()
-                return 0
-
-            # Extracción y suma dinámica de cada columna desde el archivo Sheets original
-            selec["pres"] = obtener_total_columna(["Presentadas", "Presentada", "PRES"])
-            selec["cont"] = obtener_total_columna(["Contestadas", "Contestada", "CONT"])
-            selec["aban"] = obtener_total_columna(["Abandonadas", "Abandonada", "ABAN"])
-            selec["orie"] = obtener_total_columna(["Orientación", "Orientacion", "ORIE"])
-            selec["ocio"] = obtener_total_columna(["Ociosa", "Ociosas", "OCIO"])
-            
-            col_inc_creados = next((c for c in df_filtrado_ll.columns if 'INCIDENTE' in c.upper()), df_filtrado_ll.columns[-1])
-            selec["inc"] = df_filtrado_ll[col_inc_creados].apply(clean_num).sum()
-            
-            # Recálculo matemático inmediato del Nivel de Servicio
-            if selec["pres"] > 0:
-                selec["ns"] = (selec["cont"] / selec["pres"]) * 100
+    # Filtramos sin borrar datos
+    df_t = df_traffic if mes_seleccionado == "TODOS LOS MESES" else df_traffic[df_traffic.iloc[:,0] == mes_seleccionado]
     
-    # Listas de datos que alimentan el gráfico de barras de forma dinámica
-    valores_ll = [selec["pres"], selec["cont"], selec["aban"], selec["orie"], selec["ocio"]]
-    categorías_ll = ["LL. PRESENTADAS", "LL. CONTESTADAS", "LL. ABANDONADAS", "LL. ORIENTACIÓN", "LL. OCIOSA"]
+    # Lógica central: subset captura todo si es "AMBOS", o solo el centro seleccionado
+    if centro_filtro == "AMBOS CENTROS (Sumados)":
+        subset = df_t
+    else:
+        subset = df_t[df_t['CENTRO_ID'] == centro_filtro]
+
+    # CÁLCULO DE LA FÓRMULA EXACTA
+    C = subset['Contestadas'].sum()
+    A = subset['Abandonadas'].sum()
+    C5 = subset['Contestadas Despues de 05 seg.'].sum()
+    A5 = subset['Abandonadas Despues de 05 seg.'].sum()
     
-    # Formateo de etiquetas de miles con puntos (.) de manera automática
-    etiquetas_ll = [f"<b>{int(val):,}</b>".replace(",", ".") for val in valores_ll]
+    divisor = (C + A)
+    avg_sla = (((C + A) - (C5 + A5)) / divisor * 100) if divisor > 0 else 0.0
 
-    # --- COLUMNA Izquierda: Gráfico de Barras Auto-Actualizable ---
-    with col_req1:
-        fig_bar_ll = go.Figure(data=[
-            go.Bar(
-                x=categorías_ll,
-                y=valores_ll,
-                text=etiquetas_ll, 
-                textposition='inside',
-                textfont=dict(size=14, color="white", family="Arial", weight="bold"),
-                marker_color=['#00ebff', '#00ffaa', '#ff4444', '#ffaa00', '#aaaaaa']
-            )
-        ])
-        fig_bar_ll.update_layout(
-            paper_bgcolor='rgba(0,0,0,0)',
-            plot_bgcolor='rgba(0,0,0,0)',
-            font=dict(color="white"),
-            height=360,
-            margin=dict(l=40, r=20, t=10, b=30),
-            xaxis=dict(tickfont=dict(size=11, color='white'), showgrid=False),
-            yaxis=dict(showgrid=True, gridcolor='rgba(255,255,255,0.08)', tickfont=dict(color='white'), range=[0, max(valores_ll) * 1.15])
-        )
-        st.plotly_chart(fig_bar_ll, use_container_width=True, config={'displayModeBar': False})
+    # GRÁFICOS (Estructura intacta)
+    df_res = subset.agg({'Presentadas':'sum', 'Contestadas':'sum', 'Abandonadas':'sum', 'Orientación':'sum', 'Ociosa':'sum'})
+    
+    c_grafico, c_sla_box = st.columns([2, 1])
+    with c_grafico:
+        fig = go.Figure(data=[go.Bar(
+            x=['PRESENTADAS', 'CONTESTADAS', 'ABANDONADAS', 'ORIENTACIÓN', 'OCIOSA'],
+            y=[df_res['Presentadas'], df_res['Contestadas'], df_res['Abandonadas'], df_res['Orientación'], df_res['Ociosa']],
+            text=[f"{val:,.0f}" for val in [df_res['Presentadas'], df_res['Contestadas'], df_res['Abandonadas'], df_res['Orientación'], df_res['Ociosa']]],
+            textposition='outside',
+            marker_color=["#00ebff", "#00ffaa", "#ff4b4b", "#ffaa00", "#555555"]
+        )])
+        fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), yaxis=dict(showticklabels=False), margin=dict(t=40, b=10, l=10, r=10))
+        st.plotly_chart(fig, use_container_width=True)
         
-    # --- COLUMNA Derecha: Panel de Nivel de Servicio Auto-Actualizable ---
-    with col_req3:
-        str_ns = f"{selec['ns']:.2f}".replace(".", ",")
+    with c_sla_box:
+        col = "#00ffaa" if avg_sla >= 90 else ("#ffaa00" if avg_sla >= 80 else "#ff4b4b")
+        st.markdown(f"""<div style="background: #0d121f; border: 1px solid #00ebff; border-radius: 8px; height: 360px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+            <p style="margin: 0; font-size: 14px; color: #ffffff;">% NIVEL DE SERVICIO</p>
+            <h1 style="margin: 20px 0 0 0; font-size: 56px; color: #ffffff; text-shadow: 0 0 12px {col};">{avg_sla:.2f}%</h1>
+        </div>""", unsafe_allow_html=True)
 
-        st.markdown(f"""
-            <div style="background: rgba(13, 18, 31, 0.85); border: 2px solid #00ebff; box-shadow: 0 0 15px rgba(0, 235, 255, 0.2); border-radius: 10px; height: 360px; display: flex; flex-direction: column; justify-content: center; padding: 20px; box-sizing: border-box; overflow: hidden; font-family: 'Arial', sans-serif;">
-                <div style="text-align: center;">
-                    <p style="color: #a1a8b8 !important; font-size: 15px; margin-bottom: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px;">% NIVEL DE SERVICIO</p>
-                    <p style="color: #00ffff !important; font-size: 42px; font-weight: 800; margin: 0; text-shadow: 0 0 15px rgba(0,255,255,0.5); font-family: 'Arial Black', Gadget, sans-serif;">{str_ns}%</p>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
-
-    st.markdown("---")
 
     # =========================================================================
-    # 5. RESTO DE COMPONENTES DEL DASHBOARD (SIN MODIFICACIONES)
+    # SECCIÓN: COMPONENTES DEL DASHBOARD
     # =========================================================================
     c_m1, c_m2 = st.columns(2)
     with c_m1:
@@ -505,7 +478,7 @@ if df_raw is not None:
         with c_rank:
             st.plotly_chart(px.bar(prov_stats, x='T_POS_COUNT', y='PROVINCIA', orientation='h', text='T_POS_COUNT', color='T_POS_COUNT', color_continuous_scale='Tealgrn').update_layout(showlegend=False, coloraxis_showscale=False, paper_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), height=400), use_container_width=True)
 
-    # GRÁFICOS DE ROSA REQUERIDOS (CON FILTRO 'CON')
+    # GRÁFICOS DE ROSA
     st.markdown("---")
     cp1, cp2, cp3 = st.columns(3)
     with cp1: 
@@ -547,7 +520,7 @@ if df_raw is not None:
     c_mes, c_vv, c_desp = st.columns(3)
     with c_mes:
         if 'MES_NOMBRE' in df.columns:
-            st.write("*📅 Positivos por Meses*")
+            st.write("📅 Positivos por Meses")
             m_s = df.groupby(['MES_NOMBRE', 'MES_NUM'])['T_POS_COUNT'].sum().reset_index().sort_values('MES_NUM', ascending=False)
             fig_m_b = px.bar(m_s, x='T_POS_COUNT', y='MES_NOMBRE', orientation='h', text='T_POS_COUNT', color='T_POS_COUNT', color_continuous_scale='Tealgrn')
             fig_m_b.update_layout(showlegend=False, coloraxis_showscale=False, paper_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), height=400)
@@ -555,14 +528,14 @@ if df_raw is not None:
     with c_vv:
         col_vv = next((c for c in df.columns if 'UNIDAD DE VV' in c.upper() or 'VV/104' in c.upper()), None)
         if col_vv:
-            st.write("*📟 Unidad de VV/104*")
+            st.write("📟 Unidad de VV/104")
             df[col_vv] = df[col_vv].fillna("SIN ASIGNAR").astype(str)
             vv_s = df.groupby([col_vv, 'CENTRO']).size().reset_index(name='E').sort_values('E', ascending=False)
             st.dataframe(pd.concat([vv_s, pd.DataFrame({col_vv:['TOTAL GENERAL'], 'CENTRO':['-'], 'E':[vv_s['E'].sum()]})]), use_container_width=True, hide_index=True)
     with c_desp:
         col_dp = next((c for c in df.columns if 'UNIDAD DE DESPACHO' in c.upper()), None)
         if col_dp:
-            st.write("*🚨 Unidad de Despacho*")
+            st.write("🚨 Unidad de Despacho")
             df[col_dp] = df[col_dp].fillna("SIN ASIGNAR").astype(str)
             dp_s = df.groupby([col_dp, 'CENTRO']).size().reset_index(name='E').sort_values('E', ascending=False)
             st.dataframe(pd.concat([dp_s, pd.DataFrame({col_dp:['TOTAL GENERAL'], 'CENTRO':['-'], 'E':[dp_s['E'].sum()]})]), use_container_width=True, hide_index=True)
