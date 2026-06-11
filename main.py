@@ -29,7 +29,7 @@ def login():
         h1, label { color: #ffffff !important; }
         </style>
     """, unsafe_allow_html=True)
-    st.title("S-Portal Hexagon | Login")
+    st.title("DASHBOARD "C.O.N - C5·")
     usuario = st.text_input("Usuario del Centro:")
     clave = st.text_input("Contraseña:", type="password")
     if st.button("Ingresar"):
