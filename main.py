@@ -495,7 +495,6 @@ if df_traffic is not None and not df_traffic.empty:
     # SECCIÓN: COMPONENTES DEL DASHBOARD
     # =========================================================================
     c_m1, c_m2 = st.columns(2) # Ajusta esto a tu sintaxis real de Streamlit
-
     with c_m1:
         st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>📊 EVENTOS TOTALES</h3><p>{len(df):,}</p></div></div>', unsafe_allow_html=True)
     with c_m2:
