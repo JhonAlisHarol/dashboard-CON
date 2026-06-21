@@ -46,7 +46,7 @@ if not st.session_state.autenticado:
     login()
     st.stop()
 
-# --- 3. FONDO DE VIDEO A PANTALLA COMPLETA ---
+# --- . FONDO DE VIDEO A PANTALLA COMPLETA ---
 def set_video_background(video_file):
     try:
         with open(video_file, "rb") as f:
