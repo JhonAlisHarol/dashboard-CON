@@ -496,14 +496,10 @@ if df_traffic is not None and not df_traffic.empty:
     # =========================================================================
     c_m1, c_m2 = st.columns(2) # Ajusta esto a tu sintaxis real de Streamlit
 
-with c_m1:
-    # Usamos total_eventos (que es seguro)
-    st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>📊 EVENTOS TOTALES</h3><p>{total_eventos}</p></div></div>', unsafe_allow_html=True)
-
-with c_m2:
-    # Validamos que la columna exista para evitar errores de clave
-    valor_pos = int(df["T_POS_COUNT"].sum()) if not df.empty and "T_POS_COUNT" in df.columns else 0
-    st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>✅ TOTAL POSITIVOS</h3><p>{valor_pos}</p></div></div>', unsafe_allow_html=True)
+    with c_m1:
+        st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>📊 EVENTOS TOTALES</h3><p>{len(df):,}</p></div></div>', unsafe_allow_html=True)
+    with c_m2:
+        st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>✅ TOTAL POSITIVOS</h3><p>{int(df["T_POS_COUNT"].sum()):,}</p></div></div>', unsafe_allow_html=True)
 
     g1, g2, g3 = st.columns(3)
     v_desp = df['VARIANZA DE DESPACHO_M'].mean() if 'VARIANZA DE DESPACHO_M' in df.columns else 0
