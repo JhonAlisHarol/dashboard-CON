@@ -4,6 +4,44 @@ import plotly.express as px
 import plotly.graph_objects as go
 import time
 import unicodedata
+import base64
+
+
+# . Función para convertir la imagen a formato que el navegador entiende sin buscar archivos
+def get_base64_of_bin_file(bin_file):
+    with open(bin_file, 'rb') as f:
+        data = f.read()
+    return base64.b64encode(data).decode()
+
+# 2. Convertir tu archivo (asegúrate de que el nombre sea EXACTO como en tu carpeta)
+# Si te da error aquí, es que el archivo tiene otro nombre. 
+# Revisa en tu carpeta: ¿Se llama 'FONDO PARA DASHBOARD' o tiene extensión?
+try:
+    # Ajusta aquí el nombre si tu archivo tiene o no extensión .png
+    bin_str = get_base64_of_bin_file("FONDO PARA DASHBOARD.png") 
+    img_data = f"data:image/png;base64,{bin_str}"
+except:
+    img_data = "" # Fondo vacío si hay error
+
+# 3. Aplicar el estilo al dashboard
+st.markdown(f"""
+    <style>
+    .stApp {{
+        background-image: url("{img_data}");
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+    }}
+    /* Capa de oscurecimiento para que los gráficos resalten */
+    .stApp::before {{
+        content: "";
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: -1;
+    }}
+    </style>
+""", unsafe_allow_html=True)
 
 # ==============================================================================
 # 1. SEGURIDAD: DEFINICIÓN DE USUARIOS
