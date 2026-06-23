@@ -68,7 +68,7 @@ def login():
         </style>
     """, unsafe_allow_html=True)
     st.title("🔐 DASHBOARD C.O.N - C5")
-    st.markdown('<p class="author-text">Creado por= Cabo 1° Elmer Rodriguez</p>', unsafe_allow_html=True)
+    st.markdown('<p class="author-text">DESARROLLADO POR= CABO 1° ELMER RODRIGUEZ</p>', unsafe_allow_html=True)
     usuario = st.text_input("Usuario del Centro:")
     clave = st.text_input("Contraseña:", type="password")
     if st.button("Ingresar"):
