@@ -9,7 +9,7 @@ import unicodedata
 # 1. SEGURIDAD: DEFINICIÓN DE USUARIOS
 # ==============================================================================
 USUARIOS_AUTORIZADOS = {
-    "CON-C5": "12345", "CORCOL": "CORCOLONC3", "COMCH": "12345678",
+    "CONC5": "12345", "CORCOL": "CORCOLONC3", "COMCH": "12345678",
     "COMAR": "hex123", "COMDA": "hex123", "COMCHEP": "hex123",
     "CEVIBO": "hex123", "COMSAM": "hex123", "ALISJHON": "199432", "ISMAEL SAMUDIO": "20626"
 }
