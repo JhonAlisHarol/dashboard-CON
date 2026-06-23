@@ -432,7 +432,7 @@ if df_raw is not None:
             </div>
         </div>
     """, unsafe_allow_html=True)
-    st.markdown('<p class="author-text">Creado por= Cabo 1° Elmer Rodriguez</p>', unsafe_allow_html=True)
+    st.markdown('<p class="author-text">DESARROLLADO POR= CABO 1° ELMER RODRIGUEZ</p>', unsafe_allow_html=True)
 
     # ==============================================================================
 # 1. CONFIGURACIÓN (Intacta)
