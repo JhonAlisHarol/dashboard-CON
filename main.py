@@ -10,28 +10,31 @@ import base64
 # --- FONDO GLOBAL PARA TODO EL DASHBOARD Y SIDEBAR ---
 st.markdown("""
     <style>
-    /* Aplicar fondo a toda la aplicación */
+    /* 1. Fondo de toda la aplicación */
     .stApp {
-        background-image: url('https://raw.githubusercontent.com/TU_USUARIO/TU_REPO/main/FONDO_PARA_DASHBOARD.png');
+        background-image: url("https://raw.githubusercontent.com/JhonAlisHarol/dashboard-CON/main/FONDO%20PARA%20DASHBOARD.png");
         background-size: cover;
         background-position: center;
         background-attachment: fixed;
     }
-    
-    /* Aplicar fondo al panel lateral (sidebar) */
-    [data-testid="stSidebar"] {
-        background-image: url('https://raw.githubusercontent.com/TU_USUARIO/TU_REPO/main/FONDO_PARA_DASHBOARD.png');
-        background-size: cover;
-        background-position: center;
+
+    /* 2. Forzar transparencia en los contenedores para que se vea el fondo */
+    .stApp, [data-testid="stSidebar"], .stMainBlockContainer {
+        background-color: transparent !important;
     }
 
-    /* Capa de oscurecimiento para mejorar la lectura */
+    /* 3. Capa de oscurecimiento (ajusta el 0.6 si quieres ver más o menos la imagen) */
     .stApp::before {
         content: "";
         position: absolute;
         top: 0; left: 0; width: 100%; height: 100%;
         background: rgba(0, 0, 0, 0.6);
         z-index: -1;
+    }
+    
+    /* 4. Asegurar que los textos se vean blancos sobre el fondo */
+    div, p, h1, h2, h3, label {
+        color: white !important;
     }
     </style>
 """, unsafe_allow_html=True)
