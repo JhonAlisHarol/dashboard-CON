@@ -550,7 +550,7 @@ if df_traffic is not None and not df_traffic.empty:
             total_positivos_formateado = f"{int(df['T_POS_COUNT'].sum()):,}"
         else:
             total_positivos_formateado = "0"
-                st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>✅ TOTAL POSITIVOS</h3><p>{total_positivos_formateado}</p></div></div>', unsafe_allow_html=True)
+                    st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>✅ TOTAL POSITIVOS</h3><p>{total_positivos_formateado}</p></div></div>', unsafe_allow_html=True)
    
 
     g1, g2, g3 = st.columns(3)
