@@ -524,10 +524,10 @@ if df_traffic is not None and not df_traffic.empty:
             <h1 style="margin: 20px 0 0 0; font-size: 56px; color: #ffffff; text-shadow: 0 0 12px {col};">{avg_sla:.2f}%</h1>
         </div>""", unsafe_allow_html=True)
 
-# =========================================================================
+    # =========================================================================
     # SECCIÓN: COMPONENTES DEL DASHBOARD
     # =========================================================================
-# --- CARGA DE DATOS SEGURA ---
+    # --- CARGA DE DATOS SEGURA ---
     try:
         response = supabase.table("registros_c5").select("*").execute()
         df = pd.DataFrame(response.data)
@@ -537,20 +537,21 @@ if df_traffic is not None and not df_traffic.empty:
     c_m1, c_m2 = st.columns(2) 
     
     with c_m1:
-       # Si df está vacío, len(df) devolverá 0 sin dar error
+        # Si df está vacío, len(df) devolverá 0 sin dar error
         total_eventos_formateado = f"{len(df):,}" if not df.empty else "0"
         
         # 2. Pasamos la variable limpia al string de HTML
         st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>📊 EVENTOS TOTALES</h3><p>{total_eventos_formateado}</p></div></div>', unsafe_allow_html=True)
         
     with c_m2:
-        # Hacemos lo mismo para el total de positivos para prevenir el mismo error
-            # Verifica si la columna existe antes de sumar
-        if 'T_POS_COUNT' in df.columns:
+        # Hacemos lo mismo para el total de positivos
+        if not df.empty and 'T_POS_COUNT' in df.columns:
             total_positivos_formateado = f"{int(df['T_POS_COUNT'].sum()):,}"
         else:
             total_positivos_formateado = "0"
-            st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>✅ TOTAL POSITIVOS</h3><p>{total_positivos_formateado}</p></div></div>', unsafe_allow_html=True)
+        
+        # EL ERROR ESTABA AQUÍ: Esta línea debe estar al mismo nivel que el 'if' anterior
+        st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>✅ TOTAL POSITIVOS</h3><p>{total_positivos_formateado}</p></div></div>', unsafe_allow_html=True)
    
 
     g1, g2, g3 = st.columns(3)
