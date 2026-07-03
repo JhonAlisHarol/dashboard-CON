@@ -546,11 +546,11 @@ if df_traffic is not None and not df_traffic.empty:
     with c_m2:
         # Hacemos lo mismo para el total de positivos para prevenir el mismo error
             # Verifica si la columna existe antes de sumar
-    if 'T_POS_COUNT' in df.columns:
-        total_positivos_formateado = f"{int(df['T_POS_COUNT'].sum()):,}"
-    else:
-        total_positivos_formateado = "0"
-            st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>✅ TOTAL POSITIVOS</h3><p>{total_positivos_formateado}</p></div></div>', unsafe_allow_html=True)
+if 'T_POS_COUNT' in df.columns:
+    total_positivos_formateado = f"{int(df['T_POS_COUNT'].sum()):,}"
+else:
+    total_positivos_formateado = "0"
+        st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>✅ TOTAL POSITIVOS</h3><p>{total_positivos_formateado}</p></div></div>', unsafe_allow_html=True)
    
 
     g1, g2, g3 = st.columns(3)
