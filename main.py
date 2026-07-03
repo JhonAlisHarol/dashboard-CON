@@ -528,25 +528,29 @@ if df_traffic is not None and not df_traffic.empty:
     # SECCIÓN: COMPONENTES DEL DASHBOARD
     # =========================================================================
 # --- CARGA DE DATOS SEGURA ---
-try:
-    response = supabase.table("registros_c5").select("*").execute()
-    df = pd.DataFrame(response.data)
-except Exception:
-    df = pd.DataFrame() # Crea un DataFrame vacío para evitar que la app se caiga
+    try:
+        response = supabase.table("registros_c5").select("*").execute()
+        df = pd.DataFrame(response.data)
+    except Exception:
+        df = pd.DataFrame() # Crea un DataFrame vacío para evitar que la app se caiga
     
     c_m1, c_m2 = st.columns(2) 
     
     with c_m1:
-        # 1. Creamos la variable formateada de forma segura aquí fuera
-        total_eventos_formateado = f"{len(df):,}"
+       # Si df está vacío, len(df) devolverá 0 sin dar error
+        total_eventos_formateado = f"{len(df):,}" if not df.empty else "0"
         
         # 2. Pasamos la variable limpia al string de HTML
         st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>📊 EVENTOS TOTALES</h3><p>{total_eventos_formateado}</p></div></div>', unsafe_allow_html=True)
         
     with c_m2:
         # Hacemos lo mismo para el total de positivos para prevenir el mismo error
+            # Verifica si la columna existe antes de sumar
+    if 'T_POS_COUNT' in df.columns:
         total_positivos_formateado = f"{int(df['T_POS_COUNT'].sum()):,}"
-        st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>✅ TOTAL POSITIVOS</h3><p>{total_positivos_formateado}</p></div></div>', unsafe_allow_html=True)
+    else:
+        total_positivos_formateado = "0"
+            st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>✅ TOTAL POSITIVOS</h3><p>{total_positivos_formateado}</p></div></div>', unsafe_allow_html=True)
    
 
     g1, g2, g3 = st.columns(3)
