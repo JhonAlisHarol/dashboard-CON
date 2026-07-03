@@ -503,7 +503,7 @@ if df_traffic is not None and not df_traffic.empty:
     avg_sla = (((C + A) - (C5 + A5)) / divisor * 100) if divisor > 0 else 0.0
 
     # GRÁFICOS (Estructura intacta)
-    df_res = subset.agg({'Presentadas':'sum', 'Contestadas':'sum', 'Abandonadas':'sum', 'Orientación':'sum', 'Ociosa':'sum'})
+    df_res = subset.agg({'Presentadas':'sum', 'Contestadas':'sum', 'Abandonadas':'sum', 'Orientación':'sum', 'Maliciosa':'sum'})
     
     c_grafico, c_sla_box = st.columns([2, 1])
     with c_grafico:
