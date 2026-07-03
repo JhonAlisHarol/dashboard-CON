@@ -524,16 +524,23 @@ if df_traffic is not None and not df_traffic.empty:
             <h1 style="margin: 20px 0 0 0; font-size: 56px; color: #ffffff; text-shadow: 0 0 12px {col};">{avg_sla:.2f}%</h1>
         </div>""", unsafe_allow_html=True)
 
-
-    # =========================================================================
+# =========================================================================
     # SECCIÓN: COMPONENTES DEL DASHBOARD
     # =========================================================================
-    c_m1, c_m2 = st.columns(2) # Ajusta esto a tu sintaxis real de Streamlit
+    c_m1, c_m2 = st.columns(2) 
+    
     with c_m1:
-        st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>📊 EVENTOS TOTALES</h3><p>{len(df):,}</p></div></div>', unsafe_allow_html=True)
+        # 1. Creamos la variable formateada de forma segura aquí fuera
+        total_eventos_formateado = f"{len(df):,}"
+        
+        # 2. Pasamos la variable limpia al string de HTML
+        st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>📊 EVENTOS TOTALES</h3><p>{total_eventos_formateado}</p></div></div>', unsafe_allow_html=True)
         
     with c_m2:
-        st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>✅ TOTAL POSITIVOS</h3><p>{int(df["T_POS_COUNT"].sum()):,}</p></div></div>', unsafe_allow_html=True)
+        # Hacemos lo mismo para el total de positivos para prevenir el mismo error
+        total_positivos_formateado = f"{int(df['T_POS_COUNT'].sum()):,}"
+        st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>✅ TOTAL POSITIVOS</h3><p>{total_positivos_formateado}</p></div></div>', unsafe_allow_html=True)
+   
 
     g1, g2, g3 = st.columns(3)
     v_desp = df['VARIANZA DE DESPACHO_M'].mean() if 'VARIANZA DE DESPACHO_M' in df.columns else 0
