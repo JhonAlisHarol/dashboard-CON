@@ -508,7 +508,7 @@ if df_traffic is not None and not df_traffic.empty:
     c_grafico, c_sla_box = st.columns([2, 1])
     with c_grafico:
         fig = go.Figure(data=[go.Bar(
-            x=['PRESENTADAS', 'CONTESTADAS', 'ABANDONADAS', 'ORIENTACIÓN', 'OCIOSA'],
+            x=['PRESENTADAS', 'CONTESTADAS', 'ABANDONADAS', 'ORIENTACIÓN', 'MALICIOSA'],
             y=[df_res['Presentadas'], df_res['Contestadas'], df_res['Abandonadas'], df_res['Orientación'], df_res['Ociosa']],
             text=[f"{val:,.0f}" for val in [df_res['Presentadas'], df_res['Contestadas'], df_res['Abandonadas'], df_res['Orientación'], df_res['Ociosa']]],
             textposition='outside',
