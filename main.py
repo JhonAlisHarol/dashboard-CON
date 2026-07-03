@@ -527,6 +527,13 @@ if df_traffic is not None and not df_traffic.empty:
 # =========================================================================
     # SECCIÓN: COMPONENTES DEL DASHBOARD
     # =========================================================================
+# --- CARGA DE DATOS SEGURA ---
+try:
+    response = supabase.table("registros_c5").select("*").execute()
+    df = pd.DataFrame(response.data)
+except Exception:
+    df = pd.DataFrame() # Crea un DataFrame vacío para evitar que la app se caiga
+    
     c_m1, c_m2 = st.columns(2) 
     
     with c_m1:
