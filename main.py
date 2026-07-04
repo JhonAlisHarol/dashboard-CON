@@ -587,6 +587,64 @@ if df_traffic is not None and not df_traffic.empty:
         ord_c = t_c.drop(columns='TOTAL').sum().sort_values(ascending=False).index.tolist()
         t_c = t_c[ord_c + ['TOTAL']].sort_values('TOTAL', ascending=False)
         st.dataframe(pd.concat([t_c, t_c.sum().to_frame(name='TOTAL GENERAL').T]), use_container_width=True)
+
+# --- TABLA ÚNICA: POSITIVOS POR CANAL (ORDENADA FILAS Y COLUMNAS) ---
+    st.markdown("---")
+    st.subheader("📡 POSITIVOS POR CANAL")
+    
+    cols_positivos = ['RESULTADO POSITIVO 1', 'RESULTADO POSITIVO 2', 'RESULTADO POSITIVO 3', 
+                      'RESULTADO POSITIVO 4', 'RESULTADO POSITIVO 5', 'RESULTADO POSITIVO 6']
+    
+    df_m = df.melt(id_vars=['CANAL DE ENTRADA'], value_vars=cols_positivos, value_name='Tipo').dropna()
+    df_m = df_m[~df_m['Tipo'].isin(['SELECCIONAR', '', None])]
+    
+    # 1. Crear matriz
+    t_canal = df_m.groupby(['Tipo', 'CANAL DE ENTRADA']).size().unstack(fill_value=0)
+    
+    # 2. CALCULAR ORDEN PARA FILAS Y COLUMNAS
+    # Orden de Filas (Tipos) según el total por fila
+    t_canal['TOTAL'] = t_canal.sum(axis=1)
+    orden_filas = t_canal.drop(columns=['TOTAL']).sum(axis=1).sort_values(ascending=False).index.tolist()
+    
+    # Orden de Columnas (Canales) según el total por columna
+    orden_cols = t_canal.drop(columns=['TOTAL']).sum(axis=0).sort_values(ascending=False).index.tolist()
+    
+    # 3. APLICAR EL ORDEN
+    # Reordenamos columnas primero y luego filas
+    t_canal_ordenada = t_canal[orden_cols + ['TOTAL']].loc[orden_filas]
+    
+    # 4. Concatenar fila de TOTAL GENERAL al final
+    fila_total = t_canal_ordenada.sum().to_frame(name='TOTAL GENERAL').T
+    tabla_final = pd.concat([t_canal_ordenada, fila_total])
+    
+    # 5. Mostrar tabla
+    st.dataframe(tabla_final, use_container_width=True, height=400)
+    st.markdown("---")
+    
+# --- TABLA ÚNICA: POSITIVOS POR GRUPO TÁCTICO ---
+    st.markdown("---")
+    st.subheader("🛡️ POSITIVOS POR GRUPO TÁCTICO")
+    
+    # 1. Transformación de datos usando 'GRUPO_TACTICO'
+    df_m = df.melt(id_vars=['GRUPO_TACTICO'], value_vars=cols_positivos, value_name='Tipo').dropna()
+    df_m = df_m[~df_m['Tipo'].isin(['SELECCIONAR', '', None])]
+    
+    # 2. Crear matriz (Tipos en filas, Grupos Tácticos en columnas)
+    t_tactico = df_m.groupby(['Tipo', 'GRUPO_TACTICO']).size().unstack(fill_value=0)
+    
+    # 3. Calcular orden para Filas y Columnas
+    t_tactico['TOTAL'] = t_tactico.sum(axis=1)
+    orden_filas = t_tactico.drop(columns=['TOTAL']).sum(axis=1).sort_values(ascending=False).index.tolist()
+    orden_cols = t_tactico.drop(columns=['TOTAL']).sum(axis=0).sort_values(ascending=False).index.tolist()
+    
+    # 4. Aplicar orden y concatenar fila de TOTAL GENERAL
+    t_tactico_ordenada = t_tactico[orden_cols + ['TOTAL']].loc[orden_filas]
+    fila_total = t_tactico_ordenada.sum().to_frame(name='TOTAL GENERAL').T
+    tabla_final = pd.concat([t_tactico_ordenada, fila_total])
+    
+    # 5. Mostrar tabla
+    st.dataframe(tabla_final, use_container_width=True, height=400)
+    st.markdown("---")
     
     st.markdown("---")
     cn1, cn2 = st.columns(2)
