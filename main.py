@@ -445,57 +445,54 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 2. CARGA DE DATOS (VERSION AUTOMATICA - NO REQUIERE AJUSTES MANUALES)
+# CARGA DE DATOS - ESTABLE Y SEGURA
 # ==============================================================================
 URL_HOJA_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRJjM8N55oQ9GLvCm72Jz8kbJpqze5ouhbBudOkYACwCIDGq9KmwLYX9Tz9lPmDPYEBzefNXqIE13PM/pub?gid=2008069627&single=true&output=csv"
 
 @st.cache_data(ttl=60)
 def load_traffic_only():
     try:
-        # Cargamos el CSV completo
-        df_c = pd.read_csv(URL_HOJA_CSV, header=None, dtype=str)
+        # 1. Leemos el archivo completo
+        df_raw = pd.read_csv(URL_HOJA_CSV, dtype=str)
         
-        # Función para encontrar los bloques de datos dinámicamente
-        def get_dynamic_section(df, keyword, instance):
-            # Busca la fila donde aparece la palabra clave (ej. 'Presentadas')
-            # 'instance' es para diferenciar entre el primer bloque (CON-C5) y el segundo (CORCOL)
-            indices = df[df.apply(lambda row: row.astype(str).str.contains(keyword).any(), axis=1)].index
-            idx_start = indices[instance]
+        # 2. Función para extraer bloques buscando la palabra clave
+        def extract_block(df, start_keyword):
+            # Encontramos la fila donde aparece la keyword
+            # Asumimos que la fila siguiente son los encabezados
+            start_idx = df[df.apply(lambda row: row.astype(str).str.contains(start_keyword).any(), axis=1)].index[0]
             
-            # Leemos desde el encabezado (idx_start) hacia abajo
-            # Detectamos el fin de la tabla buscando la palabra "Total" o una fila vacía
-            data_rows = []
-            for i in range(idx_start + 1, len(df)):
-                fila = df.iloc[i].values
-                # Si encuentra "Total" o la primera columna está vacía, termina el mes
-                if pd.isna(df.iloc[i, 0]) or any("Total" in str(val) for val in fila):
-                    break
-                data_rows.append(df.iloc[i])
+            # Extraemos el bloque desde el encabezado (start_idx)
+            block = df.iloc[start_idx+1:].copy()
+            block.columns = df.iloc[start_idx].values
             
-            df_sec = pd.DataFrame(data_rows)
-            df_sec.columns = [str(x).strip() for x in df.iloc[idx_start]]
-            return df_sec
+            # Limpiamos: borramos filas donde la primera columna (Mes) sea nula o "Total"
+            block = block[block.iloc[:, 0].notna()]
+            block = block[~block.iloc[:, 0].str.contains("Total", na=False)]
+            
+            # Limpiamos nombres de columnas (espacios)
+            block.columns = [str(x).strip() for x in block.columns]
+            return block
 
-        # Cargamos secciones sin rangos fijos (6:12 ya no existe)
-        df_con = get_dynamic_section(df_c, "Presentadas", 0)
+        # Extraemos los dos bloques
+        df_con = extract_block(df_raw, "Presentadas")
         df_con['CENTRO_ID'] = 'CON-C5'
         
-        df_cor = get_dynamic_section(df_c, "Presentadas", 1)
+        # Para el segundo, filtramos las filas de abajo para buscar el segundo "Presentadas"
+        df_raw_2 = df_raw.iloc[30:].reset_index(drop=True)
+        df_cor = extract_block(df_raw_2, "Presentadas")
         df_cor['CENTRO_ID'] = 'CORCOL'
         
-        # Unir y limpiar
         df_all = pd.concat([df_con, df_cor], ignore_index=True)
-        df_all.columns = df_all.columns.str.replace(r'\s+', ' ', regex=True).str.strip()
         
-        cols_convertir = ['Presentadas', 'Contestadas', 'Abandonadas', 'Orientación', 'Maliciosa', 
-                          'Contestadas Despues de 05 seg.', 'Abandonadas Despues de 05 seg.']
-        for col in cols_convertir:
+        # Limpieza final de números
+        cols_num = ['Presentadas', 'Contestadas', 'Abandonadas', 'Orientación', 'Maliciosa']
+        for col in cols_num:
             if col in df_all.columns:
-                df_all[col] = pd.to_numeric(df_all[col].astype(str).str.replace('.', '', regex=False), errors='coerce').fillna(0).astype(int)
-        
+                df_all[col] = pd.to_numeric(df_all[col].str.replace('.', '', regex=False), errors='coerce').fillna(0).astype(int)
+                
         return df_all
     except Exception as e:
-        st.error(f"Error cargando datos: {e}")
+        st.error(f"Error de carga: {e}")
         return None
 
 df_traffic = load_traffic_only()
