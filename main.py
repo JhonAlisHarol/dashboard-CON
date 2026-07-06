@@ -444,58 +444,49 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
-# ==============================================================================
-# CARGA DE DATOS - ESTABLE Y SEGURA
-# ==============================================================================
-URL_HOJA_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRJjM8N55oQ9GLvCm72Jz8kbJpqze5ouhbBudOkYACwCIDGq9KmwLYX9Tz9lPmDPYEBzefNXqIE13PM/pub?gid=2008069627&single=true&output=csv"
-
 @st.cache_data(ttl=60)
 def load_traffic_only():
     try:
-        # 1. Leemos el archivo completo
-        df_raw = pd.read_csv(URL_HOJA_CSV, dtype=str)
+        # Cargamos el archivo tal cual
+        df_c = pd.read_csv(URL_HOJA_CSV, header=None, dtype=str)
         
-        # 2. Función para extraer bloques buscando la palabra clave
-        def extract_block(df, start_keyword):
-            # Encontramos la fila donde aparece la keyword
-            # Asumimos que la fila siguiente son los encabezados
-            start_idx = df[df.apply(lambda row: row.astype(str).str.contains(start_keyword).any(), axis=1)].index[0]
+        def get_dynamic_section(df, keyword, offset=0):
+            # Encontrar el inicio
+            indices = df[df.apply(lambda row: row.astype(str).str.contains(keyword).any(), axis=1)].index
+            idx_start = indices[offset]
             
-            # Extraemos el bloque desde el encabezado (start_idx)
-            block = df.iloc[start_idx+1:].copy()
-            block.columns = df.iloc[start_idx].values
+            # Lista de meses válidos para filtrar lo que NO queremos
+            meses_validos = ['ENERO', 'FEBRERO', 'MARZO', 'ABRIL', 'MAYO', 'JUNIO', 'JULIO', 'AGOSTO', 'SEPTIEMBRE', 'OCTUBRE', 'NOVIEMBRE', 'DICIEMBRE']
             
-            # Limpiamos: borramos filas donde la primera columna (Mes) sea nula o "Total"
-            block = block[block.iloc[:, 0].notna()]
-            block = block[~block.iloc[:, 0].str.contains("Total", na=False)]
+            data_rows = []
+            for i in range(idx_start + 1, len(df)):
+                fila = df.iloc[i]
+                valor_primera_col = str(fila.iloc[0]).upper().strip()
+                
+                # FILTRO ESTRICTO: Solo aceptamos filas que sean meses
+                if valor_primera_col in meses_validos:
+                    data_rows.append(fila)
+                # Paramos si encontramos "Total" o si ya no es un mes
+                elif "TOTAL" in valor_primera_col:
+                    break
             
-            # Limpiamos nombres de columnas (espacios)
-            block.columns = [str(x).strip() for x in block.columns]
-            return block
+            df_sec = pd.DataFrame(data_rows)
+            df_sec.columns = [str(x).strip() for x in df.iloc[idx_start]]
+            return df_sec
 
-        # Extraemos los dos bloques
-        df_con = extract_block(df_raw, "Presentadas")
+        df_con = get_dynamic_section(df_c, "Presentadas", 0)
         df_con['CENTRO_ID'] = 'CON-C5'
         
-        # Para el segundo, filtramos las filas de abajo para buscar el segundo "Presentadas"
-        df_raw_2 = df_raw.iloc[30:].reset_index(drop=True)
-        df_cor = extract_block(df_raw_2, "Presentadas")
+        df_cor = get_dynamic_section(df_c, "Presentadas", 1)
         df_cor['CENTRO_ID'] = 'CORCOL'
         
         df_all = pd.concat([df_con, df_cor], ignore_index=True)
-        
-        # Limpieza final de números
-        cols_num = ['Presentadas', 'Contestadas', 'Abandonadas', 'Orientación', 'Maliciosa']
-        for col in cols_num:
-            if col in df_all.columns:
-                df_all[col] = pd.to_numeric(df_all[col].str.replace('.', '', regex=False), errors='coerce').fillna(0).astype(int)
-                
+        # Limpieza numérica (mantén tu código actual de limpieza aquí)
+        # ...
         return df_all
     except Exception as e:
-        st.error(f"Error de carga: {e}")
+        st.error(f"Error: {e}")
         return None
-
-df_traffic = load_traffic_only()
 
 # ==============================================================================
 # 3. LÓGICA DE CÁLCULO (Ajustada para AMBOS)
