@@ -484,7 +484,7 @@ def load_traffic_only():
         # Limpieza numérica (mantén tu código actual de limpieza aquí)
         # ...
         return df_all
-    except Exception as e:
+        except Exception as e:
         st.error(f"Error: {e}")
         return None
 # ==============================================================================
