@@ -487,7 +487,6 @@ def load_traffic_only():
     except Exception as e:
         st.error(f"Error: {e}")
         return None
-
 # ==============================================================================
 # 3. LÓGICA DE CÁLCULO (Ajustada para AMBOS)
 # ==============================================================================
