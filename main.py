@@ -510,7 +510,7 @@ if df_traffic is not None and not df_traffic.empty:
         fig = go.Figure(data=[go.Bar(
             x=['PRESENTADAS', 'CONTESTADAS', 'ABANDONADAS', 'ORIENTACIÓN', 'MALICIOSA'],
             y=[df_res['Presentadas'], df_res['Contestadas'], df_res['Abandonadas'], df_res['Orientación'], df_res['Ociosa']],
-            text=[f"{val:,.0f}" for val in [df_res['Presentadas'], df_res['Contestadas'], df_res['Abandonadas'], df_res['Orientación'], df_res['Ociosa']]],
+            text=[f"{val:,.0f}" for val in [df_res['Presentadas'], df_res['Contestadas'], df_res['Abandonadas'], df_res['Orientación'], df_res['Maliciosa']]],
             textposition='outside',
             marker_color=["#00ebff", "#00ffaa", "#ff4b4b", "#ffaa00", "#555555"]
         )])
