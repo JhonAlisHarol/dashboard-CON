@@ -453,10 +453,10 @@ URL_HOJA_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRJjM8N55oQ9GLvC
 def load_traffic_only():
     try:
         df_c = pd.read_csv(URL_HOJA_CSV, header=None, dtype=str)
-        df_con = df_c.iloc[6:12].copy()
+        df_con = df_c.iloc[6:13].copy()
         df_con.columns = [str(x).strip() for x in df_c.iloc[5]]
         df_con['CENTRO_ID'] = 'CON-C5'
-        df_cor = df_c.iloc[37:43].copy()
+        df_cor = df_c.iloc[37:44].copy()
         df_cor.columns = [str(x).strip() for x in df_c.iloc[36]]
         df_cor['CENTRO_ID'] = 'CORCOL'
         
