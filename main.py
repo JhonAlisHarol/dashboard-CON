@@ -445,47 +445,33 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 2. CARGA DE DATOS (VERSION CORREGIDA PARA AUTOMATIZACION TOTAL)
+# 2. CARGA DE DATOS (Intacta)
 # ==============================================================================
 URL_HOJA_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRJjM8N55oQ9GLvCm72Jz8kbJpqze5ouhbBudOkYACwCIDGq9KmwLYX9Tz9lPmDPYEBzefNXqIE13PM/pub?gid=2008069627&single=true&output=csv"
 
 @st.cache_data(ttl=60)
 def load_traffic_only():
     try:
-        # Cargamos el CSV normal
-        df = pd.read_csv(URL_HOJA_CSV)
+        df_c = pd.read_csv(URL_HOJA_CSV, header=None, dtype=str)
+        df_con = df_c.iloc[6:12].copy()
+        df_con.columns = [str(x).strip() for x in df_c.iloc[5]]
+        df_con['CENTRO_ID'] = 'CON-C5'
+        df_cor = df_c.iloc[37:43].copy()
+        df_cor.columns = [str(x).strip() for x in df_c.iloc[36]]
+        df_cor['CENTRO_ID'] = 'CORCOL'
         
-        # 1. Limpiamos nombres de columnas (espacios extras)
-        df.columns = df.columns.astype(str).str.strip()
+        df_all = pd.concat([df_con, df_cor], ignore_index=True)
+        df_all.columns = df_all.columns.str.replace(r'\s+', ' ', regex=True).str.strip()
         
-        # 2. Si el archivo carga filas vacías al inicio, las quitamos
-        df = df.dropna(how='all')
-        
-        # 3. Convertimos a numérico de forma masiva
-        cols_convertir = ['Presentadas', 'Contestadas', 'Abandonadas', 'Orientación', 
-                          'Maliciosa', 'Contestadas Despues de 05 seg.', 'Abandonadas Despues de 05 seg.']
-        
+        cols_convertir = ['Presentadas', 'Contestadas', 'Abandonadas', 'Orientación', 'Maliciosa', 
+                          'Contestadas Despues de 05 seg.', 'Abandonadas Despues de 05 seg.']
         for col in cols_convertir:
-            if col in df.columns:
-                # Quitamos puntos (separadores de miles) y convertimos
-                df[col] = df[col].astype(str).str.replace('.', '', regex=False)
-                df[col] = pd.to_numeric(df[col], errors='coerce').fillna(0).astype(int)
-        
-        return df
-        
-    except Exception as e:
-        st.error(f"Error cargando los datos: {e}")
-        return None
+            if col in df_all.columns:
+                df_all[col] = pd.to_numeric(df_all[col].str.replace('.', '', regex=False), errors='coerce').fillna(0).astype(int)
+        return df_all
+    except: return None
 
-# Ejecución
 df_traffic = load_traffic_only()
-
-# DEBUG: Mostrar en pantalla para verificar si Julio aparece
-if df_traffic is not None:
-    st.write("Datos cargados correctamente. Verifica si Julio aparece abajo:")
-    st.dataframe(df_traffic)
-else:
-    st.warning("No se pudieron cargar los datos.")
 
 # ==============================================================================
 # 3. LÓGICA DE CÁLCULO (Ajustada para AMBOS)
