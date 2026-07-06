@@ -463,7 +463,7 @@ def load_traffic_only():
         df_all = pd.concat([df_con, df_cor], ignore_index=True)
         df_all.columns = df_all.columns.str.replace(r'\s+', ' ', regex=True).str.strip()
         
-        cols_convertir = ['Presentadas', 'Contestadas', 'Abandonadas', 'Orientación', 'Ociosa', 
+        cols_convertir = ['Presentadas', 'Contestadas', 'Abandonadas', 'Orientación', 'Maliciosa', 
                           'Contestadas Despues de 05 seg.', 'Abandonadas Despues de 05 seg.']
         for col in cols_convertir:
             if col in df_all.columns:
@@ -503,13 +503,13 @@ if df_traffic is not None and not df_traffic.empty:
     avg_sla = (((C + A) - (C5 + A5)) / divisor * 100) if divisor > 0 else 0.0
 
     # GRÁFICOS (Estructura intacta)
-    df_res = subset.agg({'Presentadas':'sum', 'Contestadas':'sum', 'Abandonadas':'sum', 'Orientación':'sum', 'Ociosa':'sum'})
+    df_res = subset.agg({'Presentadas':'sum', 'Contestadas':'sum', 'Abandonadas':'sum', 'Orientación':'sum', 'Maliciosa':'sum'})
     
     c_grafico, c_sla_box = st.columns([2, 1])
     with c_grafico:
         fig = go.Figure(data=[go.Bar(
             x=['PRESENTADAS', 'CONTESTADAS', 'ABANDONADAS', 'ORIENTACIÓN', 'MALICIOSA'],
-            y=[df_res['Presentadas'], df_res['Contestadas'], df_res['Abandonadas'], df_res['Orientación'], df_res['Ociosa']],
+            y=[df_res['Presentadas'], df_res['Contestadas'], df_res['Abandonadas'], df_res['Orientación'], df_res['Maliciosa']],
             text=[f"{val:,.0f}" for val in [df_res['Presentadas'], df_res['Contestadas'], df_res['Abandonadas'], df_res['Orientación'], df_res['Maliciosa']]],
             textposition='outside',
             marker_color=["#00ebff", "#00ffaa", "#ff4b4b", "#ffaa00", "#555555"]
