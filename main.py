@@ -445,37 +445,45 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==============================================================================
-# 2. CARGA DE DATOS (Corregida para ser automática)
+# 2. CARGA DE DATOS (URL Conectada y Dinámica)
 # ==============================================================================
 URL_HOJA_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRJjM8N55oQ9GLvCm72Jz8kbJpqze5ouhbBudOkYACwCIDGq9KmwLYX9Tz9lPmDPYEBzefNXqIE13PM/pub?gid=2008069627&single=true&output=csv"
 
 @st.cache_data(ttl=60)
 def load_traffic_only():
     try:
-        # Cargamos el CSV completo
+        # Carga el archivo completo desde el Drive
         df_c = pd.read_csv(URL_HOJA_CSV, header=None, dtype=str)
         
-        # En lugar de filas fijas (6:12), buscamos dinámicamente donde está la palabra "Presentadas"
-        # Esto permite que si agregas Julio, Agosto, etc., el código lo detecte solo.
-        idx_headers = df_c[df_c.apply(lambda row: row.astype(str).str.contains("Presentadas").any(), axis=1)].index[0]
-        
-        # Definimos los bloques de forma flexible
-        # Si tu tabla de CON-C5 empieza justo después de los headers:
-        df_con = df_c.iloc[idx_headers + 1 : idx_headers + 7].copy() # Lee 6 filas (ajusta a 7 si ya tienes Julio)
-        df_con.columns = [str(x).strip() for x in df_c.iloc[idx_headers]]
+        def get_dynamic_section(df, keyword, offset=0):
+            # Busca la fila donde aparece "Presentadas"
+            idx_start = df[df.apply(lambda row: row.astype(str).str.contains(keyword).any(), axis=1)].index[offset]
+            
+            # Lee filas hacia abajo hasta encontrar una fila vacía o la palabra "Total"
+            data_rows = []
+            for i in range(idx_start + 1, len(df)):
+                fila = df.iloc[i].astype(str).values
+                # Condición de parada: fila vacía o contiene "Total"
+                if pd.isna(df.iloc[i]).all() or any("Total" in str(val) for val in fila):
+                    break
+                data_rows.append(df.iloc[i])
+            
+            df_sec = pd.DataFrame(data_rows)
+            df_sec.columns = [str(x).strip() for x in df.iloc[idx_start]]
+            return df_sec
+
+        # Extrae automáticamente las secciones, incluyendo Julio y cualquier mes futuro
+        df_con = get_dynamic_section(df_c, "Presentadas", offset=0)
         df_con['CENTRO_ID'] = 'CON-C5'
         
-        # Hacemos lo mismo para CORCOL (buscando su sección)
-        idx_headers_cor = df_c[df_c.apply(lambda row: row.astype(str).str.contains("Presentadas").any(), axis=1)].index[1]
-        df_cor = df_c.iloc[idx_headers_cor + 1 : idx_headers_cor + 7].copy()
-        df_cor.columns = [str(x).strip() for x in df_c.iloc[idx_headers_cor]]
+        df_cor = get_dynamic_section(df_c, "Presentadas", offset=1)
         df_cor['CENTRO_ID'] = 'CORCOL'
         
-        # Concatenamos todo
+        # Unir todo
         df_all = pd.concat([df_con, df_cor], ignore_index=True)
         df_all.columns = df_all.columns.str.replace(r'\s+', ' ', regex=True).str.strip()
         
-        # Conversión de datos
+        # Limpieza de valores numéricos
         cols_convertir = ['Presentadas', 'Contestadas', 'Abandonadas', 'Orientación', 'Maliciosa', 
                           'Contestadas Despues de 05 seg.', 'Abandonadas Despues de 05 seg.']
         for col in cols_convertir:
@@ -484,7 +492,7 @@ def load_traffic_only():
         
         return df_all
     except Exception as e:
-        st.warning(f"Error cargando datos: {e}")
+        st.error(f"Error al conectar con la URL: {e}")
         return None
 
 df_traffic = load_traffic_only()
