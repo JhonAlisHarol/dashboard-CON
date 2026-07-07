@@ -624,35 +624,24 @@ if df_traffic is not None and not df_traffic.empty:
     st.markdown("---")
     st.subheader("🛡️ POSITIVOS POR GRUPO TÁCTICO")
     
-    # 1. Preparación de datos (Basado en tus columnas originales)
-    # Usamos las columnas de positivos que definiste antes (cols_positivos)
-    df_m = df.melt(value_vars=cols_positivos, value_name='Tipo_Limpio').dropna()
-    df_m = df_m[~df_m['Tipo_Limpio'].isin(['SELECCIONAR', '', None])]
+    # 1. Transformación de datos usando 'GRUPO_TACTICO'
+    df_m = df.melt(id_vars=['GRUPO_TACTICO'], value_vars=cols_positivos, value_name='Tipo').dropna()
+    df_m = df_m[~df_m['Tipo'].isin(['SELECCIONAR', '', None])]
     
-    # 2. Limpieza de espacios
-    df_m['Tipo_Limpio'] = df_m['Tipo_Limpio'].str.strip()
+    # 2. Crear matriz (Tipos en filas, Grupos Tácticos en columnas)
+    t_tactico = df_m.groupby(['Tipo', 'GRUPO_TACTICO']).size().unstack(fill_value=0)
     
-    # 3. Mapeo Forzado (Aquí obligamos a que cada 'Tipo' caiga donde debe según tu diccionario)
-    df_m['GRUPO_CORREGIDO'] = df_m['Tipo_Limpio'].map(map_tactico_raw).fillna('OTROS')
-    
-    # 4. Crear la matriz (Tipos en filas, Grupos Tácticos en columnas)
-    t_tactico = df_m.groupby(['Tipo_Limpio', 'GRUPO_CORREGIDO']).size().unstack(fill_value=0)
-    
-    # 5. Cálculos de totales y ordenamiento (Visualización clásica)
+    # 3. Calcular orden para Filas y Columnas
     t_tactico['TOTAL'] = t_tactico.sum(axis=1)
-    
-    # Orden de filas por frecuencia descendente
     orden_filas = t_tactico.drop(columns=['TOTAL']).sum(axis=1).sort_values(ascending=False).index.tolist()
+    orden_cols = t_tactico.drop(columns=['TOTAL']).sum(axis=0).sort_values(ascending=False).index.tolist()
     
-    # Columnas en el orden específico que requiere tu C5
-    cols_orden = [c for c in ['CAPTURAS', 'EMERGENCIAS', 'RECUPERACIONES', 'SEGURIDAD VIAL'] if c in t_tactico.columns]
-    t_tactico_ordenada = t_tactico[cols_orden + ['TOTAL']].loc[orden_filas]
-    
-    # 6. Agregar la fila de "TOTAL GENERAL" abajo
+    # 4. Aplicar orden y concatenar fila de TOTAL GENERAL
+    t_tactico_ordenada = t_tactico[orden_cols + ['TOTAL']].loc[orden_filas]
     fila_total = t_tactico_ordenada.sum().to_frame(name='TOTAL GENERAL').T
     tabla_final = pd.concat([t_tactico_ordenada, fila_total])
     
-    # 7. Mostrar tabla (Mismo formato que antes)
+    # 5. Mostrar tabla
     st.dataframe(tabla_final, use_container_width=True, height=400)
     st.markdown("---")
     
