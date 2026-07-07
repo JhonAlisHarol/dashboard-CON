@@ -620,29 +620,41 @@ if df_traffic is not None and not df_traffic.empty:
     st.markdown("---")
 
     # --- TABLA ÚNICA: POSITIVOS POR GRUPO TÁCTICO ---
-    st.markdown("---")
-    st.subheader("🛡️ POSITIVOS POR GRUPO TÁCTICO")
-    
-    # 1. Transformación de datos usando 'GRUPO_TACTICO'
-    df_m = df.melt(id_vars=['GRUPO_TACTICO'], value_vars=cols_positivos, value_name='Tipo').dropna()
-    df_m = df_m[~df_m['Tipo'].isin(['SELECCIONAR', '', None])]
-    
-    # 2. Crear matriz (Tipos en filas, Grupos Tácticos en columnas)
-    t_tactico = df_m.groupby(['Tipo', 'GRUPO_TACTICO']).size().unstack(fill_value=0)
-    
-    # 3. Calcular orden para Filas y Columnas
-    t_tactico['TOTAL'] = t_tactico.sum(axis=1)
-    orden_filas = t_tactico.drop(columns=['TOTAL']).sum(axis=1).sort_values(ascending=False).index.tolist()
-    orden_cols = t_tactico.drop(columns=['TOTAL']).sum(axis=0).sort_values(ascending=False).index.tolist()
-    
-    # 4. Aplicar orden y concatenar fila de TOTAL GENERAL
-    t_tactico_ordenada = t_tactico[orden_cols + ['TOTAL']].loc[orden_filas]
-    fila_total = t_tactico_ordenada.sum().to_frame(name='TOTAL GENERAL').T
-    tabla_final = pd.concat([t_tactico_ordenada, fila_total])
-    
-    # 5. Mostrar tabla
-    st.dataframe(tabla_final, use_container_width=True, height=400)
-    st.markdown("---")
+st.markdown("---")
+st.subheader("🛡️ POSITIVOS POR GRUPO TÁCTICO")
+
+# 1. Transformación (IGNORAMOS la columna 'GRUPO_TACTICO' original)
+# Usamos solo 'cols_positivos' para obtener los tipos de incidentes limpios
+df_m = df.melt(value_vars=cols_positivos, value_name='Tipo').dropna()
+df_m = df_m[~df_m['Tipo'].isin(['SELECCIONAR', '', None])]
+df_m['Tipo'] = df_m['Tipo'].str.strip()
+
+# 2. FORZAMOS EL MAPEO usando el diccionario 'map_fuerza' que ya definiste al inicio
+# Esto asegura que cada incidente caiga en la categoría correcta
+df_m['GRUPO_CORREGIDO'] = df_m['Tipo'].map(map_fuerza).fillna('NO CLASIFICADOS')
+
+# 3. Crear matriz (Tipos en filas, Grupos Correctos en columnas)
+t_tactico = df_m.groupby(['Tipo', 'GRUPO_CORREGIDO']).size().unstack(fill_value=0)
+
+# 4. Asegurar que las 4 columnas tácticas existan siempre, incluso si no hay registros
+cols_fijas = ['CAPTURAS', 'EMERGENCIAS', 'RECUPERACIONES', 'SEGURIDAD VIAL']
+for col in cols_fijas:
+    if col not in t_tactico.columns:
+        t_tactico[col] = 0
+
+# 5. Calcular totales y ordenar
+t_tactico['TOTAL'] = t_tactico.sum(axis=1)
+orden_filas = t_tactico.drop(columns=['TOTAL']).sum(axis=1).sort_values(ascending=False).index.tolist()
+
+# 6. Aplicar orden y preparar tabla final
+t_tactico_ordenada = t_tactico[cols_fijas + ['TOTAL']].loc[orden_filas]
+fila_total = t_tactico_ordenada.sum().to_frame(name='TOTAL GENERAL').T
+tabla_final = pd.concat([t_tactico_ordenada, fila_total])
+
+# 7. Mostrar tabla
+st.dataframe(tabla_final, use_container_width=True, height=400)
+st.markdown("---")
+                                                            
 
     st.markdown("---")
     cn1, cn2 = st.columns(2)
