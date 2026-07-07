@@ -623,11 +623,12 @@ if df_traffic is not None and not df_traffic.empty:
 # --- TABLA ÚNICA: POSITIVOS POR GRUPO TÁCTICO ---
     st.markdown("---")
     st.subheader("🛡️ POSITIVOS POR GRUPO TÁCTICO")
-    
+
+    st.write(df.columns)
     # 1. Limpieza y Mapeo Forzado
     # Primero, aseguramos que la columna 'Tipo' (donde vienen los nombres como 'Arma de Fuego - Decomiso - Pistola') 
     # esté limpia de espacios extras
-    df['Tipo_Limpio'] = df['Tipo'].str.strip() 
+    df['Tipo_Limpio'] = df['Incidentes'].str.strip() 
     
     # 2. APLICAMOS EL MAPEO (Aquí obligamos a que se clasifique según TU diccionario)
     df['GRUPO_CORREGIDO'] = df['Tipo_Limpio'].map(map_tactico_raw)
