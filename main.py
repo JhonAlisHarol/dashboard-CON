@@ -626,7 +626,7 @@ if df_traffic is not None and not df_traffic.empty:
     
     # 1. Definición directa del mapa (para garantizar que siempre exista)
     map_fuerza = {
-        ''Aprehensión de Menor por Alerta de Custodia': 'CAPTURAS', 'Ciudadana Aprehendida por Violencia Doméstica': 'CAPTURAS',
+            'Aprehensión de Menor por Alerta de Custodia': 'CAPTURAS', 'Ciudadana Aprehendida por Violencia Doméstica': 'CAPTURAS',
             'Ciudadano Aprehendido': 'CAPTURAS', 'Ciudadano Aprehendido por Inviolabilidad Del Domicilio': 'CAPTURAS',
             'Ciudadano Aprehendido por Libertad Vigilada': 'CAPTURAS', 'Ciudadano Aprehendido con Accesorio De Arma De Fuego': 'CAPTURAS',
             'Ciudadano Aprehendido con Arma Blanca': 'CAPTURAS', 'Ciudadano Aprehendido con Arma de Fuego': 'CAPTURAS',
