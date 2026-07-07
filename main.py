@@ -624,24 +624,35 @@ if df_traffic is not None and not df_traffic.empty:
     st.markdown("---")
     st.subheader("🛡️ POSITIVOS POR GRUPO TÁCTICO")
     
-    # 1. Transformación de datos usando 'GRUPO_TACTICO'
-    df_m = df.melt(id_vars=['GRUPO_TACTICO'], value_vars=cols_positivos, value_name='Tipo').dropna()
-    df_m = df_m[~df_m['Tipo'].isin(['SELECCIONAR', '', None])]
+    # 1. Limpieza y Mapeo Forzado
+    # Primero, aseguramos que la columna 'Tipo' (donde vienen los nombres como 'Arma de Fuego - Decomiso - Pistola') 
+    # esté limpia de espacios extras
+    df['Tipo_Limpio'] = df['Tipo'].str.strip() 
     
-    # 2. Crear matriz (Tipos en filas, Grupos Tácticos en columnas)
-    t_tactico = df_m.groupby(['Tipo', 'GRUPO_TACTICO']).size().unstack(fill_value=0)
+    # 2. APLICAMOS EL MAPEO (Aquí obligamos a que se clasifique según TU diccionario)
+    df['GRUPO_CORREGIDO'] = df['Tipo_Limpio'].map(map_tactico_raw)
     
-    # 3. Calcular orden para Filas y Columnas
+    # 3. Manejo de errores: Si algo no está en el diccionario, lo marcamos como 'OTROS' 
+    # en lugar de dejarlo vacío o permitir que se clasifique mal
+    df['GRUPO_CORREGIDO'] = df['GRUPO_CORREGIDO'].fillna('OTROS')
+    
+    # 4. Crear matriz usando la columna que acabamos de corregir
+    # Agrupamos por el 'Tipo' (fila) y nuestra columna 'GRUPO_CORREGIDO' (columna)
+    t_tactico = df.groupby(['Tipo_Limpio', 'GRUPO_CORREGIDO']).size().unstack(fill_value=0)
+    
+    # 5. Cálculos de totales y ordenamiento
     t_tactico['TOTAL'] = t_tactico.sum(axis=1)
     orden_filas = t_tactico.drop(columns=['TOTAL']).sum(axis=1).sort_values(ascending=False).index.tolist()
-    orden_cols = t_tactico.drop(columns=['TOTAL']).sum(axis=0).sort_values(ascending=False).index.tolist()
     
-    # 4. Aplicar orden y concatenar fila de TOTAL GENERAL
-    t_tactico_ordenada = t_tactico[orden_cols + ['TOTAL']].loc[orden_filas]
+    # Ordenamos columnas para que se vean bien (Capturas, Emergencias, Recuperaciones, Seguridad Vial)
+    cols_orden = [c for c in ['CAPTURAS', 'EMERGENCIAS', 'RECUPERACIONES', 'SEGURIDAD VIAL'] if c in t_tactico.columns]
+    t_tactico_ordenada = t_tactico[cols_orden + ['TOTAL']].loc[orden_filas]
+    
+    # 6. Total General
     fila_total = t_tactico_ordenada.sum().to_frame(name='TOTAL GENERAL').T
     tabla_final = pd.concat([t_tactico_ordenada, fila_total])
     
-    # 5. Mostrar tabla
+    # 7. Mostrar tabla
     st.dataframe(tabla_final, use_container_width=True, height=400)
     st.markdown("---")
     
