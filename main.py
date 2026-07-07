@@ -624,39 +624,109 @@ if df_traffic is not None and not df_traffic.empty:
     st.markdown("---")
     st.subheader("🛡️ POSITIVOS POR GRUPO TÁCTICO")
     
-    # 1. Definimos localmente la variable para asegurar que sea vista en este bloque
-    # (Esto soluciona el NameError aunque el diccionario original esté bloqueado)
-    mi_mapa = map_tactico_raw if 'map_tactico_raw' in globals() else {}
+    # 1. Definición directa del mapa (para garantizar que siempre exista)
+    map_fuerza = {
+        'Aprehensión de Menor por Alerta de Custodia': 'CAPTURAS', 'Ciudadana Aprehendida por Violencia Doméstica': 'CAPTURAS',
+        'Ciudadano Aprehendido': 'CAPTURAS', 'Ciudadano Aprehendido por Inviolabilidad Del Domicilio': 'CAPTURAS',
+        'Ciudadano Aprehendido por Libertad Vigilada': 'CAPTURAS', 'Ciudadano Aprehendido con Accesorio De Arma De Fuego': 'CAPTURAS',
+        'Ciudadano Aprehendido con Arma Blanca': 'CAPTURAS', 'Ciudadano Aprehendido con Arma de Fuego': 'CAPTURAS',
+        'Ciudadano Aprehendido con Sustancias Ilícitas': 'CAPTURAS', 'Ciudadano Aprehendido por Agresiones Fisicas': 'CAPTURAS',
+        'Ciudadano Aprehendido por Agresiones Verbales': 'CAPTURAS', 'Ciudadano Aprehendido por Alteración De La Convivencia Pacífica': 'CAPTURAS',
+        'Ciudadano Aprehendido por Consumo de Licor en Vía Pública': 'CAPTURAS', 'Ciudadano Aprehendido por Daño A La Prop. Privada': 'CAPTURAS',
+        'Ciudadano Aprehendido por Estafa Simple': 'CAPTURAS', 'Ciudadano Aprehendido por Falsificación De Documentos': 'CAPTURAS',
+        'Ciudadano Aprehendido por Falsificación De Monedas': 'CAPTURAS', 'Ciudadano Aprehendido por Hurto': 'CAPTURAS',
+        'Ciudadano Aprehendido por Hurto A local Comercial': 'CAPTURAS', 'Ciudadano Aprehendido por Hurto A Propiedad': 'CAPTURAS',
+        'Ciudadano Aprehendido por Hurto A Residencia': 'CAPTURAS', 'Ciudadano Aprehendido por Hurto de Accesorio De Vehículo': 'CAPTURAS',
+        'Ciudadano Aprehendido por Hurto De Vehículo': 'CAPTURAS', 'Ciudadano Aprehendido por Hurto Simple A Persona': 'CAPTURAS',
+        'Ciudadano Aprehendido por Hurto Simple a Propiedad': 'CAPTURAS', 'Ciudadano Aprehendido por Intento de Hurto': 'CAPTURAS',
+        'Ciudadano Aprehendido por Intento De Violación': 'CAPTURAS', 'Ciudadano Aprehendido por Lesiones Personales': 'CAPTURAS',
+        'Ciudadano Aprehendido por Lesiones Personales Con Arma Blanca': 'CAPTURAS', 'Ciudadano Aprehendido por Maltrato De Niños(As)-Adolescentes': 'CAPTURAS',
+        'Ciudadano Aprehendido por No Portar Documento de Identidad Personal': 'CAPTURAS', 'Ciudadano Aprehendido por Oficio de Captura': 'CAPTURAS',
+        'Ciudadano Aprehendido por Oficio de Conducción': 'CAPTURAS', 'Ciudadano Aprehendido por Privación De Libertad': 'CAPTURAS',
+        'Ciudadano Aprehendido por Quebrantamiento De Boleta De Protección': 'CAPTURAS', 'Ciudadano Aprehendido por Riña o Pelea': 'CAPTURAS',
+        'Ciudadano Aprehendido por Robo A local Comercial': 'CAPTURAS', 'Ciudadano Aprehendido por Robo A Persona Con Arma De Fuego': 'CAPTURAS',
+        'Ciudadano Aprehendido por Robo A Propiedad': 'CAPTURAS', 'Ciudadano Aprehendido por Robo de Vehículo (Alerta Temprana)': 'CAPTURAS',
+        'Ciudadano Aprehendido por Robo Simple (carterista)': 'CAPTURAS', 'Ciudadano Aprehendido por Robo Simple a Persona': 'CAPTURAS',
+        'Ciudadano Aprehendido por Subrogado Penal': 'CAPTURAS', 'Ciudadano Aprehendido por Supuesta Vinculación A Delito': 'CAPTURAS',
+        'Ciudadano Aprehendido por Violencia Doméstica': 'CAPTURAS', 'Ciudadano Capturado por Alerta Penitenciaria': 'CAPTURAS',
+        'Ciudadano Notificado por Oficio de Citación': 'CAPTURAS', 'Menor Infractor por Hurto': 'CAPTURAS', 'Menor Infractor por Robo': 'CAPTURAS',
+        'Arma de Fuego - Decomiso - Escopeta': 'RECUPERACIONES', 'Arma de Fuego - Decomiso - Fusil': 'RECUPERACIONES',
+        'Arma de Fuego - Decomiso - Pistola': 'RECUPERACIONES', 'Arma de Fuego - Decomiso - Revolver': 'RECUPERACIONES',
+        'Arma de Fuego - Decomiso - Rifle': 'RECUPERACIONES', 'Arma de Fuego - Hallazgo - Escopeta': 'RECUPERACIONES',
+        'Arma de Fuego - Hallazgo - Fusil': 'RECUPERACIONES', 'Arma de Fuego - Hallazgo - Pistola': 'RECUPERACIONES',
+        'Arma de Fuego - Hallazgo - Revolver': 'RECUPERACIONES', 'Arma de Fuego - Replica Decomiso': 'RECUPERACIONES',
+        'Arma de Fuego - Replica Hallazgo': 'RECUPERACIONES', 'Articulo de Dudosa Procedencia': 'RECUPERACIONES',
+        'Articulo Recuperados': 'RECUPERACIONES', 'Decomiso de Articulos Prohibidos': 'RECUPERACIONES',
+        'Decomiso de Cajetillas Cigarrillos': 'RECUPERACIONES', 'Decomiso de Sustancia Ilícita': 'RECUPERACIONES',
+        'Hallazgo de Sustancia Ilícita': 'RECUPERACIONES', 'Recuperación de Articulos': 'RECUPERACIONES',
+        'Recuperación de Menor Evadido': 'RECUPERACIONES', 'Remoción de Vehículo en Grúa': 'RECUPERACIONES',
+        'Vehículo Recuperado': 'RECUPERACIONES', 'Vehículo Recuperado por Apropiación Indebida': 'RECUPERACIONES',
+        'Vehículo Recuperado por Hurto (Alerta Temprana)': 'RECUPERACIONES', 'Vehículo Recuperado por Oficio de Hurto': 'RECUPERACIONES',
+        'Vehículo Recuperado por Oficio de Robo': 'RECUPERACIONES', 'Vehículo Recuperado por Robo (Alerta Temprana)': 'RECUPERACIONES',
+        'Atención de Atropello': 'SEGURIDAD VIAL', 'Atención de Atropello con victima fatal': 'SEGURIDAD VIAL',
+        'Atención de Caida de Vehiculo en la Cuneta': 'SEGURIDAD VIAL', 'Atención de Choque con Objeto Fijo': 'SEGURIDAD VIAL',
+        'Atención de Colisión de Alto Impacto': 'SEGURIDAD VIAL', 'Atención de Colisión menor': 'SEGURIDAD VIAL',
+        'Atención de Colisión multiple': 'SEGURIDAD VIAL', 'Atención de Colision y fuga': 'SEGURIDAD VIAL',
+        'Atención de Colision y vuelco': 'SEGURIDAD VIAL', 'Atención de Derrame de Combustible': 'SEGURIDAD VIAL',
+        'Atención de Derrape de Motorizado': 'SEGURIDAD VIAL', 'Atención de Derrape de Motorizado con Víctima Fatal': 'SEGURIDAD VIAL',
+        'Atención de Triple Colisión': 'SEGURIDAD VIAL', 'Atención de Vuelco': 'SEGURIDAD VIAL',
+        'Infracción por Ceder el Manejo a Persona No Autorizada': 'SEGURIDAD VIAL', 'Infracción por Circular en Vía Contraria': 'SEGURIDAD VIAL',
+        'Infracción por Conducir a Velocidad Superior al Limite': 'SEGURIDAD VIAL', 'Infracción por Conducir con Aliento Alcohólico': 'SEGURIDAD VIAL',
+        'Infracción por Conducir de Forma Desordenada': 'SEGURIDAD VIAL', 'Infracción por Conducir por el Carril Indebido': 'SEGURIDAD VIAL',
+        'Infracción por Conductor en Estado de Embriaguez Comprobado': 'SEGURIDAD VIAL', 'Infracción por Estado Etilico': 'SEGURIDAD VIAL',
+        'Infracción por Daño a la Propiedad': 'SEGURIDAD VIAL', 'Infracción por Desatender lineas de no pare': 'SEGURIDAD VIAL',
+        'Infracción por Desatender señales': 'SEGURIDAD VIAL', 'Infracción por Emitir Gases, Ruidos o Sonidos Excesivos': 'SEGURIDAD VIAL',
+        'Infracción por Hablar por Teléfono Celular': 'SEGURIDAD VIAL', 'Infracción por Licencia Vencida': 'SEGURIDAD VIAL',
+        'Infracción por Licencia no Adecuada': 'SEGURIDAD VIAL', 'Infracción Nunca ha Sacado Licencia': 'SEGURIDAD VIAL',
+        'Infracción por Luces Inadecutadas': 'SEGURIDAD VIAL', 'Infracción por Negarse a Prueba de Alcoholemia': 'SEGURIDAD VIAL',
+        'Infracción por No portar licencia': 'SEGURIDAD VIAL', 'Infracción por No utilizar el Cinturón': 'SEGURIDAD VIAL',
+        'Infracción por Papel ahumado no Autorizado': 'SEGURIDAD VIAL', 'Infracción por Pasar Semáforo en Rojo': 'SEGURIDAD VIAL',
+        'Infracción por Poliza Vencida': 'SEGURIDAD VIAL', 'Infracción por Portar Placa Diferente': 'SEGURIDAD VIAL',
+        'Infracción por Prestar el Servicio en Ruta Distinta': 'SEGURIDAD VIAL', 'Infracción por Vehículo no Autorizado': 'SEGURIDAD VIAL',
+        'Infracción por Realizar Giros Prohibidos': 'SEGURIDAD VIAL', 'Infracción por Sin Condiciones de Seguridad': 'SEGURIDAD VIAL',
+        'Infracción por Sin Equipos de Seguridad': 'SEGURIDAD VIAL', 'Infracción por Exceso de Pasajero': 'SEGURIDAD VIAL',
+        'Infracción por Vehículo sin Cinta Reflectiva': 'SEGURIDAD VIAL', 'Infracción por Vehículos mal Estacionados': 'SEGURIDAD VIAL',
+        'Infracción por Remolcar sin Seguridad': 'SEGURIDAD VIAL', 'Restablecimiento de la Segurida Víal': 'SEGURIDAD VIAL',
+        'Apoyo a Vehiculo de Valores Desperfectos': 'EMERGENCIAS', 'Apoyo al Ciudadano': 'EMERGENCIAS',
+        'Apoyo al Ciudadano Brindar Seguridad': 'EMERGENCIAS', 'Apoyo al Ciudadano Cruce de Peatón': 'EMERGENCIAS',
+        'Apoyo al Ciudadano para Reparar Vehículo': 'EMERGENCIAS', 'Apoyo al Ciudadano Reskate de Embarcacion': 'EMERGENCIAS',
+        'Apoyo al Ciudadano Reskate de Persona': 'EMERGENCIAS', 'Atención Prehospitalaria BCBPA': 'EMERGENCIAS',
+        'Atención Prehospitalaria CSS': 'EMERGENCIAS', 'Atención Prehospitalaria MINSACAPSI': 'EMERGENCIAS',
+        'Atención Prehospitalaria Policía Nacional': 'EMERGENCIAS', 'Atención Prehospitalaria Privada': 'EMERGENCIAS',
+        'Atención Prehospitalaria SUME 911': 'EMERGENCIAS', 'Coordinación con Atención Primaria': 'EMERGENCIAS',
+        'Extinción de Incendio': 'EMERGENCIAS', 'Extinción del Conato de Incendio': 'EMERGENCIAS',
+        'Proveedor': 'EMERGENCIAS', 'Rescate de Animal Domestico': 'EMERGENCIAS',
+        'Rescate de Menor por Alerta AMBER': 'EMERGENCIAS', 'Rescate de Menor por Riego Social': 'EMERGENCIAS',
+        'Rescate de Persona': 'EMERGENCIAS', 'Rescate de Vida y fauna Silvestre': 'EMERGENCIAS',
+        'Restitución de Propiedad Extraviada': 'EMERGENCIAS', 'Traslado a Hospital': 'EMERGENCIAS',
+        'Traslado a Hospital por BCBPA': 'EMERGENCIAS', 'Traslado a Hospital por CSS': 'EMERGENCIAS',
+        'Traslado a Hospital por Policía Nacional': 'EMERGENCIAS', 'Traslado a Hospital por Serv. Privado': 'EMERGENCIAS',
+        'Traslado a Hospital por SUME 911': 'EMERGENCIAS'
+    }
     
-    # 2. Transformación de datos
+    # 2. Transformación usando el diccionario local 'map_fuerza'
     df_m = df.melt(value_vars=cols_positivos, value_name='Tipo').dropna()
-    df_m = df_m[~df_m['Tipo'].isin(['SELECCIONAR', '', None])]
     df_m['Tipo'] = df_m['Tipo'].str.strip()
+    df_m['GRUPO_TACTICO'] = df_m['Tipo'].map(map_fuerza)
     
-    # 3. Aplicamos el mapa forzado
-    df_m['GRUPO_TACTICO'] = df_m['Tipo'].map(mi_mapa).fillna('OTROS')
+    # 3. Filtrar los que NO se mapearon (para ver si hay errores de escritura)
+    df_m = df_m.dropna(subset=['GRUPO_TACTICO'])
     
     # 4. Crear matriz
     t_tactico = df_m.groupby(['Tipo', 'GRUPO_TACTICO']).size().unstack(fill_value=0)
     
-    # 5. Asegurar las 4 columnas (si alguna falta, la crea con ceros para no romper el cuadro)
+    # 5. Asegurar columnas y calcular totales
     for col in ['CAPTURAS', 'EMERGENCIAS', 'RECUPERACIONES', 'SEGURIDAD VIAL']:
-        if col not in t_tactico.columns:
-            t_tactico[col] = 0
+        if col not in t_tactico.columns: t_tactico[col] = 0
     
-    # 6. Ordenar y calcular totales
     t_tactico['TOTAL'] = t_tactico.sum(axis=1)
-    orden_filas = t_tactico.drop(columns=['TOTAL']).sum(axis=1).sort_values(ascending=False).index.tolist()
-    orden_cols = ['CAPTURAS', 'EMERGENCIAS', 'RECUPERACIONES', 'SEGURIDAD VIAL']
+    t_tactico_ordenada = t_tactico[['CAPTURAS', 'EMERGENCIAS', 'RECUPERACIONES', 'SEGURIDAD VIAL', 'TOTAL']].sort_values(by='TOTAL', ascending=False)
     
-    # 7. Concatenar fila de TOTAL GENERAL
-    t_tactico_ordenada = t_tactico[orden_cols + ['TOTAL']].loc[orden_filas]
+    # 6. Total General
     fila_total = t_tactico_ordenada.sum().to_frame(name='TOTAL GENERAL').T
     tabla_final = pd.concat([t_tactico_ordenada, fila_total])
     
-    # 8. Mostrar tabla
     st.dataframe(tabla_final, use_container_width=True, height=400)
-    st.markdown("---")
 
     st.markdown("---")
     cn1, cn2 = st.columns(2)
