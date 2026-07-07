@@ -624,36 +624,40 @@ if df_traffic is not None and not df_traffic.empty:
     st.markdown("---")
     st.subheader("🛡️ POSITIVOS POR GRUPO TÁCTICO")
     
-    # 1. Transformación de datos (usamos el diccionario para definir el grupo, no la columna del archivo)
+    # 1. Definimos localmente la variable para asegurar que sea vista en este bloque
+    # (Esto soluciona el NameError aunque el diccionario original esté bloqueado)
+    mi_mapa = map_tactico_raw if 'map_tactico_raw' in globals() else {}
+    
+    # 2. Transformación de datos
     df_m = df.melt(value_vars=cols_positivos, value_name='Tipo').dropna()
     df_m = df_m[~df_m['Tipo'].isin(['SELECCIONAR', '', None])]
     df_m['Tipo'] = df_m['Tipo'].str.strip()
     
-    # FUERZA DE CLASIFICACIÓN: Ignoramos la columna original y usamos el diccionario
-    df_m['GRUPO_TACTICO'] = df_m['Tipo'].map(map_tactico_raw).fillna('OTROS')
+    # 3. Aplicamos el mapa forzado
+    df_m['GRUPO_TACTICO'] = df_m['Tipo'].map(mi_mapa).fillna('OTROS')
     
-    # 2. Crear matriz (Tipos en filas, Grupos Tácticos en columnas)
+    # 4. Crear matriz
     t_tactico = df_m.groupby(['Tipo', 'GRUPO_TACTICO']).size().unstack(fill_value=0)
     
-    # 3. Asegurar que existan las 4 columnas principales aunque no tengan datos (para que el cuadro no se mueva)
+    # 5. Asegurar las 4 columnas (si alguna falta, la crea con ceros para no romper el cuadro)
     for col in ['CAPTURAS', 'EMERGENCIAS', 'RECUPERACIONES', 'SEGURIDAD VIAL']:
         if col not in t_tactico.columns:
             t_tactico[col] = 0
     
-    # 4. Calcular orden y totales
+    # 6. Ordenar y calcular totales
     t_tactico['TOTAL'] = t_tactico.sum(axis=1)
     orden_filas = t_tactico.drop(columns=['TOTAL']).sum(axis=1).sort_values(ascending=False).index.tolist()
     orden_cols = ['CAPTURAS', 'EMERGENCIAS', 'RECUPERACIONES', 'SEGURIDAD VIAL']
     
-    # 5. Aplicar orden y concatenar fila de TOTAL GENERAL
+    # 7. Concatenar fila de TOTAL GENERAL
     t_tactico_ordenada = t_tactico[orden_cols + ['TOTAL']].loc[orden_filas]
     fila_total = t_tactico_ordenada.sum().to_frame(name='TOTAL GENERAL').T
     tabla_final = pd.concat([t_tactico_ordenada, fila_total])
     
-    # 6. Mostrar tabla
+    # 8. Mostrar tabla
     st.dataframe(tabla_final, use_container_width=True, height=400)
     st.markdown("---")
-    
+
     st.markdown("---")
     cn1, cn2 = st.columns(2)
     with cn1:
