@@ -643,14 +643,14 @@ if df_traffic is not None and not df_traffic.empty:
              t_tactico[col] = 0
 
 # 5. Calcular totales y ordenar
-     t_tactico['TOTAL'] = t_tactico.sum(axis=1)
+    t_tactico['TOTAL'] = t_tactico.sum(axis=1)
 # Ordenamos filas por la suma total de sus incidentes
-     orden_filas = t_tactico.drop(columns=['TOTAL']).sum(axis=1).sort_values(ascending=False).index.tolist()
+    orden_filas = t_tactico.drop(columns=['TOTAL']).sum(axis=1).sort_values(ascending=False).index.tolist()
 
 # 6. Aplicar orden (Forzamos el orden de columnas que tú quieres)
-     t_tactico_ordenada = t_tactico[cols_fijas + ['TOTAL']].loc[orden_filas]
-     fila_total = t_tactico_ordenada.sum().to_frame(name='TOTAL GENERAL').T
-     tabla_final = pd.concat([t_tactico_ordenada, fila_total])
+    t_tactico_ordenada = t_tactico[cols_fijas + ['TOTAL']].loc[orden_filas]
+    fila_total = t_tactico_ordenada.sum().to_frame(name='TOTAL GENERAL').T
+    tabla_final = pd.concat([t_tactico_ordenada, fila_total])
 
 # 7. Mostrar tabla
     st.dataframe(tabla_final, use_container_width=True, height=400)
