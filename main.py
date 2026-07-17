@@ -523,14 +523,27 @@ if df_traffic is not None and not df_traffic.empty:
         </div>""", unsafe_allow_html=True)
 
    # =========================================================================
-    # SECCIÓN: COMPONENTES DEL DASHBOARD
+    # SECCIÓN: COMPONENTES DEL DASHBOARD (CORREGIDA)
     # =========================================================================
-    c_m1, c_m2 = st.columns(2) # Ajusta esto a tu sintaxis real de Streamlit
-    with c_m1:
-        st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>📊 EVENTOS TOTALES</h3><p>{len(df):,}</p></div></div>', unsafe_allow_html=True)
+    c_m1, c_m2 = st.columns(2)
+    
+    # Validamos que 'df' exista y tenga datos
+    if 'df' in locals() and df is not None and not df.empty:
+        total_eventos = len(df)
+        # Usamos .get para evitar errores si la columna no existe
+        total_positivos = int(df["T_POS_COUNT"].sum()) if "T_POS_COUNT" in df.columns else 0
         
-    with c_m2:
-        st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>✅ TOTAL POSITIVOS</h3><p>{int(df["T_POS_COUNT"].sum()):,}</p></div></div>', unsafe_allow_html=True)
+        with c_m1:
+            st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>📊 EVENTOS TOTALES</h3><p>{total_eventos:,}</p></div></div>', unsafe_allow_html=True)
+            
+        with c_m2:
+            st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>✅ TOTAL POSITIVOS</h3><p>{total_positivos:,}</p></div></div>', unsafe_allow_html=True)
+    else:
+        # Mensaje de espera si los datos no han cargado
+        with c_m1:
+            st.markdown('<div class="neon-container"><div class="neon-inner-content"><h3>📊 EVENTOS TOTALES</h3><p>Cargando...</p></div></div>', unsafe_allow_html=True)
+        with c_m2:
+            st.markdown('<div class="neon-container"><div class="neon-inner-content"><h3>✅ TOTAL POSITIVOS</h3><p>Cargando...</p></div></div>', unsafe_allow_html=True)
    
 
     g1, g2, g3 = st.columns(3)
