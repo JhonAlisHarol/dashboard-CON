@@ -875,7 +875,9 @@ if df_traffic is not None and not df_traffic.empty:
                 'Infracción por Vehículos mal Estacionados': 'SEGURIDAD VIAL',
                 'Infracción por Remolcar otro Vehículo sin las Debidas Medidas de Seguridad': 'SEGURIDAD VIAL',
                 'Infracción por Licencia de Conducir Vencida': 'SEGURIDAD VIAL',
-            
+                'Infracción por Emitir Gases, Ruidos o Sonidos Excesivos': 'SEGURIDAD VIAL',
+        
+
                 # EMERGENCIAS
                 'Apoyo a Vehiculo de Valores Desperfectos': 'EMERGENCIAS',
                 'Apoyo al Ciudadano': 'EMERGENCIAS',
@@ -915,11 +917,6 @@ if df_traffic is not None and not df_traffic.empty:
 
     tipos_no_mapeados = [t for t in set(tipos_en_datos) if t not in mapeo_grupos and t not in ['SELECCIONAR', '', None]]
 
-    if tipos_no_mapeados:
-        st.warning(f"¡Atención! Hay {len(tipos_no_mapeados)} tipos que no están en el mapeo: {tipos_no_mapeados}")
-    else:
-        st.success("Todos los tipos están correctamente mapeados.")
-
     # 2. Procesamos el DataFrame fila por fila de forma segura
     lista_final = []
 
@@ -927,18 +924,28 @@ if df_traffic is not None and not df_traffic.empty:
         for col in cols_positivos:
             tipo = row[col]
             # Limpiamos solo espacios accidentales
-            tipo_limpio = limpiar_texto(tipo) 
+            tipo_limpio = limpiar_texto(tipo)
             
-            # Primero buscamos el nombre exacto, si no, buscamos en minúsculas
-            if tipo in mapeo_grupos:
-                grupo_correcto = mapeo_grupos[tipo]
-                lista_final.append({'Tipo': tipo, 'GRUPO_TACTICO': grupo_correcto})
-            elif tipo_limpio.lower() in {k.lower(): v for k, v in mapeo_grupos.items()}:
-                # Respaldo: busca la equivalencia en minúsculas
-                dict_minusculas = {k.lower(): v for k, v in mapeo_grupos.items()}
-                grupo_correcto = dict_minusculas[tipo_limpio.lower()]
-                lista_final.append({'Tipo': tipo, 'GRUPO_TACTICO': grupo_correcto})
+           # --- DIAGNÓSTICO Y FORZADO ---
+            if 'ruido' in tipo_limpio.lower() or 'gases' in tipo_limpio.lower():
+                lista_final.append({'Tipo': tipo, 'GRUPO_TACTICO': 'SEGURIDAD VIAL'})
+                print(f"DEBUG: Se forzó el mapeo del tipo: '{tipo}'")
+                continue
 
+            # --- NUEVA LÓGICA FLEXIBLE ---
+            encontrado = False
+            for clave_mapeo, grupo in mapeo_grupos.items():
+                if clave_mapeo.lower().strip() in tipo_limpio.lower().strip():
+                    lista_final.append({'Tipo': tipo, 'GRUPO_TACTICO': grupo})
+                    encontrado = True
+                    break
+            
+            if not encontrado:
+                # Aquí es donde realmente falta el mapeo
+                lista_final.append({'Tipo': tipo, 'GRUPO_TACTICO': 'SIN MAPEAR'})
+            print(f"Tipo no mapeado encontrado: '{tipo}'")
+            lista_final.append({'Tipo': tipo, 'GRUPO_TACTICO': 'SIN MAPEAR'})
+    
     df_mapeado = pd.DataFrame(lista_final)
 
     # 3. Creamos la matriz (Crosstab) usando el mapeo definido
@@ -1004,5 +1011,5 @@ if df_traffic is not None and not df_traffic.empty:
             dp_s = df.groupby([col_dp, 'CENTRO']).size().reset_index(name='E').sort_values('E', ascending=False)
             st.dataframe(pd.concat([dp_s, pd.DataFrame({col_dp:['TOTAL GENERAL'], 'CENTRO':['-'], 'E':[dp_s['E'].sum()]})]), use_container_width=True, hide_index=True)
     
-    time.sleep(1)
+    time.sleep(60)
     st.rerun()
