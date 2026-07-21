@@ -1010,5 +1010,5 @@ if df_traffic is not None and not df_traffic.empty:
             df[col_dp] = df[col_dp].fillna("SIN ASIGNAR").astype(str)
             dp_s = df.groupby([col_dp, 'CENTRO']).size().reset_index(name='E').sort_values('E', ascending=False)
             st.dataframe(pd.concat([dp_s, pd.DataFrame({col_dp:['TOTAL GENERAL'], 'CENTRO':['-'], 'E':[dp_s['E'].sum()]})]), use_container_width=True, hide_index=True)
-    time.sleep(0,60)
+    time.sleep(5)
     st.rerun()
