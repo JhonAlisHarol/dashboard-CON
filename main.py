@@ -7,7 +7,7 @@ import unicodedata
 import base64
 
 mapeo_grupos = {
-        # CAPTURAS
+                # CAPTURAS
                 'Aprehensión de Menor por Alerta de Custodia': 'CAPTURAS',
                 'Ciudadano Capturado por Alerta Penitenciaria': 'CAPTURAS',
                 'Ciudadano Aprehendido': 'CAPTURAS',
