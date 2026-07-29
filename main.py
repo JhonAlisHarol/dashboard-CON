@@ -148,6 +148,7 @@ map_tactico_raw = {
                 'Infracción por Licencia de Conducir Vencida': 'SEGURIDAD VIAL',
                 'Infracción por Emitir Gases, Ruidos o Sonidos Excesivos': 'SEGURIDAD VIAL',
                 'Infracción por Negarse a Entregar la Licencia de Conducir': 'SEGURIDAD VIAL',
+                'Infracción por Conducir Obstruyendo el Tránsito': 'SEGURIDAD VIAL',
         
         
                 # EMERGENCIAS
