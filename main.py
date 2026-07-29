@@ -885,6 +885,7 @@ if df_traffic is not None and not df_traffic.empty:
                 'Infracción por Licencia de Conducir Vencida': 'SEGURIDAD VIAL',
                 'Infracción por Emitir Gases, Ruidos o Sonidos Excesivos': 'SEGURIDAD VIAL',
                 'Infracción por Negarse a Entregar la Licencia de Conducir': 'SEGURIDAD VIAL',
+                'Infracción por Conducir Obstruyendo el Tránsito': 'SEGURIDAD VIAL',
         
 
                 # EMERGENCIAS
