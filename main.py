@@ -180,7 +180,7 @@ mapeo_grupos = {
                 'Traslado a Hospital por Serv. Privado': 'EMERGENCIAS',
                 'Traslado a Hospital por Policía Nacional': 'EMERGENCIAS',
                 'Traslado a Hospital por CSS': 'EMERGENCIAS'
-        }
+                }
 
 
 # --- FONDO GLOBAL PARA TODO EL DASHBOARD Y SIDEBAR ---
