@@ -143,6 +143,7 @@ map_tactico_raw = {
                 'Infracción por Vehículos mal Estacionados': 'SEGURIDAD VIAL',
                 'Infracción por Remolcar otro Vehículo sin las Debidas Medidas de Seguridad': 'SEGURIDAD VIAL',
                 'Infracción por Licencia de Conducir Vencida': 'SEGURIDAD VIAL',
+                'Infracción por Negarse a Entregar la Licencia de Conducir': 'SEGURIDAD VIAL',
             
                 # EMERGENCIAS
                 'Apoyo a Vehiculo de Valores Desperfectos': 'EMERGENCIAS',
@@ -876,6 +877,7 @@ if df_traffic is not None and not df_traffic.empty:
                 'Infracción por Remolcar otro Vehículo sin las Debidas Medidas de Seguridad': 'SEGURIDAD VIAL',
                 'Infracción por Licencia de Conducir Vencida': 'SEGURIDAD VIAL',
                 'Infracción por Emitir Gases, Ruidos o Sonidos Excesivos': 'SEGURIDAD VIAL',
+                'Infracción por Negarse a Entregar la Licencia de Conducir': 'SEGURIDAD VIAL',
         
 
                 # EMERGENCIAS
