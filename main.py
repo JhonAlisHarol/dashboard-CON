@@ -6,7 +6,7 @@ import time
 import unicodedata
 import base64
 
-mapeo_grupos = {
+map_tactico_raw = {
                 # CAPTURAS
                 'Aprehensión de Menor por Alerta de Custodia': 'CAPTURAS',
                 'Ciudadano Capturado por Alerta Penitenciaria': 'CAPTURAS',
@@ -180,7 +180,7 @@ mapeo_grupos = {
                 'Traslado a Hospital por Serv. Privado': 'EMERGENCIAS',
                 'Traslado a Hospital por Policía Nacional': 'EMERGENCIAS',
                 'Traslado a Hospital por CSS': 'EMERGENCIAS'
-                }
+              }
 
 
 # --- FONDO GLOBAL PARA TODO EL DASHBOARD Y SIDEBAR ---
