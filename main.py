@@ -673,25 +673,7 @@ if df_traffic is not None and not df_traffic.empty:
         c_map, c_rank = st.columns([2, 1])
         with c_map:
             st.markdown(f'<div class="map-overlay-total"><small style="color:#00ebff;">TOTAL POSITIVOS</small><br><span style="font-size:24px; font-weight:bold;">{int(df["T_POS_COUNT"].sum()):}</span></div>', unsafe_allow_html=True)
-           # Verificamos que 'prov_stats' exista y tenga las columnas requeridas antes de graficar
-if 'prov_stats' in locals() and prov_stats is not None and not prov_stats.empty:
-    columnas_necesarias = ['lat', 'lon', 'T_POS_COUNT']
-    
-    # Comprobamos si todas las columnas existen en el DataFrame
-    if all(col in prov_stats.columns for col in columnas_necesarias):
-        fig_m = px.scatter_mapbox(
-            prov_stats, 
-            lat='lat', 
-            lon='lon', 
-            size='T_POS_COUNT', 
-            color='T_POS_COUNT', 
-            color_continuous_scale="Darkmint"
-        )
-        st.plotly_chart(fig_m, use_container_width=True)
-    else:
-        st.warning("⚠️ Las columnas para el mapa ('lat', 'lon', 'T_POS_COUNT') no están disponibles en este momento en la consulta.")
-else:
-    st.info("ℹ️ Esperando datos geoespaciales...")
+            fig_m = px.scatter_mapbox(prov_stats, lat='lat', lon='lon', size='T_POS_COUNT', color='T_POS_COUNT', color_continuous_scale="Darkmint", size_max=55, zoom=7.2, center=dict(lat=8.5, lon=-80.5), hover_name='PROVINCIA', hover_data={'lat':False, 'lon':False, 'T_POS_COUNT':True, 'DETALLE_TOP':True})
             fig_m.update_layout(mapbox_style="carto-darkmatter", margin={"r":0,"t":0,"l":0,"b":0}, paper_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False)
             st.plotly_chart(fig_m, use_container_width=True)
         with c_rank:
