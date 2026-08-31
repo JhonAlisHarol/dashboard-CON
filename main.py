@@ -673,6 +673,12 @@ if df_traffic is not None and not df_traffic.empty:
         c_map, c_rank = st.columns([2, 1])
         with c_map:
             st.markdown(f'<div class="map-overlay-total"><small style="color:#00ebff;">TOTAL POSITIVOS</small><br><span style="font-size:24px; font-weight:bold;">{int(df["T_POS_COUNT"].sum()):}</span></div>', unsafe_allow_html=True)
+            
+            # Bloque de seguridad para las columnas en la nube
+            for col in ['lat', 'lon', 'T_POS_COUNT', 'PROVINCIA', 'DETALLE_TOP']:
+                if col not in prov_stats.columns:
+                    prov_stats[col] = 0 if col == 'T_POS_COUNT' else ""
+
             fig_m = px.scatter_mapbox(prov_stats, lat='lat', lon='lon', size='T_POS_COUNT', color='T_POS_COUNT', color_continuous_scale="Darkmint", size_max=55, zoom=7.2, center=dict(lat=8.5, lon=-80.5), hover_name='PROVINCIA', hover_data={'lat':False, 'lon':False, 'T_POS_COUNT':True, 'DETALLE_TOP':True})
             fig_m.update_layout(mapbox_style="carto-darkmatter", margin={"r":0,"t":0,"l":0,"b":0}, paper_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False)
             st.plotly_chart(fig_m, use_container_width=True)
