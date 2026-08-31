@@ -672,64 +672,64 @@ if df_traffic is not None and not df_traffic.empty:
         
        c_map, c_rank = st.columns([2, 1])
 
-with c_map:
-    # Verificamos de forma segura si 'df' y la columna total existen antes de mostrar el indicador HTML
-    if 'df' in locals() and df is not None and not df.empty and 'T_POS_COUNT' in df.columns:
-        total_positivos = int(df["T_POS_COUNT"].sum())
-    else:
-        total_positivos = 0
+        with c_map:
+            # Verificamos de forma segura si 'df' y la columna total existen antes de mostrar el indicador HTML
+            if 'df' in locals() and df is not None and not df.empty and 'T_POS_COUNT' in df.columns:
+                total_positivos = int(df["T_POS_COUNT"].sum())
+            else:
+                total_positivos = 0
+                
+            st.markdown(f'<div class="map-overlay-total"><small style="color:#00ebff;">TOTAL POSITIVOS</small><br><span style="font-size:24px; font-weight:bold;">{total_positivos}</span></div>', unsafe_allow_html=True)
+            
+            # Validamos que 'prov_stats' tenga todas las columnas requeridas para evitar el pantallazo rojo en la nube
+            columnas_mapa = ['lat', 'lon', 'T_POS_COUNT', 'PROVINCIA', 'DETALLE_TOP']
+            if 'prov_stats' in locals() and prov_stats is not None and not prov_stats.empty and all(col in prov_stats.columns for col in columnas_mapa):
+                fig_m = px.scatter_mapbox(
+                    prov_stats, 
+                    lat='lat', 
+                    lon='lon', 
+                    size='T_POS_COUNT', 
+                    color='T_POS_COUNT', 
+                    color_continuous_scale="Darkmint", 
+                    size_max=55, 
+                    zoom=7.2, 
+                    center=dict(lat=8.5, lon=-80.5), 
+                    hover_name='PROVINCIA', 
+                    hover_data={'lat': False, 'lon': False, 'T_POS_COUNT': True, 'DETALLE_TOP': True}
+                )
+                fig_m.update_layout(
+                    mapbox_style="carto-darkmatter", 
+                    margin={"r":0, "t":0, "l":0, "b":0}, 
+                    paper_bgcolor='rgba(0,0,0,0)', 
+                    coloraxis_showscale=False
+                )
+                st.plotly_chart(fig_m, use_container_width=True)
+            else:
+                st.warning("⚠️ El mapa táctico está esperando a que las columnas geoespaciales ('lat', 'lon', 'DETALLE_TOP') se sincronicen desde la nube.")
         
-    st.markdown(f'<div class="map-overlay-total"><small style="color:#00ebff;">TOTAL POSITIVOS</small><br><span style="font-size:24px; font-weight:bold;">{total_positivos}</span></div>', unsafe_allow_html=True)
-    
-    # Validamos que 'prov_stats' tenga todas las columnas requeridas para evitar el pantallazo rojo en la nube
-    columnas_mapa = ['lat', 'lon', 'T_POS_COUNT', 'PROVINCIA', 'DETALLE_TOP']
-    if 'prov_stats' in locals() and prov_stats is not None and not prov_stats.empty and all(col in prov_stats.columns for col in columnas_mapa):
-        fig_m = px.scatter_mapbox(
-            prov_stats, 
-            lat='lat', 
-            lon='lon', 
-            size='T_POS_COUNT', 
-            color='T_POS_COUNT', 
-            color_continuous_scale="Darkmint", 
-            size_max=55, 
-            zoom=7.2, 
-            center=dict(lat=8.5, lon=-80.5), 
-            hover_name='PROVINCIA', 
-            hover_data={'lat': False, 'lon': False, 'T_POS_COUNT': True, 'DETALLE_TOP': True}
-        )
-        fig_m.update_layout(
-            mapbox_style="carto-darkmatter", 
-            margin={"r":0, "t":0, "l":0, "b":0}, 
-            paper_bgcolor='rgba(0,0,0,0)', 
-            coloraxis_showscale=False
-        )
-        st.plotly_chart(fig_m, use_container_width=True)
-    else:
-        st.warning("⚠️ El mapa táctico está esperando a que las columnas geoespaciales ('lat', 'lon', 'DETALLE_TOP') se sincronicen desde la nube.")
-
-with c_rank:
-    # Validamos también el gráfico de barras lateral para que no colapse si falta alguna columna
-    columnas_barra = ['T_POS_COUNT', 'PROVINCIA']
-    if 'prov_stats' in locals() and prov_stats is not None and not prov_stats.empty and all(col in prov_stats.columns for col in columnas_barra):
-        fig_b = px.bar(
-            prov_stats, 
-            x='T_POS_COUNT', 
-            y='PROVINCIA', 
-            orientation='h', 
-            text='T_POS_COUNT', 
-            color='T_POS_COUNT', 
-            color_continuous_scale='Tealgrn'
-        )
-        fig_b.update_layout(
-            showlegend=False, 
-            coloraxis_showscale=False, 
-            paper_bgcolor='rgba(0,0,0,0)', 
-            font=dict(color="white"), 
-            height=400
-        )
-        st.plotly_chart(fig_b, use_container_width=True)
-    else:
-        st.info("ℹ️ Cargando ranking operativo...")
+        with c_rank:
+            # Validamos también el gráfico de barras lateral para que no colapse si falta alguna columna
+            columnas_barra = ['T_POS_COUNT', 'PROVINCIA']
+            if 'prov_stats' in locals() and prov_stats is not None and not prov_stats.empty and all(col in prov_stats.columns for col in columnas_barra):
+                fig_b = px.bar(
+                    prov_stats, 
+                    x='T_POS_COUNT', 
+                    y='PROVINCIA', 
+                    orientation='h', 
+                    text='T_POS_COUNT', 
+                    color='T_POS_COUNT', 
+                    color_continuous_scale='Tealgrn'
+                )
+                fig_b.update_layout(
+                    showlegend=False, 
+                    coloraxis_showscale=False, 
+                    paper_bgcolor='rgba(0,0,0,0)', 
+                    font=dict(color="white"), 
+                    height=400
+                )
+                st.plotly_chart(fig_b, use_container_width=True)
+            else:
+                st.info("ℹ️ Cargando ranking operativo...")
 
     # GRÁFICOS DE ROSA
     st.markdown("---")
