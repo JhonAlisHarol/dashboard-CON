@@ -239,7 +239,7 @@ def login():
         h1, label { color: #ffffff !important; }
         </style>
     """, unsafe_allow_html=True)
-    st.title("🔐 DASHBOARD C.O.N - C5")
+    st.title("🔐 C.O.N - PANAMÁ")
     st.markdown('<p class="author-text">DESARROLLADO POR= CABO 1° ELMER RODRIGUEZ</p>', unsafe_allow_html=True)
     usuario = st.text_input("Usuario del Centro:")
     clave = st.text_input("Contraseña:", type="password")
