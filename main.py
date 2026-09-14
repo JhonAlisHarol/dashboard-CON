@@ -686,14 +686,46 @@ if df_traffic is not None and not df_traffic.empty:
             st.plotly_chart(px.bar(prov_stats, x='T_POS_COUNT', y='PROVINCIA', orientation='h', text='T_POS_COUNT', color='T_POS_COUNT', color_continuous_scale='Tealgrn').update_layout(showlegend=False, coloraxis_showscale=False, paper_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), height=400), use_container_width=True)
 
     # GRÁFICOS DE ROSA
-    st.markdown("---")
-    cp1, cp2, cp3 = st.columns(3)
-    with cp1: 
-        st.plotly_chart(px.pie(df, names='CANAL DE ENTRADA', values='T_POS_COUNT', title="Positivos por Canales", hole=0.5, color_discrete_map={"CLL-104": "#FF1493", "Video Vigilancia": "#FF69B4", "Radio Frecuencia": "#FFB6C1"}), use_container_width=True)
-    with cp2: 
-        st.plotly_chart(px.pie(df, names='CENTRO', values='T_POS_COUNT', title="Positivos por Centros", hole=0.5, color_discrete_sequence=px.colors.sequential.Tealgrn), use_container_width=True)
-    with cp3: 
-        st.plotly_chart(px.pie(df, names='GRUPO_TACTICO', values='T_POS_COUNT', title="Distribución por Grupo Táctico", hole=0.5, color_discrete_sequence=px.colors.qualitative.G10), use_container_width=True)
+         st.markdown("---")
+        
+        # Procesamiento exacto y unificado para que el pastel refleje los totales reales de las 4 categorías
+        cols_positivos_graf = ['RESULTADO POSITIVO 1', 'RESULTADO POSITIVO 2', 'RESULTADO POSITIVO 3', 
+                            'RESULTADO POSITIVO 4', 'RESULTADO POSITIVO 5', 'RESULTADO POSITIVO 6']
+        lista_graf = []
+        
+        for _, row in df.iterrows():
+            for col in cols_positivos_graf:
+                tipo = row[col]
+                if pd.notna(tipo) and str(tipo).strip() not in ['SELECCIONAR', '', 'None']:
+                    tipo_limpio = str(tipo).strip()
+                    
+                    # Caso especial para ruidos o gases
+                    if 'ruido' in tipo_limpio.lower() or 'gases' in tipo_limpio.lower():
+                        lista_graf.append({'GRUPO_TACTICO': 'SEGURIDAD VIAL'})
+                        continue
+                    
+                    encontrado = False
+                    for clave_mapeo, grupo in map_tactico_raw.items():
+                        if clave_mapeo.lower().strip() in tipo_limpio.lower().strip():
+                            lista_graf.append({'GRUPO_TACTICO': grupo})
+                            encontrado = True
+                            break
+                    if not encontrado:
+                        # Si hay alguna variante menor no listada, la agrupamos en emergencias para que no falte ningún número
+                        lista_graf.append({'GRUPO_TACTICO': 'EMERGENCIAS'})
+
+        df_pastel_final = pd.DataFrame(lista_graf)
+        df_pastel_final = df_pastel_final[df_pastel_final['GRUPO_TACTICO'].isin(['SEGURIDAD VIAL', 'CAPTURAS', 'EMERGENCIAS', 'RECUPERACIONES'])]
+        df_pastel_final = df_pastel_final.groupby('GRUPO_TACTICO', as_index=False).size()
+        df_pastel_final.columns = ['GRUPO_TACTICO', 'TOTAL']
+
+        cp1, cp2, cp3 = st.columns(3)
+        with cp1: 
+            st.plotly_chart(px.pie(df, names='CANAL DE ENTRADA', values='T_POS_COUNT', title="Positivos por Canales", hole=0.5, color_discrete_map={"CLL-104": "#FF1493", "Video Vigilancia": "#FF69B4", "Radio Frecuencia": "#FFB6C1"}), use_container_width=True)
+        with cp2: 
+            st.plotly_chart(px.pie(df, names='CENTRO', values='T_POS_COUNT', title="Positivos por Centros", hole=0.5, color_discrete_sequence=px.colors.sequential.Tealgrn), use_container_width=True)
+        with cp3: 
+            st.plotly_chart(px.pie(df_pastel_final, names='GRUPO_TACTICO', values='TOTAL', title="Distribución por Grupo Táctico", hole=0.5, color_discrete_sequence=px.colors.qualitative.G10), use_container_width=True)
         
     st.subheader("📋 DETALLE: POSITIVOS POR CENTROS")
     df_l_t = pd.melt(df, id_vars=['CENTRO'], value_vars=cols_p, value_name='Tipo').dropna()
