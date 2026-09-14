@@ -686,7 +686,7 @@ if df_traffic is not None and not df_traffic.empty:
             st.plotly_chart(px.bar(prov_stats, x='T_POS_COUNT', y='PROVINCIA', orientation='h', text='T_POS_COUNT', color='T_POS_COUNT', color_continuous_scale='Tealgrn').update_layout(showlegend=False, coloraxis_showscale=False, paper_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), height=400), use_container_width=True)
 
     # GRÁFICOS DE ROSA
-         st.markdown("---")
+        st.markdown("---")
         
         # Procesamiento exacto y unificado para que el pastel refleje los totales reales de las 4 categorías
         cols_positivos_graf = ['RESULTADO POSITIVO 1', 'RESULTADO POSITIVO 2', 'RESULTADO POSITIVO 3', 
