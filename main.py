@@ -221,7 +221,7 @@ st.markdown("""
 USUARIOS_AUTORIZADOS = {
     "CONC5": "12345", "CORCOL": "CORCOLONC3", "COMCH": "12345678",
     "COMAR": "hex123", "COMDA": "COMDA2027", "COMCHEP": "hex123",
-    "CEVIBO": "hex123", "COMSAM": "hex123", "ALISJHON": "199432", "ISMAEL SAMUDIO": "20626"
+    "CEVIBO": "hex123", "COMSAM": "hex123", "ALISJHON": "199432"
 }
 
 def login():
@@ -521,7 +521,7 @@ if df_raw is not None:
     st.markdown("""
         <div class="neon-title-container">
             <div class="neon-title-inner">
-                <h1>🛡️ Centro de Operación Nacional | Datos Positivos-C.O.N-C5</h1>
+                <h1>🛡️ Centro de Operación Nacional | Datos Positivos</h1>
             </div>
         </div>
     """, unsafe_allow_html=True)
