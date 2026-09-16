@@ -686,7 +686,7 @@ if df_traffic is not None and not df_traffic.empty:
         with c_rank:
             st.plotly_chart(px.bar(prov_stats, x='T_POS_COUNT', y='PROVINCIA', orientation='h', text='T_POS_COUNT', color='T_POS_COUNT', color_continuous_scale='Tealgrn').update_layout(showlegend=False, coloraxis_showscale=False, paper_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), height=400), use_container_width=True)
 
-    # GRÁFICOS DE ROSA
+        # GRÁFICOS DE ROSA
         st.markdown("---")
         
         # Procesamiento exacto y unificado para que el pastel refleje los totales reales de las 4 categorías
@@ -706,14 +706,15 @@ if df_traffic is not None and not df_traffic.empty:
                         continue
                     
                     encontrado = False
+                    # Usamos map_tactico_raw que es el diccionario original que tenías definido arriba
                     for clave_mapeo, grupo in map_tactico_raw.items():
                         if clave_mapeo.lower().strip() in tipo_limpio.lower().strip():
                             lista_graf.append({'GRUPO_TACTICO': grupo})
                             encontrado = True
                             break
                     if not encontrado:
-                        # Si hay alguna variante menor no listada, la agrupamos en emergencias para que no falte ningún número
-                        lista_graf.append({'GRUPO_TACTICO': 'EMERGENCIAS'})
+                        # Cambiamos 'EMERGENCIAS' por 'SEGURIDAD VIAL' para que el número extra caiga donde corresponde
+                        lista_graf.append({'GRUPO_TACTICO': 'SEGURIDAD VIAL'})
 
         df_pastel_final = pd.DataFrame(lista_graf)
         df_pastel_final = df_pastel_final[df_pastel_final['GRUPO_TACTICO'].isin(['SEGURIDAD VIAL', 'CAPTURAS', 'EMERGENCIAS', 'RECUPERACIONES'])]
@@ -726,7 +727,16 @@ if df_traffic is not None and not df_traffic.empty:
         with cp2: 
             st.plotly_chart(px.pie(df, names='CENTRO', values='T_POS_COUNT', title="Positivos por Centros", hole=0.5, color_discrete_sequence=px.colors.sequential.Tealgrn), use_container_width=True)
         with cp3: 
-            st.plotly_chart(px.pie(df_pastel_final, names='GRUPO_TACTICO', values='TOTAL', title="Distribución por Grupo Táctico", hole=0.5, color_discrete_sequence=px.colors.qualitative.G10), use_container_width=True)
+            # 1. Creamos el gráfico de pastel normalmente
+            fig_pastel = px.pie(df_pastel_final, names='GRUPO_TACTICO', values='TOTAL', 
+                                title="Distribución por Grupo Táctico", hole=0.5, 
+                                color_discrete_sequence=px.colors.qualitative.G10)
+            
+            # 2. Actualizamos los trazos para mostrar etiqueta, porcentaje y número entero juntos
+            fig_pastel.update_traces(textinfo='percent+value')
+            
+            # 3. Renderizamos el gráfico en Streamlit
+            st.plotly_chart(fig_pastel, use_container_width=True)
         
     st.subheader("📋 DETALLE: POSITIVOS POR CENTROS")
     df_l_t = pd.melt(df, id_vars=['CENTRO'], value_vars=cols_p, value_name='Tipo').dropna()
