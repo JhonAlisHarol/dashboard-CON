@@ -991,10 +991,8 @@ if df_traffic is not None and not df_traffic.empty:
                     break
             
             if not encontrado:
-                # Aquí es donde realmente falta el mapeo
-                lista_final.append({'Tipo': tipo, 'GRUPO_TACTICO': 'SIN MAPEAR'})
-            print(f"Tipo no mapeado encontrado: '{tipo}'")
-            lista_final.append({'Tipo': tipo, 'GRUPO_TACTICO': 'SIN MAPEAR'})
+                # Si algún tipo no está en el diccionario, lo mandamos a EMERGENCIAS (o SEGURIDAD VIAL) en lugar de dejarlo sin mapear
+                lista_final.append({'Tipo': tipo, 'GRUPO_TACTICO': 'EMERGENCIAS'})
     
     df_mapeado = pd.DataFrame(lista_final)
 
