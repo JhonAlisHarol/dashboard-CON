@@ -4,8 +4,169 @@ import plotly.express as px
 import plotly.graph_objects as go
 import time
 import unicodedata
-import base64
 
+# ==============================================================================
+# 0. CONFIGURACIÓN DE LA PÁGINA
+# ==============================================================================
+st.set_page_config(
+    page_title="S-Portal Hexagon | Traffic Center", 
+    layout="wide",
+    initial_sidebar_state="expanded"
+)
+
+# ==============================================================================
+# 1. ESTILOS CSS UNIFICADOS (Fondo, Neón, Transparencias)
+# ==============================================================================
+st.markdown("""
+    <style>
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    header {visibility: hidden;}
+
+    /* 1. Fondo de toda la aplicación */
+    .stApp {
+        background-color: #0a0e17;
+        background-image: url("https://raw.githubusercontent.com/JhonAlisHarol/dashboard-CON/main/FONDO%20PARA%20DASHBOARD.png");
+        background-size: cover;
+        background-position: center;
+        background-attachment: fixed;
+    }
+
+    /* 2. Forzar transparencia en los contenedores */
+    .stApp, [data-testid="stSidebar"], .stMainBlockContainer {
+        background-color: transparent !important;
+    }
+
+    /* 3. Capa de oscurecimiento */
+    .stApp::before {
+        content: "";
+        position: absolute;
+        top: 0; left: 0; width: 100%; height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        z-index: -1;
+    }
+    
+    /* 4. Textos en blanco */
+    div, p, h1, h2, h3, label, span {
+        color: #ffffff !important;
+    }
+
+    /* 5. Estilo de Métricas */
+    .stMetric { 
+        background: rgba(255, 255, 255, 0.05); 
+        border: 1px solid #00ebff; 
+        border-radius: 10px; 
+        padding: 10px; 
+    }
+
+    /* 6. CONTENEDOR NEÓN GLOBAL ROTATIVO */
+    .neon-container {
+        position: relative;
+        border-radius: 10px;
+        padding: 4px;
+        background: rgba(10, 14, 23, 1);
+        background-clip: padding-box;
+        border: 1px solid transparent;
+        overflow: hidden;
+        margin-bottom: 1rem;
+    }
+
+    .neon-container::before {
+        content: '';
+        position: absolute;
+        top: -50%;
+        left: -50%;
+        width: 200%;
+        height: 200%;
+        background: conic-gradient(
+            #ff0000, #ff7300, #fffb00, #48ff00, #00ffd5, #002bff, #7a00ff, #ff00c8, #ff0000
+        );
+        animation: rotate-neon 3s linear infinite;
+        z-index: 0;
+    }
+
+    /* 7. EFECTO CINTA DE NEÓN TÍTULO */
+    .neon-title-container {
+        position: relative;
+        border-radius: 12px;
+        padding: 3px; 
+        background: #0d121f;
+        overflow: hidden;
+        margin-bottom: 1.5rem;
+        box-shadow: 0 0 20px rgba(0, 235, 255, 0.2);
+    }
+    
+    .neon-title-container::before {
+        content: '';
+        position: absolute;
+        top: -150%;
+        left: -150%;
+        width: 400%;
+        height: 400%;
+        background: conic-gradient(
+            from 0deg, #00ffff 0%, #0077ff 25%, #001133 50%, #0077ff 75%, #00ffff 100%
+        );
+        animation: rotate-neon 4s linear infinite;
+        z-index: 0;
+    }
+
+    .neon-title-inner {
+        position: relative;
+        background: #0d121f; 
+        border-radius: 9px;
+        padding: 22px;
+        z-index: 1;
+        text-align: center;
+    }
+
+    .neon-title-inner h1 {
+        margin: 0; font-size: 32px; font-weight: 800; letter-spacing: 1px;
+        text-transform: uppercase;
+        background: linear-gradient(45deg, #ffffff, #00ebff);
+        -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+        display: inline-block;
+    }
+
+    .neon-inner-content {
+        position: relative; background: #0d121f; border-radius: 7px; padding: 15px; z-index: 1;
+    }
+
+    @keyframes rotate-neon {
+        from { transform: rotate(0deg); } to { transform: rotate(360deg); }
+    }
+
+    .neon-inner-content h3 { margin: 0; font-size: 14px; text-transform: uppercase; }
+    .neon-inner-content p { margin: 0; font-size: 28px; font-weight: bold; color: #00ebff !important; }
+    .author-text { color: #00ebff !important; font-size: 14px; font-style: italic; margin-top: -5px; margin-bottom: 20px; text-align: center; }
+    
+    .map-overlay-total {
+        position: relative; top: 60px; left: 20px;
+        background: rgba(10, 14, 23, 0.85); border: 2px solid #00ebff;
+        padding: 10px 20px; border-radius: 10px; z-index: 100;
+        width: fit-content; margin-bottom: -70px;
+    }
+
+    /* Ocultar botones de Streamlit al imprimir para un PDF más limpio */
+    @media print {
+        [data-testid="stSidebar"] { display: none !important; }
+        .stApp { background: white !important; color: black !important; }
+        div, p, h1, h2, h3, label, span { color: black !important; }
+        .neon-title-inner h1 { background: none; color: black !important; -webkit-text-fill-color: black; }
+    }
+
+    @media (max-width: 768px) {
+        .neon-title-inner h1 { font-size: 22px !important; }
+        .neon-inner-content p { font-size: 22px !important; }
+        .map-overlay-total { position: relative; top: 10px; left: 10px; margin-bottom: 10px; width: 90%; }
+        .stPlotlyChart { height: 350px !important; }
+    }
+    </style>
+""", unsafe_allow_html=True)
+
+
+# ==============================================================================
+# 2. VARIABLES Y MAPEOS TÁCTICOS
+# ==============================================================================
 map_tactico_raw = {
                 # CAPTURAS
                 'Aprehensión de Menor por Alerta de Custodia': 'CAPTURAS',
@@ -100,6 +261,7 @@ map_tactico_raw = {
                 'Atención de Choque con Objeto Fijo': 'SEGURIDAD VIAL',
                 'Atención de Colisión de Alto Impacto': 'SEGURIDAD VIAL',
                 'Atención de Colisión Con Víctima Fatal': 'SEGURIDAD VIAL',
+                'Atención de Choque Con Victima Fatal': 'SEGURIDAD VIAL',
                 'Atención de Colisión menor': 'SEGURIDAD VIAL',
                 'Atención de Colisión multiple': 'SEGURIDAD VIAL',
                 'Atención de Colision y Fuga': 'SEGURIDAD VIAL',
@@ -109,7 +271,6 @@ map_tactico_raw = {
                 'Atención de Derrape de Motorizado con Víctima Fatal': 'SEGURIDAD VIAL',
                 'Atención de Triple Colisión': 'SEGURIDAD VIAL',
                 'Atención de Vuelco': 'SEGURIDAD VIAL',
-                'Atención de Choque Con Victima Fatal': 'SEGURIDAD VIAL',
                 'Infracción por Ceder el Manejo a Persona No Autorizada': 'SEGURIDAD VIAL',
                 'Infracción por Conducir a Velocidad Superior al Limite': 'SEGURIDAD VIAL',
                 'Infracción por Conducir con Aliento Alcohólico': 'SEGURIDAD VIAL',
@@ -151,7 +312,6 @@ map_tactico_raw = {
                 'Infracción por Negarse a Entregar la Licencia de Conducir': 'SEGURIDAD VIAL',
                 'Infracción por Conducir Obstruyendo el Tránsito': 'SEGURIDAD VIAL',
         
-        
                 # EMERGENCIAS
                 'Apoyo a Vehiculo de Valores Desperfectos': 'EMERGENCIAS',
                 'Apoyo al Ciudadano': 'EMERGENCIAS',
@@ -184,40 +344,8 @@ map_tactico_raw = {
                 'Traslado a Hospital por CSS': 'EMERGENCIAS'
               }
 
-
-# --- FONDO GLOBAL PARA TODO EL DASHBOARD Y SIDEBAR ---
-st.markdown("""
-    <style>
-    /* 1. Fondo de toda la aplicación */
-    .stApp {
-        background-image: url("https://raw.githubusercontent.com/JhonAlisHarol/dashboard-CON/main/FONDO%20PARA%20DASHBOARD.png");
-        background-size: cover;
-        background-position: center;
-        background-attachment: fixed;
-    }
-
-    /* 2. Forzar transparencia en los contenedores para que se vea el fondo */
-    .stApp, [data-testid="stSidebar"], .stMainBlockContainer {
-        background-color: transparent !important;
-    }
-
-    /* 3. Capa de oscurecimiento (ajusta el 0.6 si quieres ver más o menos la imagen) */
-    .stApp::before {
-        content: "";
-        position: absolute;
-        top: 0; left: 0; width: 100%; height: 100%;
-        background: rgba(0, 0, 0, 0.6);
-        z-index: -1;
-    }
-    
-    /* 4. Asegurar que los textos se vean blancos sobre el fondo */
-    div, p, h1, h2, h3, label {
-        color: white !important;
-    }
-    </style>
-""", unsafe_allow_html=True)
 # ==============================================================================
-# 1. SEGURIDAD: DEFINICIÓN DE USUARIOS
+# 3. SEGURIDAD: DEFINICIÓN DE USUARIOS
 # ==============================================================================
 USUARIOS_AUTORIZADOS = {
     "CONC5": "12345", "CORCOL": "CORCOLONC3", "COMCH": "12345678",
@@ -226,20 +354,6 @@ USUARIOS_AUTORIZADOS = {
 }
 
 def login():
-    st.markdown("""
-        <style>
-        #MainMenu {visibility: hidden;}
-        footer {visibility: hidden;}
-        header {visibility: hidden;}
-        </style>
-    """, unsafe_allow_html=True)
-    
-    st.markdown("""
-        <style>
-        .stApp { background-color: #0a0e17; }
-        h1, label { color: #ffffff !important; }
-        </style>
-    """, unsafe_allow_html=True)
     st.title("🔐 C.O.N - PANAMÁ")
     st.markdown('<p class="author-text">DESARROLLADO POR= CABO 1° ELMER RODRIGUEZ</p>', unsafe_allow_html=True)
     usuario = st.text_input("Usuario del Centro:")
@@ -259,145 +373,7 @@ if not st.session_state.autenticado:
     st.stop()
 
 # ==============================================================================
-# 1. CONFIGURACIÓN, FUNCIONES DE LIMPIEZA Y MEDIDORES (GAUGES)
-# ==============================================================================
-st.set_page_config(
-    page_title="S-Portal Hexagon | Traffic Center", 
-    layout="wide",
-    initial_sidebar_state="expanded"
-)
-    
-st.markdown("""
-    <style>
-    #MainMenu {visibility: visible;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    
-    /* Estilo Base */
-    .stApp { background-color: #0a0e17; }
-    h1, h2, h3, span, p, label { color: #ffffff !important; }
-    
-    .stMetric { 
-        background: rgba(255, 255, 255, 0.05); 
-        border: 1px solid #00ebff; 
-        border-radius: 10px; 
-        padding: 10px; 
-    }
-
-    /* CONTENEDOR NEÓN GLOBAL ROTATIVO */
-    .neon-container {
-        position: relative;
-        border-radius: 10px;
-        padding: 4px;
-        background: rgba(10, 14, 23, 1);
-        background-clip: padding-box;
-        border: 1px solid transparent;
-        overflow: hidden;
-        margin-bottom: 1rem;
-    }
-
-    .neon-container::before {
-        content: '';
-        position: absolute;
-        top: -50%;
-        left: -50%;
-        width: 200%;
-        height: 200%;
-        background: conic-gradient(
-            #ff0000, #ff7300, #fffb00, #48ff00, #00ffd5, #002bff, #7a00ff, #ff00c8, #ff0000
-        );
-        animation: rotate-neon 3s linear infinite;
-        z-index: 0;
-    }
-
-    /* EFECTO CINTA DE NEÓN FLUIDA ALREDEDOR DEL TÍTULO */
-    .neon-title-container {
-        position: relative;
-        border-radius: 12px;
-        padding: 3px; 
-        background: #0d121f;
-        overflow: hidden;
-        margin-bottom: 1.5rem;z
-        box-shadow: 0 0 20px rgba(0, 235, 255, 0.2);
-    }
-    
-    .neon-title-container::before {
-        content: '';
-        position: absolute;
-        top: -150%;
-        left: -150%;
-        width: 400%;
-        height: 400%;
-        background: conic-gradient(
-            from 0deg,
-            #00ffff 0%,
-            #0077ff 25%,
-            #001133 50%,
-            #0077ff 75%,
-            #00ffff 100%
-        );
-        animation: rotate-neon 4s linear infinite;
-        z-index: 0;
-    }
-
-    .neon-title-inner {
-        position: relative;
-        background: #0d121f; 
-        border-radius: 9px;
-        padding: 22px;
-        z-index: 1;
-        text-align: center;
-    }
-
-    .neon-title-inner h1 {
-        margin: 0;
-        font-size: 32px;
-        font-weight: 800;
-        letter-spacing: 1px;
-        text-transform: uppercase;
-        background: linear-gradient(45deg, #ffffff, #00ebff);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        display: inline-block;
-    }
-
-    .neon-inner-content {
-        position: relative;
-        background: #0d121f;
-        border-radius: 7px;
-        padding: 15px;
-        z-index: 1;
-    }
-
-    @keyframes rotate-neon {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-    }
-
-    .neon-inner-content h3 { margin: 0; font-size: 14px; text-transform: uppercase; color: #ffffff !important; }
-    .neon-inner-content p { margin: 0; font-size: 28px; font-weight: bold; color: #00ebff !important; }
-
-    .author-text { color: #00ebff !important; font-size: 14px; font-style: italic; margin-top: -5px; margin-bottom: 20px; text-align: center; }
-    
-    .map-overlay-total {
-        position: relative;
-        top: 60px; left: 20px;
-        background: rgba(10, 14, 23, 0.85); border: 2px solid #00ebff;
-        padding: 10px 20px; border-radius: 10px; z-index: 100;
-        width: fit-content; margin-bottom: -70px;
-    }
-
-    @media (max-width: 768px) {
-        .neon-title-inner h1 { font-size: 22px !important; }
-        .neon-inner-content p { font-size: 22px !important; }
-        .map-overlay-total { position: relative; top: 10px; left: 10px; margin-bottom: 10px; width: 90%; }
-        .stPlotlyChart { height: 350px !important; }
-    }
-    </style>
-""", unsafe_allow_html=True)
-
-# ==============================================================================
-# BARRA LATERAL DE USUARIO (Cerrar Sesión)
+# 4. BARRA LATERAL DE USUARIO (Cerrar Sesión)
 # ==============================================================================
 with st.sidebar:
     st.write("---")
@@ -407,7 +383,9 @@ with st.sidebar:
         st.rerun()
     st.write("---")
 
-# --- FUNCIÓN DE LIMPIEZA DE NÚMEROS ---
+# ==============================================================================
+# 5. FUNCIONES DE LIMPIEZA Y MEDIDORES (GAUGES)
+# ==============================================================================
 def clean_num(val):
     if pd.isna(val): return 0
     if isinstance(val, (int, float)):
@@ -422,7 +400,6 @@ def clean_num(val):
         try: return int(float(val_str))
         except ValueError: return 0
 
-# --- FUNCIÓN DE GAUGES ---
 def create_gauge(value, title, color, is_timer=False):
     suffix = " seg" if is_timer else (" h" if value >= 60 else " min")
     display_val = value / 60 if (not is_timer and suffix == " h") else value
@@ -435,8 +412,18 @@ def create_gauge(value, title, color, is_timer=False):
     fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', height=200, margin=dict(l=20, r=20, t=40, b=20))
     return fig
 
+# --- FUNCIÓN EXTRA PARA ALERTAS VISUALES (SEMÁFORO) ---
+def obtener_color_alerta(valor, limite_amarillo, limite_rojo):
+    """Devuelve color verde, amarillo o rojo dependiendo de los umbrales de tiempo."""
+    if valor >= limite_rojo:
+        return "#ff4b4b" # Rojo (Peligro)
+    elif valor >= limite_amarillo:
+        return "#ffaa00" # Amarillo (Precaución)
+    else:
+        return "#00ffaa" # Verde (Óptimo)
+
 # ==============================================================================
-# 2. SISTEMA DE RECARGA AUTOMÁTICA
+# 6. SISTEMA DE RECARGA AUTOMÁTICA
 # ==============================================================================
 if 'last_update' not in st.session_state:
     st.session_state.last_update = time.time()
@@ -449,9 +436,10 @@ if remaining <= 0:
     st.rerun()
 
 # ==============================================================================
-# 3. CARGA DE DATOS Y MAPEO TÁCTICO
+# 7. CARGA DE DATOS PRINCIPALES
 # ==============================================================================
 URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQzIFyCT2C22Hlrz80szN7J2mEfA8N1R7hiAmFAUXaoorwDTOeWNh-ktv__d0vIBS-AQcuV5ws3ZU4C/pub?gid=229458966&single=true&output=csv"
+URL_HOJA_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRJjM8N55oQ9GLvCm72Jz8kbJpqze5ouhbBudOkYACwCIDGq9KmwLYX9Tz9lPmDPYEBzefNXqIE13PM/pub?gid=2008069627&single=true&output=csv"
 
 @st.cache_data(ttl=60)
 def load_full_data():
@@ -501,53 +489,6 @@ def load_full_data():
         return df[df['T_POS_COUNT'] > 0].copy()
     except: return None
 
-# ==============================================================================
-# 4. DISPOSICIÓN DE LA INTERFAZ DE USUARIO (DASHBOARD)
-# ==============================================================================
-df_raw = load_full_data()
-
-if df_raw is not None:
-    with st.sidebar:
-        st.header("🔎 Fechas y Horas")
-        f1 = st.date_input("Desde:", df_raw['FECHA_DT'].min().date())
-        f2 = st.date_input("Hasta:", df_raw['FECHA_DT'].max().date())
-        h1 = st.selectbox("Hora Inicial:", list(range(24)), index=0)
-        h2 = st.selectbox("Hora Final:", list(range(24)), index=23)
-        st.plotly_chart(create_gauge(remaining, "ACTUALIZACIÓN", "#00ebff", is_timer=True), use_container_width=True)
-
-    df = df_raw[(df_raw['FECHA_DT'].dt.date >= f1) & (df_raw['FECHA_DT'].dt.date <= f2) & 
-                (df_raw['HORA_NUM'] >= h1) & (df_raw['HORA_NUM'] <= h2)].copy()
-
-    # --- TÍTULO ---
-    st.markdown("""
-        <div class="neon-title-container">
-            <div class="neon-title-inner">
-                <h1>🛡️ Centro de Operación Nacional | Datos Positivos</h1>
-            </div>
-        </div>
-    """, unsafe_allow_html=True)
-    st.markdown('<p class="author-text">DESARROLLADO POR= CABO 1° ELMER RODRIGUEZ</p>', unsafe_allow_html=True)
-
-    # ==============================================================================
-# 1. CONFIGURACIÓN (Intacta)
-# ==============================================================================
-st.set_page_config(page_title="S-Portal Hexagon | Traffic Center", layout="wide")
-
-st.markdown("""
-    <style>
-    #MainMenu {visibility: visible;}
-    footer {visibility: hidden;}
-    header {visibility: hidden;}
-    .stApp { background-color: #0a0e17; }
-    h1, h2, h3, span, p, label { color: #ffffff !important; }
-    </style>
-""", unsafe_allow_html=True)
-
-# ==============================================================================
-# 2. CARGA DE DATOS (Intacta)
-# ==============================================================================
-URL_HOJA_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRJjM8N55oQ9GLvCm72Jz8kbJpqze5ouhbBudOkYACwCIDGq9KmwLYX9Tz9lPmDPYEBzefNXqIE13PM/pub?gid=2008069627&single=true&output=csv"
-
 @st.cache_data(ttl=60)
 def load_traffic_only():
     try:
@@ -570,67 +511,88 @@ def load_traffic_only():
         return df_all
     except: return None
 
+# ==============================================================================
+# 8. DISPOSICIÓN DE LA INTERFAZ DE USUARIO (DASHBOARD)
+# ==============================================================================
+df_raw = load_full_data()
 df_traffic = load_traffic_only()
-# ==============================================================================
-# 3. LÓGICA DE CÁLCULO (Ajustada para AMBOS)
-# ==============================================================================
-if df_traffic is not None and not df_traffic.empty:
-    c_filt_1, c_filt_2, _ = st.columns([3, 2, 1])
-    
-    with c_filt_1:
-        centro_filtro = st.radio("Centro:", ["AMBOS CENTROS (Sumados)", "CON-C5", "CORCOL"], horizontal=True)
-    with c_filt_2:
-        mes_seleccionado = st.selectbox("Período:", ["TODOS LOS MESES"] + list(df_traffic.iloc[:,0].unique()))
 
-    # Filtramos sin borrar datos
-    df_t = df_traffic if mes_seleccionado == "TODOS LOS MESES" else df_traffic[df_traffic.iloc[:,0] == mes_seleccionado]
-    
-    # Lógica central: subset captura todo si es "AMBOS", o solo el centro seleccionado
-    if centro_filtro == "AMBOS CENTROS (Sumados)":
-        subset = df_t
-    else:
-        subset = df_t[df_t['CENTRO_ID'] == centro_filtro]
+if df_raw is not None:
+    # ---------------- BARRA LATERAL (FECHAS Y HORAS) ----------------
+    with st.sidebar:
+        st.header("🔎 Fechas y Horas")
+        f1 = st.date_input("Desde:", df_raw['FECHA_DT'].min().date())
+        f2 = st.date_input("Hasta:", df_raw['FECHA_DT'].max().date())
+        h1 = st.selectbox("Hora Inicial:", list(range(24)), index=0)
+        h2 = st.selectbox("Hora Final:", list(range(24)), index=23)
+        st.plotly_chart(create_gauge(remaining, "ACTUALIZACIÓN", "#00ebff", is_timer=True), use_container_width=True)
 
-    # CÁLCULO DE LA FÓRMULA EXACTA
-    C = subset['Contestadas'].sum()
-    A = subset['Abandonadas'].sum()
-    C5 = subset['Contestadas Despues de 05 seg.'].sum()
-    A5 = subset['Abandonadas Despues de 05 seg.'].sum()
-    
-    divisor = (C + A)
-    avg_sla = (((C + A) - (C5 + A5)) / divisor * 100) if divisor > 0 else 0.0
+    # Filtrar el DataFrame principal
+    df = df_raw[(df_raw['FECHA_DT'].dt.date >= f1) & (df_raw['FECHA_DT'].dt.date <= f2) & 
+                (df_raw['HORA_NUM'] >= h1) & (df_raw['HORA_NUM'] <= h2)].copy()
 
-    # GRÁFICOS (Estructura intacta)
-    df_res = subset.agg({'Presentadas':'sum', 'Contestadas':'sum', 'Abandonadas':'sum', 'Orientación':'sum', 'Maliciosa':'sum'})
+    # ---------------- CUERPO PRINCIPAL DEL DASHBOARD ----------------
     
-    c_grafico, c_sla_box = st.columns([2, 1])
-    with c_grafico:
-        fig = go.Figure(data=[go.Bar(
-            x=['PRESENTADAS', 'CONTESTADAS', 'ABANDONADAS', 'ORIENTACIÓN', 'MALICIOSA'],
-            y=[df_res['Presentadas'], df_res['Contestadas'], df_res['Abandonadas'], df_res['Orientación'], df_res['Maliciosa']],
-            text=[f"{val:,.0f}" for val in [df_res['Presentadas'], df_res['Contestadas'], df_res['Abandonadas'], df_res['Orientación'], df_res['Maliciosa']]],
-            textposition='outside',
-            marker_color=["#00ebff", "#00ffaa", "#ff4b4b", "#ffaa00", "#555555"]
-        )])
-        fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), yaxis=dict(showticklabels=False), margin=dict(t=40, b=10, l=10, r=10))
-        st.plotly_chart(fig, use_container_width=True)
+    # --- TÍTULO ---
+    st.markdown("""
+        <div class="neon-title-container">
+            <div class="neon-title-inner">
+                <h1>🛡️ Centro de Operación Nacional | Datos Positivos</h1>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+    st.markdown('<p class="author-text">DESARROLLADO POR= CABO 1° ELMER RODRIGUEZ</p>', unsafe_allow_html=True)
+
+    # --- TRÁFICO Y SLA ---
+    if df_traffic is not None and not df_traffic.empty:
+        c_filt_1, c_filt_2, _ = st.columns([3, 2, 1])
         
-    with c_sla_box:
-        col = "#00ffaa" if avg_sla >= 90 else ("#ffaa00" if avg_sla >= 80 else "#ff4b4b")
-        st.markdown(f"""<div style="background: #0d121f; border: 1px solid #00ebff; border-radius: 8px; height: 360px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
-            <p style="margin: 0; font-size: 14px; color: #ffffff;">% NIVEL DE SERVICIO</p>
-            <h1 style="margin: 20px 0 0 0; font-size: 56px; color: #ffffff; text-shadow: 0 0 12px {col};">{avg_sla:.2f}%</h1>
-        </div>""", unsafe_allow_html=True)
+        with c_filt_1:
+            centro_filtro = st.radio("Centro:", ["AMBOS CENTROS (Sumados)", "CON-C5", "CORCOL"], horizontal=True)
+        with c_filt_2:
+            mes_seleccionado = st.selectbox("Período:", ["TODOS LOS MESES"] + list(df_traffic.iloc[:,0].unique()))
 
-   # =========================================================================
-    # SECCIÓN: COMPONENTES DEL DASHBOARD (CORREGIDA)
-    # =========================================================================
+        df_t = df_traffic if mes_seleccionado == "TODOS LOS MESES" else df_traffic[df_traffic.iloc[:,0] == mes_seleccionado]
+        
+        if centro_filtro == "AMBOS CENTROS (Sumados)":
+            subset = df_t
+        else:
+            subset = df_t[df_t['CENTRO_ID'] == centro_filtro]
+
+        C = subset['Contestadas'].sum()
+        A = subset['Abandonadas'].sum()
+        C5 = subset['Contestadas Despues de 05 seg.'].sum()
+        A5 = subset['Abandonadas Despues de 05 seg.'].sum()
+        
+        divisor = (C + A)
+        avg_sla = (((C + A) - (C5 + A5)) / divisor * 100) if divisor > 0 else 0.0
+
+        df_res = subset.agg({'Presentadas':'sum', 'Contestadas':'sum', 'Abandonadas':'sum', 'Orientación':'sum', 'Maliciosa':'sum'})
+        
+        c_grafico, c_sla_box = st.columns([2, 1])
+        with c_grafico:
+            fig = go.Figure(data=[go.Bar(
+                x=['PRESENTADAS', 'CONTESTADAS', 'ABANDONADAS', 'ORIENTACIÓN', 'MALICIOSA'],
+                y=[df_res['Presentadas'], df_res['Contestadas'], df_res['Abandonadas'], df_res['Orientación'], df_res['Maliciosa']],
+                text=[f"{val:,.0f}" for val in [df_res['Presentadas'], df_res['Contestadas'], df_res['Abandonadas'], df_res['Orientación'], df_res['Maliciosa']]],
+                textposition='outside',
+                marker_color=["#00ebff", "#00ffaa", "#ff4b4b", "#ffaa00", "#555555"]
+            )])
+            fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), yaxis=dict(showticklabels=False), margin=dict(t=40, b=10, l=10, r=10))
+            st.plotly_chart(fig, use_container_width=True)
+            
+        with c_sla_box:
+            col = "#00ffaa" if avg_sla >= 90 else ("#ffaa00" if avg_sla >= 80 else "#ff4b4b")
+            st.markdown(f"""<div style="background: #0d121f; border: 1px solid #00ebff; border-radius: 8px; height: 360px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+                <p style="margin: 0; font-size: 14px; color: #ffffff;">% NIVEL DE SERVICIO</p>
+                <h1 style="margin: 20px 0 0 0; font-size: 56px; color: #ffffff; text-shadow: 0 0 12px {col};">{avg_sla:.2f}%</h1>
+            </div>""", unsafe_allow_html=True)
+
+    # --- COMPONENTES DEL DASHBOARD (MÉTRICAS Y VARIANZAS) ---
     c_m1, c_m2 = st.columns(2)
     
-    # Validamos que 'df' exista y tenga datos
     if 'df' in locals() and df is not None and not df.empty:
         total_eventos = len(df)
-        # Usamos .get para evitar errores si la columna no existe
         total_positivos = int(df["T_POS_COUNT"].sum()) if "T_POS_COUNT" in df.columns else 0
         
         with c_m1:
@@ -639,28 +601,35 @@ if df_traffic is not None and not df_traffic.empty:
         with c_m2:
             st.markdown(f'<div class="neon-container"><div class="neon-inner-content"><h3>✅ TOTAL POSITIVOS</h3><p>{total_positivos:,}</p></div></div>', unsafe_allow_html=True)
     else:
-        # Mensaje de espera si los datos no han cargado
         with c_m1:
-            st.markdown('<div class="neon-container"><div class="neon-inner-content"><h3>📊 EVENTOS TOTALES</h3><p>Cargando...</p></div></div>', unsafe_allow_html=True)
+            st.markdown('<div class="neon-container"><div class="neon-inner-content"><h3>📊 EVENTOS TOTALES</h3><p>0</p></div></div>', unsafe_allow_html=True)
         with c_m2:
-            st.markdown('<div class="neon-container"><div class="neon-inner-content"><h3>✅ TOTAL POSITIVOS</h3><p>Cargando...</p></div></div>', unsafe_allow_html=True)
-   
+            st.markdown('<div class="neon-container"><div class="neon-inner-content"><h3>✅ TOTAL POSITIVOS</h3><p>0</p></div></div>', unsafe_allow_html=True)
 
     g1, g2, g3 = st.columns(3)
-    v_desp = df['VARIANZA DE DESPACHO_M'].mean() if 'VARIANZA DE DESPACHO_M' in df.columns else 0
-    v_aten = df['VARIANZA DE LA ATENCION_M'].mean() if 'VARIANZA DE LA ATENCION_M' in df.columns else 0
+    v_desp = df['VARIANZA DE DESPACHO_M'].mean() if not df.empty and 'VARIANZA DE DESPACHO_M' in df.columns else 0
+    v_aten = df['VARIANZA DE LA ATENCION_M'].mean() if not df.empty and 'VARIANZA DE LA ATENCION_M' in df.columns else 0
     v_c_col = 'VARIANZA DEL CIERRE_M' if 'VARIANZA DEL CIERRE_M' in df.columns else 'VARIANZA DE CIERRE_M'
-    v_cier = df[v_c_col].mean() if v_c_col in df.columns else 0
+    v_cier = df[v_c_col].mean() if not df.empty and v_c_col in df.columns else 0
     
-    with g1: st.plotly_chart(create_gauge(v_desp, "VARIANZA DESPACHO", "#00ebff"), use_container_width=True)
-    with g2: st.plotly_chart(create_gauge(v_aten, "VARIANZA ATENCIÓN", "#00ffaa"), use_container_width=True)
-    with g3: st.plotly_chart(create_gauge(v_cier, "VARIANZA CIERRE", "#ffaa00"), use_container_width=True)
+    # ALERTAS VISUALES: Semáforo de colores para los Gauges
+    color_desp = obtener_color_alerta(v_desp, 10, 20)
+    color_aten = obtener_color_alerta(v_aten, 30, 60)
+    color_cier = obtener_color_alerta(v_cier, 60, 120)
+
+    # Banner de advertencia si algún tiempo de respuesta es crítico (Rojo)
+    if color_desp == "#ff4b4b" or color_aten == "#ff4b4b":
+        st.error("⚠️ ALERTA OPERATIVA: Los tiempos promedios de Despacho o Atención superan los umbrales críticos de operación.")
+
+    with g1: st.plotly_chart(create_gauge(v_desp, "VARIANZA DESPACHO", color_desp), use_container_width=True)
+    with g2: st.plotly_chart(create_gauge(v_aten, "VARIANZA ATENCIÓN", color_aten), use_container_width=True)
+    with g3: st.plotly_chart(create_gauge(v_cier, "VARIANZA CIERRE", color_cier), use_container_width=True)
 
     st.markdown("---")
 
-    # MAPA TÁCTICO POR PROVINCIAS
+    # --- MAPA TÁCTICO POR PROVINCIAS ---
     st.subheader("📍 MAPA TÁCTICO DETALLADO DE INCIDENCIAS")
-    if 'PROVINCIA' in df.columns:
+    if not df.empty and 'PROVINCIA' in df.columns:
         cols_p = [c for c in df.columns if 'RESULTADO POSITIVO' in c.upper()]
         df_long = pd.melt(df, id_vars=['PROVINCIA'], value_vars=cols_p, value_name='Tipo').dropna()
         top_details = df_long.groupby('PROVINCIA').apply(lambda g: "<br>".join([f"• {t}: {v}" for t, v in g['Tipo'].value_counts().nlargest(5).items()])).reset_index(name='DETALLE_TOP')
@@ -675,23 +644,22 @@ if df_traffic is not None and not df_traffic.empty:
         with c_map:
             st.markdown(f'<div class="map-overlay-total"><small style="color:#00ebff;">TOTAL POSITIVOS</small><br><span style="font-size:24px; font-weight:bold;">{int(df["T_POS_COUNT"].sum()):}</span></div>', unsafe_allow_html=True)
             
-            # Bloque de seguridad para las columnas en la nube
             for col in ['lat', 'lon', 'T_POS_COUNT', 'PROVINCIA', 'DETALLE_TOP']:
                 if col not in prov_stats.columns:
                     prov_stats[col] = 0 if col == 'T_POS_COUNT' else ""
 
+            # MAPA ESTILO GOOGLE MAPS (open-street-map)
             fig_m = px.scatter_mapbox(prov_stats, lat='lat', lon='lon', size='T_POS_COUNT', color='T_POS_COUNT', color_continuous_scale="Darkmint", size_max=55, zoom=7.2, center=dict(lat=8.5, lon=-80.5), hover_name='PROVINCIA', hover_data={'lat':False, 'lon':False, 'T_POS_COUNT':True, 'DETALLE_TOP':True})
-            fig_m.update_layout(mapbox_style="carto-darkmatter", margin={"r":0,"t":0,"l":0,"b":0}, paper_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False)
+            fig_m.update_layout(mapbox_style="open-street-map", margin={"r":0,"t":0,"l":0,"b":0}, paper_bgcolor='rgba(0,0,0,0)', coloraxis_showscale=False)
             st.plotly_chart(fig_m, use_container_width=True)
         with c_rank:
             st.plotly_chart(px.bar(prov_stats, x='T_POS_COUNT', y='PROVINCIA', orientation='h', text='T_POS_COUNT', color='T_POS_COUNT', color_continuous_scale='Tealgrn').update_layout(showlegend=False, coloraxis_showscale=False, paper_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), height=400), use_container_width=True)
 
-        # GRÁFICOS DE ROSA
+        # --- GRÁFICOS DE PASTEL (ROSA) ---
         st.markdown("---")
         
-        # Procesamiento exacto y unificado para que el pastel refleje los totales reales de las 4 categorías
         cols_positivos_graf = ['RESULTADO POSITIVO 1', 'RESULTADO POSITIVO 2', 'RESULTADO POSITIVO 3', 
-                            'RESULTADO POSITIVO 4', 'RESULTADO POSITIVO 5', 'RESULTADO POSITIVO 6']
+                               'RESULTADO POSITIVO 4', 'RESULTADO POSITIVO 5', 'RESULTADO POSITIVO 6']
         lista_graf = []
         
         for _, row in df.iterrows():
@@ -700,330 +668,125 @@ if df_traffic is not None and not df_traffic.empty:
                 if pd.notna(tipo) and str(tipo).strip() not in ['SELECCIONAR', '', 'None']:
                     tipo_limpio = str(tipo).strip()
                     
-                    # Caso especial para ruidos o gases
                     if 'ruido' in tipo_limpio.lower() or 'gases' in tipo_limpio.lower():
                         lista_graf.append({'GRUPO_TACTICO': 'SEGURIDAD VIAL'})
                         continue
                     
                     encontrado = False
-                    # Usamos map_tactico_raw que es el diccionario original que tenías definido arriba
                     for clave_mapeo, grupo in map_tactico_raw.items():
                         if clave_mapeo.lower().strip() in tipo_limpio.lower().strip():
                             lista_graf.append({'GRUPO_TACTICO': grupo})
                             encontrado = True
                             break
                     if not encontrado:
-                        # Cambiamos 'EMERGENCIAS' por 'SEGURIDAD VIAL' para que el número extra caiga donde corresponde
                         lista_graf.append({'GRUPO_TACTICO': 'SEGURIDAD VIAL'})
 
         df_pastel_final = pd.DataFrame(lista_graf)
-        df_pastel_final = df_pastel_final[df_pastel_final['GRUPO_TACTICO'].isin(['SEGURIDAD VIAL', 'CAPTURAS', 'EMERGENCIAS', 'RECUPERACIONES'])]
-        df_pastel_final = df_pastel_final.groupby('GRUPO_TACTICO', as_index=False).size()
-        df_pastel_final.columns = ['GRUPO_TACTICO', 'TOTAL']
+        if not df_pastel_final.empty:
+            df_pastel_final = df_pastel_final[df_pastel_final['GRUPO_TACTICO'].isin(['SEGURIDAD VIAL', 'CAPTURAS', 'EMERGENCIAS', 'RECUPERACIONES'])]
+            df_pastel_final = df_pastel_final.groupby('GRUPO_TACTICO', as_index=False).size()
+            df_pastel_final.columns = ['GRUPO_TACTICO', 'TOTAL']
 
-        cp1, cp2, cp3 = st.columns(3)
-        with cp1: 
-            st.plotly_chart(px.pie(df, names='CANAL DE ENTRADA', values='T_POS_COUNT', title="Positivos por Canales", hole=0.5, color_discrete_map={"CLL-104": "#FF1493", "Video Vigilancia": "#FF69B4", "Radio Frecuencia": "#FFB6C1"}), use_container_width=True)
-        with cp2: 
-            st.plotly_chart(px.pie(df, names='CENTRO', values='T_POS_COUNT', title="Positivos por Centros", hole=0.5, color_discrete_sequence=px.colors.sequential.Tealgrn), use_container_width=True)
-        with cp3: 
-            # 1. Creamos el gráfico de pastel normalmente
-            fig_pastel = px.pie(df_pastel_final, names='GRUPO_TACTICO', values='TOTAL', 
-                                title="Distribución por Grupo Táctico", hole=0.5, 
-                                color_discrete_sequence=px.colors.qualitative.G10)
-            
-            # 2. Actualizamos los trazos para mostrar etiqueta, porcentaje y número entero juntos
-            fig_pastel.update_traces(textinfo='percent+value')
-            
-            # 3. Renderizamos el gráfico en Streamlit
-            st.plotly_chart(fig_pastel, use_container_width=True)
+            cp1, cp2, cp3 = st.columns(3)
+            with cp1: 
+                st.plotly_chart(px.pie(df, names='CANAL DE ENTRADA', values='T_POS_COUNT', title="Positivos por Canales", hole=0.5, color_discrete_map={"CLL-104": "#FF1493", "Video Vigilancia": "#FF69B4", "Radio Frecuencia": "#FFB6C1"}), use_container_width=True)
+            with cp2: 
+                st.plotly_chart(px.pie(df, names='CENTRO', values='T_POS_COUNT', title="Positivos por Centros", hole=0.5, color_discrete_sequence=px.colors.sequential.Tealgrn), use_container_width=True)
+            with cp3: 
+                fig_pastel = px.pie(df_pastel_final, names='GRUPO_TACTICO', values='TOTAL', 
+                                    title="Distribución por Grupo Táctico", hole=0.5, 
+                                    color_discrete_sequence=px.colors.qualitative.G10)
+                fig_pastel.update_traces(textinfo='percent+value')
+                st.plotly_chart(fig_pastel, use_container_width=True)
         
+    # --- TABLAS DE DETALLES ---
     st.subheader("📋 DETALLE: POSITIVOS POR CENTROS")
-    df_l_t = pd.melt(df, id_vars=['CENTRO'], value_vars=cols_p, value_name='Tipo').dropna()
-    if not df_l_t.empty:
-        t_c = df_l_t.groupby(['Tipo', 'CENTRO']).size().unstack(fill_value=0)
-        t_c['TOTAL'] = t_c.sum(axis=1)
-        ord_c = t_c.drop(columns='TOTAL').sum().sort_values(ascending=False).index.tolist()
-        t_c = t_c[ord_c + ['TOTAL']].sort_values('TOTAL', ascending=False)
-        st.dataframe(pd.concat([t_c, t_c.sum().to_frame(name='TOTAL GENERAL').T]), use_container_width=True)
+    if not df.empty:
+        df_l_t = pd.melt(df, id_vars=['CENTRO'], value_vars=cols_p, value_name='Tipo').dropna()
+        if not df_l_t.empty:
+            t_c = df_l_t.groupby(['Tipo', 'CENTRO']).size().unstack(fill_value=0)
+            t_c['TOTAL'] = t_c.sum(axis=1)
+            ord_c = t_c.drop(columns='TOTAL').sum().sort_values(ascending=False).index.tolist()
+            t_c = t_c[ord_c + ['TOTAL']].sort_values('TOTAL', ascending=False)
+            st.dataframe(pd.concat([t_c, t_c.sum().to_frame(name='TOTAL GENERAL').T]), use_container_width=True)
 
-# --- TABLA ÚNICA: POSITIVOS POR CANAL (ORDENADA FILAS Y COLUMNAS) ---
     st.markdown("---")
     st.subheader("📡 POSITIVOS POR CANAL")
-    
     cols_positivos = ['RESULTADO POSITIVO 1', 'RESULTADO POSITIVO 2', 'RESULTADO POSITIVO 3', 
                       'RESULTADO POSITIVO 4', 'RESULTADO POSITIVO 5', 'RESULTADO POSITIVO 6']
     
-    df_m = df.melt(id_vars=['CANAL DE ENTRADA'], value_vars=cols_positivos, value_name='Tipo').dropna()
-    df_m = df_m[~df_m['Tipo'].isin(['SELECCIONAR', '', None])]
-    
-    # 1. Crear matriz
-    t_canal = df_m.groupby(['Tipo', 'CANAL DE ENTRADA']).size().unstack(fill_value=0)
-    
-    # 2. CALCULAR ORDEN PARA FILAS Y COLUMNAS
-    # Orden de Filas (Tipos) según el total por fila
-    t_canal['TOTAL'] = t_canal.sum(axis=1)
-    orden_filas = t_canal.drop(columns=['TOTAL']).sum(axis=1).sort_values(ascending=False).index.tolist()
-    
-    # Orden de Columnas (Canales) según el total por columna
-    orden_cols = t_canal.drop(columns=['TOTAL']).sum(axis=0).sort_values(ascending=False).index.tolist()
-    
-    # 3. APLICAR EL ORDEN
-    # Reordenamos columnas primero y luego filas
-    t_canal_ordenada = t_canal[orden_cols + ['TOTAL']].loc[orden_filas]
-    
-    # 4. Concatenar fila de TOTAL GENERAL al final
-    fila_total = t_canal_ordenada.sum().to_frame(name='TOTAL GENERAL').T
-    tabla_final = pd.concat([t_canal_ordenada, fila_total])
-    
-    # 5. Mostrar tabla
-    st.dataframe(tabla_final, use_container_width=True, height=400)
+    if not df.empty:
+        df_m = df.melt(id_vars=['CANAL DE ENTRADA'], value_vars=cols_positivos, value_name='Tipo').dropna()
+        df_m = df_m[~df_m['Tipo'].isin(['SELECCIONAR', '', None])]
+        
+        if not df_m.empty:
+            t_canal = df_m.groupby(['Tipo', 'CANAL DE ENTRADA']).size().unstack(fill_value=0)
+            t_canal['TOTAL'] = t_canal.sum(axis=1)
+            orden_filas = t_canal.drop(columns=['TOTAL']).sum(axis=1).sort_values(ascending=False).index.tolist()
+            orden_cols = t_canal.drop(columns=['TOTAL']).sum(axis=0).sort_values(ascending=False).index.tolist()
+            t_canal_ordenada = t_canal[orden_cols + ['TOTAL']].loc[orden_filas]
+            fila_total = t_canal_ordenada.sum().to_frame(name='TOTAL GENERAL').T
+            tabla_final = pd.concat([t_canal_ordenada, fila_total])
+            st.dataframe(tabla_final, use_container_width=True, height=400)
     st.markdown("---")
-            
 
-    # --- TABLA ÚNICA: POSITIVOS POR GRUPO TÁCTICO (MAPEO ESTRICTO Y CORREGIDO) ---
-    st.markdown("---")
+    # --- TABLA ÚNICA: POSITIVOS POR GRUPO TÁCTICO ---
     st.subheader("🛡️ POSITIVOS POR GRUPO TÁCTICO")
 
-    # 1. Función flexible para limpiar espacios
     def limpiar_texto(texto):
         if isinstance(texto, str):
             return texto.strip()
         return str(texto)
 
-    # 2. Diccionario de mapeo completo (incluyendo todas las variantes críticas)
-    mapeo_grupos = {
-        # CAPTURAS
-        'Aprehensión de Menor por Alerta de Custodia': 'CAPTURAS',
-        'Ciudadano Capturado por Alerta Penitenciaria': 'CAPTURAS',
-        'Ciudadano Aprehendido': 'CAPTURAS',
-        'Ciudadano Aprehendido por Inviolabilidad Del Domicilio': 'CAPTURAS',
-        'Ciudadano Aprehendido por Libertad Vigilada': 'CAPTURAS',
-        'Ciudadano Aprehendido con Accesorio De Arma De Fuego': 'CAPTURAS',
-        'Ciudadano Aprehendido por Supuesta Vinculación A Delito': 'CAPTURAS',
-        'Ciudadano Aprehendido por Subrogado Penal': 'CAPTURAS',
-        'Ciudadano Aprehendido por Privación De Libertad': 'CAPTURAS',
-        'Ciudadano Aprehendido por Estafa Simple': 'CAPTURAS',
-        'Ciudadano Aprehendido por Intento De Violación': 'CAPTURAS',
-        'Ciudadano Aprehendido por Maltrato De Niños(As)-Adolescentes': 'CAPTURAS',
-        'Ciudadano Aprehendido por Agresiones Fisicas': 'CAPTURAS',
-        'Ciudadano Aprehendido por Agresiones Verbales': 'CAPTURAS',
-        'Ciudadano Aprehendido por Quebrantamiento De Boleta De Protección': 'CAPTURAS',
-        'Ciudadano Aprehendido por Lesiones Personales Con Arma Blanca': 'CAPTURAS',
-        'Ciudadano Aprehendido por Falsificación De Documentos': 'CAPTURAS',
-        'Ciudadano Aprehendido por Falsificación De Monedas': 'CAPTURAS',
-        'Ciudadano Aprehendido por No Portar Documento de Identidad Personal': 'CAPTURAS',
-        'Ciudadano Aprehendido por Daño A La Prop. Privada': 'CAPTURAS',
-        'Ciudadano Aprehendido por Alteración De La Convivencia Pacífica': 'CAPTURAS',
-        'Ciudadano Aprehendido por Riña o Pelea': 'CAPTURAS',
-        'Ciudadano Aprehendido por Consumo de Licor en Vía Pública': 'CAPTURAS',
-        'Ciudadano Aprehendido por Violencia Doméstica': 'CAPTURAS',
-        'Ciudadana Aprehendida por Violencia Doméstica': 'CAPTURAS',
-        'Ciudadano Aprehendido con Sustancias Ilícitas': 'CAPTURAS',
-        'Ciudadano Aprehendido por Lesiones Personales': 'CAPTURAS',
-        'Ciudadano Aprehendido por Oficio de Captura': 'CAPTURAS',
-        'Ciudadano Aprehendido por Oficio de Conducción': 'CAPTURAS',
-        'Ciudadano Aprehendido por Hurto A Propiedad': 'CAPTURAS',
-        'Ciudadano Aprehendido por Hurto': 'CAPTURAS',
-        'Ciudadano Aprehendido por Intento de Hurto': 'CAPTURAS',
-        'Ciudadano Aprehendido por Hurto de Accesorio De Vehículo': 'CAPTURAS',
-        'Ciudadano Aprehendido por Hurto A local Comercial': 'CAPTURAS',
-        'Ciudadano Aprehendido por Hurto Simple A Persona': 'CAPTURAS',
-        'Ciudadano Aprehendido por Hurto Simple a Propiedad': 'CAPTURAS',
-        'Ciudadano Aprehendido por Hurto A Residencia': 'CAPTURAS',
-        'Ciudadano Aprehendido por Hurto De Vehículo': 'CAPTURAS',
-        'Ciudadano Aprehendido por Robo A Persona Con Arma De Fuego': 'CAPTURAS',
-        'Ciudadano Aprehendido por Robo A Propiedad': 'CAPTURAS',
-        'Ciudadano Aprehendido por Robo A local Comercial': 'CAPTURAS',
-        'Ciudadano Aprehendido por Robo Simple a Persona': 'CAPTURAS',
-        'Ciudadano Aprehendido por Robo Simple (carterista)': 'CAPTURAS',
-        'Ciudadano Aprehendido por Robo de Vehículo (Alerta Temprana)': 'CAPTURAS',
-        'Ciudadano Aprehendido con Arma Blanca': 'CAPTURAS',
-        'Ciudadano Aprehendido con Arma de Fuego': 'CAPTURAS',
-        'Ciudadano Notificado por Oficio de Citación': 'CAPTURAS',
-        'Ciudadano Aprehendido por Evasión de Centro Penal': 'CAPTURAS',
-        'Supuesta Vinculación A Delito': 'CAPTURAS',
-    
-        # RECUPERACIONES
-        'Arma de Fuego - Decomiso - Escopeta': 'RECUPERACIONES',
-        'Arma de Fuego - Decomiso - Fusil': 'RECUPERACIONES',
-        'Arma de Fuego - Decomiso - Rifle': 'RECUPERACIONES',
-        'Arma de Fuego - Decomiso - Pistola': 'RECUPERACIONES',
-        'Arma de Fuego - Decomiso - Revolver': 'RECUPERACIONES',
-        'Arma de Fuego - Hallazgo - Escopeta': 'RECUPERACIONES',
-        'Arma de Fuego - Hallazgo - Fusil': 'RECUPERACIONES',
-        'Arma de Fuego - Hallazgo - Pistola': 'RECUPERACIONES',
-        'Arma de Fuego - Hallazgo - Revolver': 'RECUPERACIONES',
-        'Arma de Fuego - Replica Decomiso': 'RECUPERACIONES',
-        'Apoyo al Ciudadano Rescate de Embarcacion': 'RECUPERACIONES',
-        'Arma de Fuego - Replica Hallazgo': 'RECUPERACIONES',
-        'Articulo de Dudosa Procedencia': 'RECUPERACIONES',
-        'Articulo Recuperados': 'RECUPERACIONES',
-        'Coordinación con Casa de Justicia y Paz': 'RECUPERACIONES',
-        'Coordinación con Alcaldía Municipal': 'RECUPERACIONES',
-        'Coordinación con Atención Primaria': 'RECUPERACIONES',
-        'Decomiso de Articulos Prohibidos': 'RECUPERACIONES',
-        'Decomiso de Cajetillas Cigarrillos': 'RECUPERACIONES',
-        'Hallazgo de Sustancia Ilícita': 'RECUPERACIONES',
-        'Decomiso de Sustancia Ilícita': 'RECUPERACIONES',
-        'Menor Infractor por Hurto': 'RECUPERACIONES',
-        'Menor Infractor por Robo': 'RECUPERACIONES',
-        'Proveedor': 'RECUPERACIONES',
-        'Vehículo Recuperado': 'RECUPERACIONES',
-        'Vehículo Recuperado por Secuestro Judicial de Bienes': 'RECUPERACIONES',
-        'Vehículo Recuperado por Apropiación Indebida': 'RECUPERACIONES',
-        'Vehículo Recuperado por Hurto (Alerta Temprana)': 'RECUPERACIONES',
-        'Vehículo Recuperado por Robo (Alerta Temprana)': 'RECUPERACIONES',
-        'Vehículo recuperado por Oficio de Hurto': 'RECUPERACIONES',
-        'Vehículo recuperado por Oficio de Robo': 'RECUPERACIONES',
-        'Vehículo Recuperado por Oficio de Hurto': 'RECUPERACIONES',
-        'Vehículo Recuperado por Oficio de Robo': 'RECUPERACIONES',
-    
-        # SEGURIDAD VIAL (Incluyendo variantes críticas de víctima fatal)
-        'Atención de Atropello': 'SEGURIDAD VIAL',
-        'Atención de Atropello con victima fatal': 'SEGURIDAD VIAL',
-        'Atención de Caida de Vehiculo en la Cuneta': 'SEGURIDAD VIAL',
-        'Atención de Choque con Objeto Fijo': 'SEGURIDAD VIAL',
-        'Atención de Colisión de Alto Impacto': 'SEGURIDAD VIAL',
-        'Atención de Colisión Con Víctima Fatal': 'SEGURIDAD VIAL',
-        'Atención de Colisión Con Victima Fatal': 'SEGURIDAD VIAL',
-        'Atención de Choque Con Víctima Fatal': 'SEGURIDAD VIAL',
-        'Atención de Choque Con Victima Fatal': 'SEGURIDAD VIAL',
-        'Atención de Colisión menor': 'SEGURIDAD VIAL',
-        'Atención de Colisión multiple': 'SEGURIDAD VIAL',
-        'Atención de Colision y Fuga': 'SEGURIDAD VIAL',
-        'Atención de Colision y vuelco': 'SEGURIDAD VIAL',
-        'Atención de Derrame de Combustible': 'SEGURIDAD VIAL',
-        'Atención de Derrape de Motorizado': 'SEGURIDAD VIAL',
-        'Atención de Derrape de Motorizado con Víctima Fatal': 'SEGURIDAD VIAL',
-        'Atención de Triple Colisión': 'SEGURIDAD VIAL',
-        'Atención de Vuelco': 'SEGURIDAD VIAL',
-        'Infracción por Ceder el Manejo a Persona No Autorizada': 'SEGURIDAD VIAL',
-        'Infracción por Conducir a Velocidad Superior al Limite': 'SEGURIDAD VIAL',
-        'Infracción por Conducir con Aliento Alcohólico': 'SEGURIDAD VIAL',
-        'Infracción por Conducir de Forma Desordenada': 'SEGURIDAD VIAL',
-        'Infracción por Conductor en Estado de Embriaguez Comprobado': 'SEGURIDAD VIAL',
-        'Infracción por Conductor en Estado Etilico': 'SEGURIDAD VIAL',
-        'Infracción por Daño a la Propiedad': 'SEGURIDAD VIAL',
-        'Infracción por Conducir por el Carril Indebido': 'SEGURIDAD VIAL',
-        'Infracción por Negarse a hacerse la Prueba de Alcoholemia': 'SEGURIDAD VIAL',
-        'Infracción por Desatender señales': 'SEGURIDAD VIAL',
-        'Infracción por Hablar por Teléfono Celular al Conducir': 'SEGURIDAD VIAL',
-        'Infracción por Licencia no Adecuada al Vehiculo': 'SEGURIDAD VIAL',
-        'Infracción por Luces Inadecuadas': 'SEGURIDAD VIAL',
-        'Infracción por Conducir Sin Chaleco Reflectivo': 'SEGURIDAD VIAL',
-        'Infracción Nunca ha Sacado Licencia': 'SEGURIDAD VIAL',
-        'Infracción por No portar licencia de Conducir': 'SEGURIDAD VIAL',
-        'Infracción por No utilizar el Cinturón de Seguridad': 'SEGURIDAD VIAL',
-        'Infracción por Papel ahumado en Tono o Lugar no Autorizado': 'SEGURIDAD VIAL',
-        'Infracción por Pasar Semáforo en Luz Roja': 'SEGURIDAD VIAL',
-        'Infracción por Poliza Vencida': 'SEGURIDAD VIAL',
-        'Infracción por Portar Placa con Diseño Diferente a la Oficial': 'SEGURIDAD VIAL',
-        'Infracción por Prestar el Servicio en Ruta Distinta a la Establecida': 'SEGURIDAD VIAL',
-        'Infracción por Prestar servicio de tránsporte público en vehículo no autorizado': 'SEGURIDAD VIAL',
-        'Infracción por Realizar Giros Prohibidos': 'SEGURIDAD VIAL',
-        'Infracción por Sin Condiciones Adecuadas de Seguridad': 'SEGURIDAD VIAL',
-        'Infracción por Negarse a Detener el Vehículo': 'SEGURIDAD VIAL',
-        'Infracción por Sin Equipos de Seguridad': 'SEGURIDAD VIAL',
-        'Infracción por Circular en Vía Contraria': 'SEGURIDAD VIAL',
-        'Infracción por Transportar Exeso de Pasajero': 'SEGURIDAD VIAL',
-        'Infracción por Vehículos de transporte público y Comercial sin identificación': 'SEGURIDAD VIAL',
-        'Infracción por Vehiculo con luces no Adecuadas': 'SEGURIDAD VIAL',
-        'Infracción por Vehículo sin Cinta Reflectiva': 'SEGURIDAD VIAL',
-        'Infracción por Vehículos mal Estacionados': 'SEGURIDAD VIAL',
-        'Infracción por Remolcar otro Vehículo sin las Debidas Medidas de Seguridad': 'SEGURIDAD VIAL',
-        'Infracción por Licencia de Conducir Vencida': 'SEGURIDAD VIAL',
-        'Infracción por Emitir Gases, Ruidos o Sonidos Excesivos': 'SEGURIDAD VIAL',
-        'Infracción por Negarse a Entregar la Licencia de Conducir': 'SEGURIDAD VIAL',
-        'Infracción por Conducir Obstruyendo el Tránsito': 'SEGURIDAD VIAL',
-
-        # EMERGENCIAS
-        'Apoyo a Vehiculo de Valores Desperfectos': 'EMERGENCIAS',
-        'Apoyo al Ciudadano': 'EMERGENCIAS',
-        'Apoyo al Ciudadano Brindar Seguridad a una Prosecion': 'EMERGENCIAS',
-        'Apoyo al Ciudadano Cruce de Peatón': 'EMERGENCIAS',
-        'Apoyo al Ciudadano para Reparar Vehículo': 'EMERGENCIAS',
-        'Apoyo al Ciudadano Rescate de Persona': 'EMERGENCIAS',
-        'Atención Prehospitalaria BCBPA': 'EMERGENCIAS',
-        'Atención Prehospitalaria CSS': 'EMERGENCIAS',
-        'Atención Prehospitalaria MINSACAPSI': 'EMERGENCIAS',
-        'Atención Prehospitalaria Privada': 'EMERGENCIAS',
-        'Atención Prehospitalaria Policía Nacional': 'EMERGENCIAS',
-        'Atención Prehospitalaria SUME 911': 'EMERGENCIAS',
-        'Extinción de Incendio': 'EMERGENCIAS',
-        'Extinción del Conato de Incendio': 'EMERGENCIAS',
-        'Recuperación de Menor Evadido': 'EMERGENCIAS',
-        'Remoción de Vehículo en Grúa': 'EMERGENCIAS',
-        'Rescate de Animal Domestico': 'EMERGENCIAS',
-        'Rescate de Menor por Alerta AMBER': 'EMERGENCIAS',
-        'Rescate de Menor por Riego Social': 'EMERGENCIAS',
-        'Rescate de Persona': 'EMERGENCIAS',
-        'Rescate de Vida y fauna Silvestre': 'EMERGENCIAS',
-        'Restablecimiento de la Segurida Víal': 'EMERGENCIAS',
-        'Restitución de Propiedad Extraviada': 'EMERGENCIAS',
-        'Traslado a Hospital': 'EMERGENCIAS',
-        'Traslado a Hospital por SUME 911': 'EMERGENCIAS',
-        'Traslado a Hospital por BCBPA': 'EMERGENCIAS',
-        'Traslado a Hospital por Serv. Privado': 'EMERGENCIAS',
-        'Traslado a Hospital por Policía Nacional': 'EMERGENCIAS',
-        'Traslado a Hospital por CSS': 'EMERGENCIAS'
-    }
-
-    # 3. Procesamiento seguro de filas y columnas de positivos
+    mapeo_grupos = map_tactico_raw
     lista_final = []
-    cols_positivos = [f'RESULTADO POSITIVO {i}' for i in range(1, 7)]
 
-    for _, row in df.iterrows():
-        for col in cols_positivos:
-            tipo = row.get(col)
-            if pd.notna(tipo) and str(tipo).strip() not in ['SELECCIONAR', '', 'None']:
-                tipo_limpio = limpiar_texto(tipo)
-                
-                # Regla especial para ruidos o gases
-                if 'ruido' in tipo_limpio.lower() or 'gases' in tipo_limpio.lower():
-                    lista_final.append({'Tipo': tipo, 'GRUPO_TACTICO': 'SEGURIDAD VIAL'})
-                    continue
+    if not df.empty:
+        for _, row in df.iterrows():
+            for col in cols_positivos:
+                tipo = row.get(col)
+                if pd.notna(tipo) and str(tipo).strip() not in ['SELECCIONAR', '', 'None']:
+                    tipo_limpio = limpiar_texto(tipo)
+                    
+                    if 'ruido' in tipo_limpio.lower() or 'gases' in tipo_limpio.lower():
+                        lista_final.append({'Tipo': tipo, 'GRUPO_TACTICO': 'SEGURIDAD VIAL'})
+                        continue
 
-                encontrado = False
-                for clave_mapeo, grupo in mapeo_grupos.items():
-                    if clave_mapeo.lower().strip() == tipo_limpio.lower().strip():
-                        lista_final.append({'Tipo': tipo, 'GRUPO_TACTICO': grupo})
-                        encontrado = True
-                        break
-                
-                if not encontrado:
-                    # Asignación por defecto limpia y segura a SEGURIDAD VIAL si faltara alguna clave menor
-                    lista_final.append({'Tipo': tipo, 'GRUPO_TACTICO': 'SEGURIDAD VIAL'})
+                    encontrado = False
+                    for clave_mapeo, grupo in mapeo_grupos.items():
+                        if clave_mapeo.lower().strip() == tipo_limpio.lower().strip():
+                            lista_final.append({'Tipo': tipo, 'GRUPO_TACTICO': grupo})
+                            encontrado = True
+                            break
+                    
+                    if not encontrado:
+                        lista_final.append({'Tipo': tipo, 'GRUPO_TACTICO': 'SEGURIDAD VIAL'})
 
-    df_mapeado = pd.DataFrame(lista_final)
+        df_mapeado = pd.DataFrame(lista_final)
 
-    if not df_mapeado.empty:
-        # 4. Creación de la matriz cruzada
-        tabla = pd.crosstab(df_mapeado['Tipo'], df_mapeado['GRUPO_TACTICO'])
-        lista_orden = ['SEGURIDAD VIAL', 'CAPTURAS', 'EMERGENCIAS', 'RECUPERACIONES']
-        
-        for col in lista_orden:
-            if col not in tabla.columns:
-                tabla[col] = 0
-                
-        tabla = tabla[lista_orden]
-        tabla['TOTAL'] = tabla.sum(axis=1)
-        tabla = tabla.sort_values(by='TOTAL', ascending=False)
+        if not df_mapeado.empty:
+            tabla = pd.crosstab(df_mapeado['Tipo'], df_mapeado['GRUPO_TACTICO'])
+            lista_orden = ['SEGURIDAD VIAL', 'CAPTURAS', 'EMERGENCIAS', 'RECUPERACIONES']
+            
+            for col in lista_orden:
+                if col not in tabla.columns:
+                    tabla[col] = 0
+                    
+            tabla = tabla[lista_orden]
+            tabla['TOTAL'] = tabla.sum(axis=1)
+            tabla = tabla.sort_values(by='TOTAL', ascending=False)
+            fila_total = tabla.sum().to_frame(name='TOTAL GENERAL').T
+            tabla_final = pd.concat([fila_total, tabla])
 
-        # 5. Fila de Total General exacta
-        fila_total = tabla.sum().to_frame(name='TOTAL GENERAL').T
-        tabla_final = pd.concat([fila_total, tabla])
-
-        st.dataframe(tabla_final, use_container_width=True, height=400)
-    else:
-        st.info("No hay datos de positivos para mostrar en el período seleccionado.")
-                                              
-
+            st.dataframe(tabla_final, use_container_width=True, height=400)
+        else:
+            st.info("No hay datos de positivos para mostrar en el período seleccionado.")
+                                                  
     cn1, cn2 = st.columns(2)
     with cn1:
         st.subheader("📉 CIERRE DEL INCIDENTE-SUBTIPO")
         col_c = next((c for c in df.columns if 'CIERRE' in c.upper() and 'SUBTIPO' in c.upper()), None)
-        if col_c:
+        if col_c and not df.empty:
             t_sb = df.groupby([col_c, 'CENTRO']).size().unstack(fill_value=0)
             t_sb['TOTAL'] = t_sb.sum(axis=1)
             ord_centros_cierre = t_sb.drop(columns='TOTAL').sum().sort_values(ascending=False).index.tolist()
@@ -1032,15 +795,30 @@ if df_traffic is not None and not df_traffic.empty:
     with cn2:
         st.subheader("🚔 ZONA POLICIAL O ENLACE")
         col_zp = next((c for c in df.columns if any(k in c.upper() for k in ['ZONA', 'ZP', 'SERVICIO'])), None)
-        if col_zp:
+        if col_zp and not df.empty:
             zp_s = df.groupby(col_zp)['T_POS_COUNT'].sum().reset_index().sort_values('T_POS_COUNT', ascending=False)
             st.dataframe(pd.concat([zp_s, pd.DataFrame({col_zp:['TOTAL GENERAL'], 'T_POS_COUNT':[zp_s['T_POS_COUNT'].sum()]})]), use_container_width=True, height=400, hide_index=True)
+
+    # GRÁFICO DE TENDENCIAS Y HORAS PICO
+    st.markdown("---")
+    st.subheader("📈 TENDENCIAS Y HORAS PICO")
+    if not df.empty and 'HORA_NUM' in df.columns:
+        tendencia_hora = df.groupby('HORA_NUM')['T_POS_COUNT'].sum().reset_index()
+        todas_las_horas = pd.DataFrame({'HORA_NUM': range(24)})
+        tendencia_hora = todas_las_horas.merge(tendencia_hora, on='HORA_NUM', how='left').fillna(0)
+        
+        fig_hora = px.line(tendencia_hora, x='HORA_NUM', y='T_POS_COUNT', markers=True,
+                           labels={'HORA_NUM': 'Hora del Día (Formato 24h)', 'T_POS_COUNT': 'Total de Incidencias'})
+        fig_hora.update_traces(line_color="#00ebff", marker=dict(size=8, color="#ffaa00"), line=dict(width=3))
+        fig_hora.update_layout(paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="white"),
+                               xaxis=dict(tickmode='linear', dtick=1))
+        st.plotly_chart(fig_hora, use_container_width=True)
 
     st.markdown("---")
     st.subheader("📊 ANÁLISIS POR UNIDAD Y TIEMPO")
     c_mes, c_vv, c_desp = st.columns(3)
     with c_mes:
-        if 'MES_NOMBRE' in df.columns:
+        if 'MES_NOMBRE' in df.columns and not df.empty:
             st.write("📅 Positivos por Meses")
             m_s = df.groupby(['MES_NOMBRE', 'MES_NUM'])['T_POS_COUNT'].sum().reset_index().sort_values('MES_NUM', ascending=False)
             fig_m_b = px.bar(m_s, x='T_POS_COUNT', y='MES_NOMBRE', orientation='h', text='T_POS_COUNT', color='T_POS_COUNT', color_continuous_scale='Tealgrn')
@@ -1048,17 +826,15 @@ if df_traffic is not None and not df_traffic.empty:
             st.plotly_chart(fig_m_b, use_container_width=True)
     with c_vv:
         col_vv = next((c for c in df.columns if 'UNIDAD DE VV' in c.upper() or 'VV/104' in c.upper()), None)
-        if col_vv:
+        if col_vv and not df.empty:
             st.write("📟 Unidad de VV/104")
             df[col_vv] = df[col_vv].fillna("SIN ASIGNAR").astype(str)
             vv_s = df.groupby([col_vv, 'CENTRO']).size().reset_index(name='E').sort_values('E', ascending=False)
             st.dataframe(pd.concat([vv_s, pd.DataFrame({col_vv:['TOTAL GENERAL'], 'CENTRO':['-'], 'E':[vv_s['E'].sum()]})]), use_container_width=True, hide_index=True)
     with c_desp:
         col_dp = next((c for c in df.columns if 'UNIDAD DE DESPACHO' in c.upper()), None)
-        if col_dp:
+        if col_dp and not df.empty:
             st.write("🚨 Unidad de Despacho")
             df[col_dp] = df[col_dp].fillna("SIN ASIGNAR").astype(str)
             dp_s = df.groupby([col_dp, 'CENTRO']).size().reset_index(name='E').sort_values('E', ascending=False)
             st.dataframe(pd.concat([dp_s, pd.DataFrame({col_dp:['TOTAL GENERAL'], 'CENTRO':['-'], 'E':[dp_s['E'].sum()]})]), use_container_width=True, hide_index=True)
-    time.sleep(10)
-    st.rerun()
