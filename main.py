@@ -4,6 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 import time
 import unicodedata
+import re  
 
 # ==============================================================================
 # 0. CONFIGURACIÓN DE LA PÁGINA
@@ -412,15 +413,10 @@ def create_gauge(value, title, color, is_timer=False):
     fig.update_layout(paper_bgcolor='rgba(0,0,0,0)', height=200, margin=dict(l=20, r=20, t=40, b=20))
     return fig
 
-# --- FUNCIÓN EXTRA PARA ALERTAS VISUALES (SEMÁFORO) ---
 def obtener_color_alerta(valor, limite_amarillo, limite_rojo):
-    """Devuelve color verde, amarillo o rojo dependiendo de los umbrales de tiempo."""
-    if valor >= limite_rojo:
-        return "#ff4b4b" # Rojo (Peligro)
-    elif valor >= limite_amarillo:
-        return "#ffaa00" # Amarillo (Precaución)
-    else:
-        return "#00ffaa" # Verde (Óptimo)
+    if valor >= limite_rojo: return "#ff4b4b" 
+    elif valor >= limite_amarillo: return "#ffaa00" 
+    else: return "#00ffaa" 
 
 # ==============================================================================
 # 6. SISTEMA DE RECARGA AUTOMÁTICA
@@ -612,12 +608,10 @@ if df_raw is not None:
     v_c_col = 'VARIANZA DEL CIERRE_M' if 'VARIANZA DEL CIERRE_M' in df.columns else 'VARIANZA DE CIERRE_M'
     v_cier = df[v_c_col].mean() if not df.empty and v_c_col in df.columns else 0
     
-    # ALERTAS VISUALES: Semáforo de colores para los Gauges
     color_desp = obtener_color_alerta(v_desp, 10, 20)
     color_aten = obtener_color_alerta(v_aten, 30, 60)
     color_cier = obtener_color_alerta(v_cier, 60, 120)
 
-    # Banner de advertencia si algún tiempo de respuesta es crítico (Rojo)
     if color_desp == "#ff4b4b" or color_aten == "#ff4b4b":
         st.error("⚠️ ALERTA OPERATIVA: Los tiempos promedios de Despacho o Atención superan los umbrales críticos de operación.")
 
@@ -838,3 +832,76 @@ if df_raw is not None:
             df[col_dp] = df[col_dp].fillna("SIN ASIGNAR").astype(str)
             dp_s = df.groupby([col_dp, 'CENTRO']).size().reset_index(name='E').sort_values('E', ascending=False)
             st.dataframe(pd.concat([dp_s, pd.DataFrame({col_dp:['TOTAL GENERAL'], 'CENTRO':['-'], 'E':[dp_s['E'].sum()]})]), use_container_width=True, hide_index=True)
+
+    # ==============================================================================
+    # EXTRA: ANÁLISIS DE MUNICIONES (DESDE LOS NARRATIVOS)
+    # ==============================================================================
+    st.markdown("---")
+    st.subheader("🔫 DECOMISOS: MUNICIONES (Análisis de Narrativos)")
+    
+    col_narrativo = next((c for c in df.columns if 'NARRATIV' in c.upper() or 'DETALLE' in c.upper() or 'HECHO' in c.upper() or 'RESUMEN' in c.upper()), None)
+    
+    if col_narrativo and not df.empty:
+        muni_res = {'9mm': 0, '38 / .38': 0, '380': 0, '45 / .45': 0, '22 / .22': 0, '12 (Escopeta)': 0, '5.56 / .223': 0, 'Otros / No Espec.': 0}
+        
+        for text in df[col_narrativo].dropna().astype(str):
+            text_lower = text.lower()
+            
+            patrones = [
+                r'\b(\d{1,4})\s*(?:municion|municiones|bala|balas|cartucho|cartuchos|casquillo|casquillos)\b',
+                r'\b(?:municion|municiones|bala|balas|cartucho|cartuchos|casquillo|casquillos)\b\s*(?:son|fueron|:|: |-|de)?\s*(\d{1,4})\b'
+            ]
+            
+            total_muni_narrativa = 0
+            for pat in patrones:
+                matches = re.findall(pat, text_lower)
+                total_muni_narrativa += sum(int(m) for m in matches)
+                
+            if total_muni_narrativa > 0:
+                if '9' in text_lower and 'mm' in text_lower or '9mm' in text_lower:
+                    muni_res['9mm'] += total_muni_narrativa
+                elif '380' in text_lower:
+                    muni_res['380'] += total_muni_narrativa
+                elif '38' in text_lower:
+                    muni_res['38 / .38'] += total_muni_narrativa
+                elif '45' in text_lower:
+                    muni_res['45 / .45'] += total_muni_narrativa
+                elif '22' in text_lower:
+                    muni_res['22 / .22'] += total_muni_narrativa
+                elif '12' in text_lower:
+                    muni_res['12 (Escopeta)'] += total_muni_narrativa
+                elif '5.56' in text_lower or '223' in text_lower:
+                    muni_res['5.56 / .223'] += total_muni_narrativa
+                else:
+                    muni_res['Otros / No Espec.'] += total_muni_narrativa
+                    
+        total_municiones_general = sum(muni_res.values())
+
+        c_arm, c_mun = st.columns([1, 2])
+        with c_arm:
+            st.markdown(f'''
+            <div class="neon-container" style="height: 100%;">
+                <div class="neon-inner-content" style="text-align: center; height: 100%;">
+                    <h3>🎯 TOTAL MUNICIONES</h3>
+                    <p style="font-size: 58px; color: #ff4b4b !important;">{total_municiones_general}</p>
+                    <small style="color: #00ebff;">Extraídas de los narrativos</small>
+                </div>
+            </div>
+            ''', unsafe_allow_html=True)
+            
+        with c_mun:
+            df_muni = pd.DataFrame(list(muni_res.items()), columns=['Calibre', 'Cantidad'])
+            df_muni = df_muni[df_muni['Cantidad'] > 0].sort_values('Cantidad', ascending=False)
+            
+            if not df_muni.empty:
+                # GRÁFICA VERTICAL (Eje X = Calibre, Eje Y = Cantidad)
+                fig_muni = px.bar(df_muni, x='Calibre', y='Cantidad', orientation='v', text='Cantidad', 
+                                  color='Cantidad', color_continuous_scale='Oranges', 
+                                  title="🎯 MUNICIONES POR CALIBRE")
+                fig_muni.update_layout(showlegend=False, coloraxis_showscale=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), height=250, margin=dict(t=40, b=10, l=10, r=10))
+                st.plotly_chart(fig_muni, use_container_width=True)
+            else:
+                st.info("No se encontraron cantidades exactas de municiones descritas en los narrativos del período filtrado.")
+                
+    else:
+        st.warning("No se encontró una columna de 'NARRATIVO' para poder extraer automáticamente la información de municiones.")
