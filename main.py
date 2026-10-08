@@ -837,7 +837,7 @@ if df_raw is not None:
     # EXTRA: ANÁLISIS DE MUNICIONES (DESDE LOS NARRATIVOS)
     # ==============================================================================
     st.markdown("---")
-    st.subheader("🔫 Municiones: Decomiso y Hallazgo)
+    st.subheader("🔫 Municiones: Decomiso y Hallazgo")
     
     col_narrativo = next((c for c in df.columns if 'NARRATIV' in c.upper() or 'DETALLE' in c.upper() or 'HECHO' in c.upper() or 'RESUMEN' in c.upper()), None)
     
