@@ -16,7 +16,7 @@ st.set_page_config(
 )
 
 # ==============================================================================
-# 1. ESTILOS CSS UNIFICADOS (Fondo, Neón, Transparencias)
+# 1. ESTILOS CSS UNIFICADOS
 # ==============================================================================
 st.markdown("""
     <style>
@@ -24,7 +24,6 @@ st.markdown("""
     footer {visibility: hidden;}
     header {visibility: hidden;}
 
-    /* 1. Fondo de toda la aplicación */
     .stApp {
         background-color: #0a0e17;
         background-image: url("https://raw.githubusercontent.com/JhonAlisHarol/dashboard-CON/main/FONDO%20PARA%20DASHBOARD.png");
@@ -33,12 +32,10 @@ st.markdown("""
         background-attachment: fixed;
     }
 
-    /* 2. Forzar transparencia en los contenedores */
     .stApp, [data-testid="stSidebar"], .stMainBlockContainer {
         background-color: transparent !important;
     }
 
-    /* 3. Capa de oscurecimiento */
     .stApp::before {
         content: "";
         position: absolute;
@@ -47,12 +44,10 @@ st.markdown("""
         z-index: -1;
     }
     
-    /* 4. Textos en blanco */
     div, p, h1, h2, h3, label, span {
         color: #ffffff !important;
     }
 
-    /* 5. Estilo de Métricas */
     .stMetric { 
         background: rgba(255, 255, 255, 0.05); 
         border: 1px solid #00ebff; 
@@ -60,7 +55,6 @@ st.markdown("""
         padding: 10px; 
     }
 
-    /* 6. CONTENEDOR NEÓN GLOBAL ROTATIVO */
     .neon-container {
         position: relative;
         border-radius: 10px;
@@ -86,7 +80,6 @@ st.markdown("""
         z-index: 0;
     }
 
-    /* 7. EFECTO CINTA DE NEÓN TÍTULO */
     .neon-title-container {
         position: relative;
         border-radius: 12px;
@@ -145,14 +138,6 @@ st.markdown("""
         background: rgba(10, 14, 23, 0.85); border: 2px solid #00ebff;
         padding: 10px 20px; border-radius: 10px; z-index: 100;
         width: fit-content; margin-bottom: -70px;
-    }
-
-    /* Ocultar botones de Streamlit al imprimir para un PDF más limpio */
-    @media print {
-        [data-testid="stSidebar"] { display: none !important; }
-        .stApp { background: white !important; color: black !important; }
-        div, p, h1, h2, h3, label, span { color: black !important; }
-        .neon-title-inner h1 { background: none; color: black !important; -webkit-text-fill-color: black; }
     }
 
     @media (max-width: 768px) {
@@ -385,7 +370,7 @@ with st.sidebar:
     st.write("---")
 
 # ==============================================================================
-# 5. FUNCIONES DE LIMPIEZA Y MEDIDORES (GAUGES)
+# 5. FUNCIONES DE LIMPIEZA, MEDIDORES Y MAPA DE CALOR UNIVERSAL
 # ==============================================================================
 def clean_num(val):
     if pd.isna(val): return 0
@@ -417,6 +402,43 @@ def obtener_color_alerta(valor, limite_amarillo, limite_rojo):
     if valor >= limite_rojo: return "#ff4b4b" 
     elif valor >= limite_amarillo: return "#ffaa00" 
     else: return "#00ffaa" 
+
+# --- FUNCIÓN UNIVERSAL PARA MAPA DE CALOR PÚRPURA TRANSPARENTE ---
+def aplicar_mapa_calor_purpura(df):
+    """
+    Toma un dataframe, busca todas las columnas numéricas y les aplica un color 
+    púrpura transparente basado en el valor más alto.
+    """
+    cols_numericas = df.select_dtypes(include=['number']).columns.tolist()
+    
+    if not cols_numericas:
+        return df
+
+    try:
+        max_v = df[cols_numericas].max().max()
+        if pd.isna(max_v) or max_v <= 0:
+            max_v = 1
+    except:
+        max_v = 1
+
+    def colorear_celda(val):
+        if pd.isna(val) or val == "" or val == 0:
+            return 'background-color: transparent'
+        try:
+            v = float(val)
+            alpha = 0.15 + 0.85 * (v / max_v)
+            # Color Púrpura/Violeta Oscuro (DarkViolet = 148, 0, 211)
+            return f'background-color: rgba(148, 0, 211, {alpha}); color: #ffffff;'
+        except:
+            return 'background-color: transparent'
+
+    try:
+        if hasattr(df.style, 'map'):
+            return df.style.map(colorear_celda, subset=cols_numericas)
+        else:
+            return df.style.applymap(colorear_celda, subset=cols_numericas)
+    except:
+        return df
 
 # ==============================================================================
 # 6. SISTEMA DE RECARGA AUTOMÁTICA
@@ -702,7 +724,8 @@ if df_raw is not None:
             t_c['TOTAL'] = t_c.sum(axis=1)
             ord_c = t_c.drop(columns='TOTAL').sum().sort_values(ascending=False).index.tolist()
             t_c = t_c[ord_c + ['TOTAL']].sort_values('TOTAL', ascending=False)
-            st.dataframe(pd.concat([t_c, t_c.sum().to_frame(name='TOTAL GENERAL').T]), use_container_width=True)
+            df_mostrar = pd.concat([t_c, t_c.sum().to_frame(name='TOTAL GENERAL').T])
+            st.dataframe(aplicar_mapa_calor_purpura(df_mostrar), use_container_width=True)
 
     st.markdown("---")
     st.subheader("📡 POSITIVOS POR CANAL")
@@ -721,7 +744,7 @@ if df_raw is not None:
             t_canal_ordenada = t_canal[orden_cols + ['TOTAL']].loc[orden_filas]
             fila_total = t_canal_ordenada.sum().to_frame(name='TOTAL GENERAL').T
             tabla_final = pd.concat([t_canal_ordenada, fila_total])
-            st.dataframe(tabla_final, use_container_width=True, height=400)
+            st.dataframe(aplicar_mapa_calor_purpura(tabla_final), use_container_width=True, height=400)
     st.markdown("---")
 
     # --- TABLA ÚNICA: POSITIVOS POR GRUPO TÁCTICO ---
@@ -771,11 +794,10 @@ if df_raw is not None:
             tabla = tabla.sort_values(by='TOTAL', ascending=False)
             fila_total = tabla.sum().to_frame(name='TOTAL GENERAL').T
             tabla_final = pd.concat([fila_total, tabla])
-
-            st.dataframe(tabla_final, use_container_width=True, height=400)
+            st.dataframe(aplicar_mapa_calor_purpura(tabla_final), use_container_width=True, height=400)
         else:
             st.info("No hay datos de positivos para mostrar en el período seleccionado.")
-                                                  
+                                                          
     cn1, cn2 = st.columns(2)
     with cn1:
         st.subheader("📉 CIERRE DEL INCIDENTE-SUBTIPO")
@@ -785,13 +807,17 @@ if df_raw is not None:
             t_sb['TOTAL'] = t_sb.sum(axis=1)
             ord_centros_cierre = t_sb.drop(columns='TOTAL').sum().sort_values(ascending=False).index.tolist()
             t_sb = t_sb[ord_centros_cierre + ['TOTAL']].sort_values('TOTAL', ascending=False)
-            st.dataframe(pd.concat([t_sb, t_sb.sum().to_frame(name='TOTAL GENERAL').T]), use_container_width=True, height=400)
+            df_mostrar = pd.concat([t_sb, t_sb.sum().to_frame(name='TOTAL GENERAL').T])
+            st.dataframe(aplicar_mapa_calor_purpura(df_mostrar), use_container_width=True, height=400)
     with cn2:
         st.subheader("🚔 ZONA POLICIAL O ENLACE")
         col_zp = next((c for c in df.columns if any(k in c.upper() for k in ['ZONA', 'ZP', 'SERVICIO'])), None)
         if col_zp and not df.empty:
             zp_s = df.groupby(col_zp)['T_POS_COUNT'].sum().reset_index().sort_values('T_POS_COUNT', ascending=False)
-            st.dataframe(pd.concat([zp_s, pd.DataFrame({col_zp:['TOTAL GENERAL'], 'T_POS_COUNT':[zp_s['T_POS_COUNT'].sum()]})]), use_container_width=True, height=400, hide_index=True)
+            # Evitamos indices duplicados al concatenar
+            df_mostrar = pd.concat([zp_s, pd.DataFrame({col_zp:['TOTAL GENERAL'], 'T_POS_COUNT':[zp_s['T_POS_COUNT'].sum()]})], ignore_index=True)
+            # Usamos hide_index=True y dejamos el dataframe tal cual para evitar KeyErrors
+            st.dataframe(aplicar_mapa_calor_purpura(df_mostrar), use_container_width=True, height=400, hide_index=True)
 
     # GRÁFICO DE TENDENCIAS Y HORAS PICO
     st.markdown("---")
@@ -824,28 +850,45 @@ if df_raw is not None:
             st.write("📟 Unidad de VV/104")
             df[col_vv] = df[col_vv].fillna("SIN ASIGNAR").astype(str)
             vv_s = df.groupby([col_vv, 'CENTRO']).size().reset_index(name='E').sort_values('E', ascending=False)
-            st.dataframe(pd.concat([vv_s, pd.DataFrame({col_vv:['TOTAL GENERAL'], 'CENTRO':['-'], 'E':[vv_s['E'].sum()]})]), use_container_width=True, hide_index=True)
+            df_mostrar = pd.concat([vv_s, pd.DataFrame({col_vv:['TOTAL GENERAL'], 'CENTRO':['-'], 'E':[vv_s['E'].sum()]})], ignore_index=True)
+            st.dataframe(aplicar_mapa_calor_purpura(df_mostrar), use_container_width=True, hide_index=True)
     with c_desp:
         col_dp = next((c for c in df.columns if 'UNIDAD DE DESPACHO' in c.upper()), None)
         if col_dp and not df.empty:
             st.write("🚨 Unidad de Despacho")
             df[col_dp] = df[col_dp].fillna("SIN ASIGNAR").astype(str)
             dp_s = df.groupby([col_dp, 'CENTRO']).size().reset_index(name='E').sort_values('E', ascending=False)
-            st.dataframe(pd.concat([dp_s, pd.DataFrame({col_dp:['TOTAL GENERAL'], 'CENTRO':['-'], 'E':[dp_s['E'].sum()]})]), use_container_width=True, hide_index=True)
+            df_mostrar = pd.concat([dp_s, pd.DataFrame({col_dp:['TOTAL GENERAL'], 'CENTRO':['-'], 'E':[dp_s['E'].sum()]})], ignore_index=True)
+            st.dataframe(aplicar_mapa_calor_purpura(df_mostrar), use_container_width=True, hide_index=True)
 
     # ==============================================================================
-    # EXTRA: ANÁLISIS DE MUNICIONES (DESDE LOS NARRATIVOS)
+    # EXTRA: ANÁLISIS DE ARMAS Y MUNICIONES DETALLADOS POR CENTRO
     # ==============================================================================
     st.markdown("---")
-    st.subheader("🔫 Municiones: Decomiso y Hallazgo")
+    st.subheader("Armas de fuego y Municiones")
     
+    # 1. EXTRACCIÓN DE ARMAS (De columnas oficiales, excluyendo a los ciudadanos aprehendidos)
+    armas_oficiales = []
+    if not df.empty:
+        for _, row in df.iterrows():
+            for col in cols_positivos: 
+                val = str(row.get(col, '')).strip()
+                if 'Arma de Fuego' in val:
+                    # IGNORAR CIUDADANOS APREHENDIDOS CON ARMA DE FUEGO
+                    if 'Ciudadano Aprehendido' not in val:
+                        tipo = val.split('-')[-1].strip().upper() if '-' in val else val.upper()
+                        armas_oficiales.append({'Tipo de Arma': tipo, 'CENTRO': row.get('CENTRO', 'N/A')})
+                    
+    df_armas_oficiales = pd.DataFrame(armas_oficiales)
+    
+    # 2. EXTRACCIÓN DE MUNICIONES (Desde los narrativos, desglosado por centro)
+    muni_data = []
     col_narrativo = next((c for c in df.columns if 'NARRATIV' in c.upper() or 'DETALLE' in c.upper() or 'HECHO' in c.upper() or 'RESUMEN' in c.upper()), None)
     
     if col_narrativo and not df.empty:
-        muni_res = {'9mm': 0, '38 / .38': 0, '380': 0, '45 / .45': 0, '22 / .22': 0, '12 (Escopeta)': 0, '5.56 / .223': 0, 'Otros / No Espec.': 0}
-        
-        for text in df[col_narrativo].dropna().astype(str):
-            text_lower = text.lower()
+        for _, row in df.iterrows():
+            text_lower = str(row.get(col_narrativo, '')).lower()
+            centro = str(row.get('CENTRO', 'N/A')).strip()
             
             patrones = [
                 r'\b(\d{1,4})\s*(?:municion|municiones|bala|balas|cartucho|cartuchos|casquillo|casquillos)\b',
@@ -859,49 +902,121 @@ if df_raw is not None:
                 
             if total_muni_narrativa > 0:
                 if '9' in text_lower and 'mm' in text_lower or '9mm' in text_lower:
-                    muni_res['9mm'] += total_muni_narrativa
+                    muni_data.append({'CENTRO': centro, 'Calibre': '9MM', 'Cantidad': total_muni_narrativa})
                 elif '380' in text_lower:
-                    muni_res['380'] += total_muni_narrativa
+                    muni_data.append({'CENTRO': centro, 'Calibre': '.380', 'Cantidad': total_muni_narrativa})
                 elif '38' in text_lower:
-                    muni_res['38 / .38'] += total_muni_narrativa
+                    muni_data.append({'CENTRO': centro, 'Calibre': '.38', 'Cantidad': total_muni_narrativa})
                 elif '45' in text_lower:
-                    muni_res['45 / .45'] += total_muni_narrativa
+                    muni_data.append({'CENTRO': centro, 'Calibre': '.45', 'Cantidad': total_muni_narrativa})
                 elif '22' in text_lower:
-                    muni_res['22 / .22'] += total_muni_narrativa
+                    muni_data.append({'CENTRO': centro, 'Calibre': '.22', 'Cantidad': total_muni_narrativa})
                 elif '12' in text_lower:
-                    muni_res['12 (Escopeta)'] += total_muni_narrativa
+                    muni_data.append({'CENTRO': centro, 'Calibre': '12 (ESCOPETA)', 'Cantidad': total_muni_narrativa})
                 elif '5.56' in text_lower or '223' in text_lower:
-                    muni_res['5.56 / .223'] += total_muni_narrativa
+                    muni_data.append({'CENTRO': centro, 'Calibre': '5.56 / .223', 'Cantidad': total_muni_narrativa})
                 else:
-                    muni_res['Otros / No Espec.'] += total_muni_narrativa
-                    
-        total_municiones_general = sum(muni_res.values())
+                    muni_data.append({'CENTRO': centro, 'Calibre': 'OTROS', 'Cantidad': total_muni_narrativa})
 
-        c_arm, c_mun = st.columns([1, 2])
-        with c_arm:
-            st.markdown(f'''
-            <div class="neon-container" style="height: 100%;">
-                <div class="neon-inner-content" style="text-align: center; height: 100%;">
-                    <h3>🎯 TOTAL MUNICIONES</h3>
-                    <p style="font-size: 58px; color: #ff4b4b !important;">{total_municiones_general}</p>
-                    <small style="color: #00ebff;">Extraídas de los narrativos</small>
-                </div>
-            </div>
-            ''', unsafe_allow_html=True)
+    df_municiones = pd.DataFrame(muni_data)
+
+    # 3. INTERFAZ EN PANTALLA LADO A LADO
+    c_armas, c_muni = st.columns(2)
+    
+    with c_armas:
+        st.write("### 🔫 ARMAS DE FUEGO")
+        if not df_armas_oficiales.empty:
+            # Tabla desglosada por Centro
+            st.write("**Desglose de Armas por Centro:**")
+            tabla_armas = pd.crosstab(df_armas_oficiales['Tipo de Arma'], df_armas_oficiales['CENTRO'])
+            tabla_armas['TOTAL'] = tabla_armas.sum(axis=1)
+            tabla_armas = tabla_armas.sort_values('TOTAL', ascending=False)
+            tabla_armas.loc['TOTAL GENERAL'] = tabla_armas.sum()
+            st.dataframe(aplicar_mapa_calor_purpura(tabla_armas), use_container_width=True)
+        else:
+            st.info("No se registraron Armas de Fuego en los resultados positivos del período filtrado.")
+
+    with c_muni:
+        st.write("### 🎯 MUNICIONES")
+        if not df_municiones.empty:
+            # Tabla desglosada por Centro
+            st.write("**Desglose de Municiones por Centro:**")
+            tabla_muni = df_municiones.groupby(['Calibre', 'CENTRO'])['Cantidad'].sum().unstack(fill_value=0)
+            tabla_muni['TOTAL'] = tabla_muni.sum(axis=1)
+            tabla_muni = tabla_muni.sort_values('TOTAL', ascending=False)
+            tabla_muni.loc['TOTAL GENERAL'] = tabla_muni.sum()
+            st.dataframe(aplicar_mapa_calor_purpura(tabla_muni), use_container_width=True)
+        else:
+            st.info("No se encontraron cantidades de municiones descritas en los narrativos del período filtrado.")
+
+    # ==============================================================================
+    # EXTRA FINAL: ANÁLISIS POR DÍA DE LA SEMANA (FILTRADO POR SUBTIPO Y POSITIVOS)
+    # ==============================================================================
+    st.markdown("---")
+    st.subheader("📅 TOTAL DE INCIDENTES POR DÍA DE LA SEMANA")
+    
+    col_c = next((c for c in df.columns if 'CIERRE' in c.upper() and 'SUBTIPO' in c.upper()), None)
+    cols_positivos = ['RESULTADO POSITIVO 1', 'RESULTADO POSITIVO 2', 'RESULTADO POSITIVO 3', 
+                      'RESULTADO POSITIVO 4', 'RESULTADO POSITIVO 5', 'RESULTADO POSITIVO 6']
+
+    if col_c and not df.empty and 'FECHA_DT' in df.columns:
+        invalid_vals = ['SELECCIONAR', '', 'None', 'nan']
+        
+        # 1. Filtrar el dataframe base: Debe tener un Cierre Subtipo válido
+        df_base = df[~df[col_c].astype(str).str.strip().isin(invalid_vals) & (df[col_c].notna())].copy()
+        
+        # 2. Derretir (melt) las columnas de positivos para evaluarlas individualmente
+        df_melt = df_base.melt(id_vars=['FECHA_DT', col_c, 'CENTRO'], value_vars=cols_positivos, value_name='Tipo_Positivo')
+        
+        # 3. Filtrar: Debe tener un Tipo Positivo válido
+        df_valid = df_melt[~df_melt['Tipo_Positivo'].astype(str).str.strip().isin(invalid_vals) & (df_melt['Tipo_Positivo'].notna())].copy()
+
+        if not df_valid.empty:
+            # Extraer el día de la semana
+            dias_map = {0: 'LUNES', 1: 'MARTES', 2: 'MIÉRCOLES', 3: 'JUEVES', 4: 'VIERNES', 5: 'SÁBADO', 6: 'DOMINGO'}
+            df_valid['DIA_NUM'] = df_valid['FECHA_DT'].dt.dayofweek
+            df_valid['DIA_NOMBRE'] = df_valid['DIA_NUM'].map(dias_map)
             
-        with c_mun:
-            df_muni = pd.DataFrame(list(muni_res.items()), columns=['Calibre', 'Cantidad'])
-            df_muni = df_muni[df_muni['Cantidad'] > 0].sort_values('Cantidad', ascending=False)
+            # Orden de días para la tabla
+            orden_dias = ['LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO', 'DOMINGO']
             
-            if not df_muni.empty:
-                # GRÁFICA VERTICAL (Eje X = Calibre, Eje Y = Cantidad)
-                fig_muni = px.bar(df_muni, x='Calibre', y='Cantidad', orientation='v', text='Cantidad', 
-                                  color='Cantidad', color_continuous_scale='Oranges', 
-                                  title="🎯 MUNICIONES POR CALIBRE")
-                fig_muni.update_layout(showlegend=False, coloraxis_showscale=False, paper_bgcolor='rgba(0,0,0,0)', plot_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), height=250, margin=dict(t=40, b=10, l=10, r=10))
-                st.plotly_chart(fig_muni, use_container_width=True)
-            else:
-                st.info("No se encontraron cantidades exactas de municiones descritas en los narrativos del período filtrado.")
+            # --- DATOS PARA EL GRÁFICO (Total de incidentes válidos por día) ---
+            resumen_dias = df_valid.groupby(['DIA_NUM', 'DIA_NOMBRE']).size().reset_index(name='TOTAL_POSITIVOS')
+            resumen_dias = resumen_dias.sort_values('DIA_NUM', ascending=False) 
+            
+            # Ajuste de proporciones
+            c_graf, c_tab = st.columns([1, 1.5])
+            
+            with c_graf:
+                # GRAFICO HORIZONTAL COMO LA IMAGEN DE REFERENCIA
+                fig_dias = px.bar(resumen_dias, x='TOTAL_POSITIVOS', y='DIA_NOMBRE', orientation='h', text='TOTAL_POSITIVOS',
+                                  labels={'DIA_NOMBRE': 'Día de la Semana', 'TOTAL_POSITIVOS': 'Total de Positivos'},
+                                  color='TOTAL_POSITIVOS', color_continuous_scale='Tealgrn', title="Incidentes Positivos por Día")
+                # Asegurar que el eje Y esté en el orden correcto (Lunes arriba)
+                fig_dias.update_layout(yaxis={'categoryorder':'array', 'categoryarray': list(reversed(orden_dias))},
+                                       showlegend=False, coloraxis_showscale=False, paper_bgcolor='rgba(0,0,0,0)', 
+                                       plot_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), height=450)
+                st.plotly_chart(fig_dias, use_container_width=True)
                 
+            with c_tab:
+                st.write("**Desglose de Positivos por Centro:**")
+                
+                # --- DATOS PARA LA TABLA (Días vs Centros) ---
+                tabla_cruzada = pd.crosstab(df_valid['DIA_NOMBRE'], df_valid['CENTRO'])
+                
+                # Reordenar los días correctamente
+                tabla_cruzada = tabla_cruzada.reindex(orden_dias).fillna(0).astype(int)
+                
+                # Calcular totales
+                tabla_cruzada['TOTAL'] = tabla_cruzada.sum(axis=1)
+                
+                # Fila de Total General al inicio de la tabla
+                tabla_cruzada.loc['TOTAL GENERAL'] = tabla_cruzada.sum()
+                tabla_cruzada = pd.concat([tabla_cruzada.loc[['TOTAL GENERAL']], tabla_cruzada.drop('TOTAL GENERAL')])
+                
+                # Pasamos la tabla directamente a la función
+                st.dataframe(aplicar_mapa_calor_purpura(tabla_cruzada), use_container_width=True)
+        else:
+            st.info("No hay datos válidos que cumplan con tener Cierre Subtipo y Tipo Positivo seleccionados en este rango.")
     else:
-        st.warning("No se encontró una columna de 'NARRATIVO' para poder extraer automáticamente la información de municiones.")
+        st.info("No se encontró la columna de Fechas o Cierre Subtipo para realizar este análisis.")
