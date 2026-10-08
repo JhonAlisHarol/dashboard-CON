@@ -725,6 +725,7 @@ if df_raw is not None:
             ord_c = t_c.drop(columns='TOTAL').sum().sort_values(ascending=False).index.tolist()
             t_c = t_c[ord_c + ['TOTAL']].sort_values('TOTAL', ascending=False)
             df_mostrar = pd.concat([t_c, t_c.sum().to_frame(name='TOTAL GENERAL').T])
+            # Se usa el índice tal cual sin alterar columnas
             st.dataframe(aplicar_mapa_calor_purpura(df_mostrar), use_container_width=True)
 
     st.markdown("---")
@@ -760,28 +761,30 @@ if df_raw is not None:
 
     if not df.empty:
         for _, row in df.iterrows():
+            centro_actual = row.get('CENTRO', 'N/A')
             for col in cols_positivos:
                 tipo = row.get(col)
                 if pd.notna(tipo) and str(tipo).strip() not in ['SELECCIONAR', '', 'None']:
                     tipo_limpio = limpiar_texto(tipo)
                     
                     if 'ruido' in tipo_limpio.lower() or 'gases' in tipo_limpio.lower():
-                        lista_final.append({'Tipo': tipo, 'GRUPO_TACTICO': 'SEGURIDAD VIAL'})
+                        lista_final.append({'Tipo': tipo, 'GRUPO_TACTICO': 'SEGURIDAD VIAL', 'CENTRO': centro_actual})
                         continue
 
                     encontrado = False
                     for clave_mapeo, grupo in mapeo_grupos.items():
                         if clave_mapeo.lower().strip() == tipo_limpio.lower().strip():
-                            lista_final.append({'Tipo': tipo, 'GRUPO_TACTICO': grupo})
+                            lista_final.append({'Tipo': tipo, 'GRUPO_TACTICO': grupo, 'CENTRO': centro_actual})
                             encontrado = True
                             break
                     
                     if not encontrado:
-                        lista_final.append({'Tipo': tipo, 'GRUPO_TACTICO': 'SEGURIDAD VIAL'})
+                        lista_final.append({'Tipo': tipo, 'GRUPO_TACTICO': 'SEGURIDAD VIAL', 'CENTRO': centro_actual})
 
         df_mapeado = pd.DataFrame(lista_final)
 
         if not df_mapeado.empty:
+            # --- TABLA ORIGINAL: TIPO VS GRUPO TÁCTICO ---
             tabla = pd.crosstab(df_mapeado['Tipo'], df_mapeado['GRUPO_TACTICO'])
             lista_orden = ['SEGURIDAD VIAL', 'CAPTURAS', 'EMERGENCIAS', 'RECUPERACIONES']
             
@@ -794,7 +797,25 @@ if df_raw is not None:
             tabla = tabla.sort_values(by='TOTAL', ascending=False)
             fila_total = tabla.sum().to_frame(name='TOTAL GENERAL').T
             tabla_final = pd.concat([fila_total, tabla])
+            
             st.dataframe(aplicar_mapa_calor_purpura(tabla_final), use_container_width=True, height=400)
+            
+            # --- NUEVA TABLA: GRUPO TÁCTICO POR CENTRO ---
+            st.write("**Desglose de Grupo Táctico por Centro:**")
+            tabla_gc = pd.crosstab(df_mapeado['GRUPO_TACTICO'], df_mapeado['CENTRO'])
+            
+            # Ordenar las filas
+            filas_existentes = [g for g in lista_orden if g in tabla_gc.index]
+            otras_filas = [g for g in tabla_gc.index if g not in filas_existentes]
+            tabla_gc = tabla_gc.reindex(filas_existentes + otras_filas)
+            
+            # Calcular totales y ordenar
+            tabla_gc['TOTAL'] = tabla_gc.sum(axis=1)
+            fila_total_gc = tabla_gc.sum().to_frame(name='TOTAL GENERAL').T
+            tabla_final_gc = pd.concat([fila_total_gc, tabla_gc])
+            
+            st.dataframe(aplicar_mapa_calor_purpura(tabla_final_gc), use_container_width=True)
+
         else:
             st.info("No hay datos de positivos para mostrar en el período seleccionado.")
                                                           
@@ -814,9 +835,8 @@ if df_raw is not None:
         col_zp = next((c for c in df.columns if any(k in c.upper() for k in ['ZONA', 'ZP', 'SERVICIO'])), None)
         if col_zp and not df.empty:
             zp_s = df.groupby(col_zp)['T_POS_COUNT'].sum().reset_index().sort_values('T_POS_COUNT', ascending=False)
-            # Evitamos indices duplicados al concatenar
+            # Solo ocultamos el indice al mostrar en streamlit para que todo siga normal
             df_mostrar = pd.concat([zp_s, pd.DataFrame({col_zp:['TOTAL GENERAL'], 'T_POS_COUNT':[zp_s['T_POS_COUNT'].sum()]})], ignore_index=True)
-            # Usamos hide_index=True y dejamos el dataframe tal cual para evitar KeyErrors
             st.dataframe(aplicar_mapa_calor_purpura(df_mostrar), use_container_width=True, height=400, hide_index=True)
 
     # GRÁFICO DE TENDENCIAS Y HORAS PICO
@@ -988,11 +1008,10 @@ if df_raw is not None:
             c_graf, c_tab = st.columns([1, 1.5])
             
             with c_graf:
-                # GRAFICO HORIZONTAL COMO LA IMAGEN DE REFERENCIA
+                # GRAFICO HORIZONTAL
                 fig_dias = px.bar(resumen_dias, x='TOTAL_POSITIVOS', y='DIA_NOMBRE', orientation='h', text='TOTAL_POSITIVOS',
                                   labels={'DIA_NOMBRE': 'Día de la Semana', 'TOTAL_POSITIVOS': 'Total de Positivos'},
                                   color='TOTAL_POSITIVOS', color_continuous_scale='Tealgrn', title="Incidentes Positivos por Día")
-                # Asegurar que el eje Y esté en el orden correcto (Lunes arriba)
                 fig_dias.update_layout(yaxis={'categoryorder':'array', 'categoryarray': list(reversed(orden_dias))},
                                        showlegend=False, coloraxis_showscale=False, paper_bgcolor='rgba(0,0,0,0)', 
                                        plot_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), height=450)
@@ -1014,7 +1033,6 @@ if df_raw is not None:
                 tabla_cruzada.loc['TOTAL GENERAL'] = tabla_cruzada.sum()
                 tabla_cruzada = pd.concat([tabla_cruzada.loc[['TOTAL GENERAL']], tabla_cruzada.drop('TOTAL GENERAL')])
                 
-                # Pasamos la tabla directamente a la función
                 st.dataframe(aplicar_mapa_calor_purpura(tabla_cruzada), use_container_width=True)
         else:
             st.info("No hay datos válidos que cumplan con tener Cierre Subtipo y Tipo Positivo seleccionados en este rango.")
