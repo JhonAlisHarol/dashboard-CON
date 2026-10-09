@@ -340,7 +340,7 @@ USUARIOS_AUTORIZADOS = {
 }
 
 def login():
-    st.title("🔐 C.O.N - PANAMÁ")
+    st.title("🔐 CENTRO DE OPERACION NACIONAL - DATOS POSITIVOS POR CENTROS")
     st.markdown('<p class="author-text">DESARROLLADO POR= CABO 1° ELMER RODRIGUEZ</p>', unsafe_allow_html=True)
     usuario = st.text_input("Usuario del Centro:")
     clave = st.text_input("Contraseña:", type="password")
