@@ -342,8 +342,8 @@ USUARIOS_AUTORIZADOS = {
 def login():
     st.title("🔐 CENTRO DE OPERACION NACIONAL - DATOS POSITIVOS POR CENTROS")
     st.markdown('<p class="author-text">DESARROLLADO POR= CABO 1° ELMER RODRIGUEZ</p>', unsafe_allow_html=True)
-    usuario = st.text_input("Usuario del Centro:")
-    clave = st.text_input("Contraseña:", type="password")
+    usuario = st.text_input("USUARIO DEL CENTRO:")
+    clave = st.text_input("CONTRACEÑA:", type="password")
     if st.button("Ingresar"):
         if usuario in USUARIOS_AUTORIZADOS and USUARIOS_AUTORIZADOS[usuario] == clave:
             st.session_state.autenticado = True
