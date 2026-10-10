@@ -340,10 +340,10 @@ USUARIOS_AUTORIZADOS = {
 }
 
 def login():
-    st.title("🔐 CENTRO DE OPERACION NACIONAL - DATOS POSITIVOS POR CENTROS")
+    st.title("🔐 C.O.N - PANAMÁ")
     st.markdown('<p class="author-text">DESARROLLADO POR= CABO 1° ELMER RODRIGUEZ</p>', unsafe_allow_html=True)
-    usuario = st.text_input("USUARIO DEL CENTRO:")
-    clave = st.text_input("CONTRACEÑA:", type="password")
+    usuario = st.text_input("Usuario del Centro:")
+    clave = st.text_input("Contraseña:", type="password")
     if st.button("Ingresar"):
         if usuario in USUARIOS_AUTORIZADOS and USUARIOS_AUTORIZADOS[usuario] == clave:
             st.session_state.autenticado = True
@@ -471,6 +471,12 @@ def load_full_data():
             df['FECHA_DT'] = pd.to_datetime(df[col_f], dayfirst=True, errors='coerce')
             df['MES_NUM'] = df['FECHA_DT'].dt.month
             df['MES_NOMBRE'] = df['FECHA_DT'].dt.strftime('%B').str.upper()
+            # Mapeo de días para los nuevos filtros
+            dias_map = {0: 'LUNES', 1: 'MARTES', 2: 'MIÉRCOLES', 3: 'JUEVES', 4: 'VIERNES', 5: 'SÁBADO', 6: 'DOMINGO'}
+            df['DIA_NUM'] = df['FECHA_DT'].dt.dayofweek
+            df['DIA_NOMBRE'] = df['DIA_NUM'].map(dias_map)
+            df['SEMANA_NUM'] = df['FECHA_DT'].dt.isocalendar().week.astype(str)
+            
         col_h = next((c for c in df.columns if 'HORA' in c.upper()), None)
         if col_h: 
             df['HORA_NUM'] = pd.to_datetime(df[col_h], errors='coerce').dt.hour.fillna(0).astype(int)
@@ -536,18 +542,44 @@ df_raw = load_full_data()
 df_traffic = load_traffic_only()
 
 if df_raw is not None:
-    # ---------------- BARRA LATERAL (FECHAS Y HORAS) ----------------
+    # ---------------- BARRA LATERAL (FECHAS, HORAS Y FILTROS) ----------------
     with st.sidebar:
         st.header("🔎 Fechas y Horas")
         f1 = st.date_input("Desde:", df_raw['FECHA_DT'].min().date())
         f2 = st.date_input("Hasta:", df_raw['FECHA_DT'].max().date())
         h1 = st.selectbox("Hora Inicial:", list(range(24)), index=0)
         h2 = st.selectbox("Hora Final:", list(range(24)), index=23)
+        
+        st.markdown("---")
+        st.header("🎛️ Filtros Adicionales")
+        
+        # Generación segura de listas para los filtros
+        lista_centros = sorted([str(x) for x in df_raw['CENTRO'].dropna().unique() if str(x).strip() != ''])
+        lista_canales = sorted([str(x) for x in df_raw.get('CANAL DE ENTRADA', pd.Series([])).dropna().unique() if str(x).strip() != ''])
+        lista_grupos = sorted([str(x) for x in df_raw['GRUPO_TACTICO'].dropna().unique() if str(x).strip() != ''])
+        lista_dias = ['LUNES', 'MARTES', 'MIÉRCOLES', 'JUEVES', 'VIERNES', 'SÁBADO', 'DOMINGO']
+        lista_meses = [str(x) for x in df_raw.get('MES_NOMBRE', pd.Series([])).dropna().unique() if str(x).strip() != '']
+        
+        # Selectores múltiples (Sin el filtro de N° Semana)
+        f_centros = st.multiselect("1. Por Centro:", lista_centros)
+        f_canales = st.multiselect("2. Por Canal:", lista_canales)
+        f_grupos = st.multiselect("3. Por Grupo Táctico:", lista_grupos)
+        f_dias = st.multiselect("4. Por Día de Semana:", lista_dias)
+        f_meses = st.multiselect("5. Por Mes:", lista_meses)
+        
         st.plotly_chart(create_gauge(remaining, "ACTUALIZACIÓN", "#00ebff", is_timer=True), use_container_width=True)
 
-    # Filtrar el DataFrame principal
-    df = df_raw[(df_raw['FECHA_DT'].dt.date >= f1) & (df_raw['FECHA_DT'].dt.date <= f2) & 
-                (df_raw['HORA_NUM'] >= h1) & (df_raw['HORA_NUM'] <= h2)].copy()
+    # Filtrado dinámico del DataFrame principal
+    mask = (df_raw['FECHA_DT'].dt.date >= f1) & (df_raw['FECHA_DT'].dt.date <= f2) & \
+           (df_raw['HORA_NUM'] >= h1) & (df_raw['HORA_NUM'] <= h2)
+           
+    if f_centros: mask &= df_raw['CENTRO'].isin(f_centros)
+    if f_canales: mask &= df_raw['CANAL DE ENTRADA'].isin(f_canales)
+    if f_grupos: mask &= df_raw['GRUPO_TACTICO'].isin(f_grupos)
+    if f_dias: mask &= df_raw['DIA_NOMBRE'].isin(f_dias)
+    if f_meses: mask &= df_raw['MES_NOMBRE'].isin(f_meses)
+
+    df = df_raw[mask].copy()
 
     # ---------------- CUERPO PRINCIPAL DEL DASHBOARD ----------------
     
@@ -566,9 +598,9 @@ if df_raw is not None:
         c_filt_1, c_filt_2, _ = st.columns([3, 2, 1])
         
         with c_filt_1:
-            centro_filtro = st.radio("Centro:", ["AMBOS CENTROS (Sumados)", "CON-C5", "CORCOL"], horizontal=True)
+            centro_filtro = st.radio("Centro SLA:", ["AMBOS CENTROS (Sumados)", "CON-C5", "CORCOL"], horizontal=True)
         with c_filt_2:
-            mes_seleccionado = st.selectbox("Período:", ["TODOS LOS MESES"] + list(df_traffic.iloc[:,0].unique()))
+            mes_seleccionado = st.selectbox("Período SLA:", ["TODOS LOS MESES"] + list(df_traffic.iloc[:,0].unique()))
 
         df_t = df_traffic if mes_seleccionado == "TODOS LOS MESES" else df_traffic[df_traffic.iloc[:,0] == mes_seleccionado]
         
@@ -725,7 +757,6 @@ if df_raw is not None:
             ord_c = t_c.drop(columns='TOTAL').sum().sort_values(ascending=False).index.tolist()
             t_c = t_c[ord_c + ['TOTAL']].sort_values('TOTAL', ascending=False)
             df_mostrar = pd.concat([t_c, t_c.sum().to_frame(name='TOTAL GENERAL').T])
-            # Se usa el índice tal cual sin alterar columnas
             st.dataframe(aplicar_mapa_calor_purpura(df_mostrar), use_container_width=True)
 
     st.markdown("---")
@@ -835,7 +866,6 @@ if df_raw is not None:
         col_zp = next((c for c in df.columns if any(k in c.upper() for k in ['ZONA', 'ZP', 'SERVICIO'])), None)
         if col_zp and not df.empty:
             zp_s = df.groupby(col_zp)['T_POS_COUNT'].sum().reset_index().sort_values('T_POS_COUNT', ascending=False)
-            # Solo ocultamos el indice al mostrar en streamlit para que todo siga normal
             df_mostrar = pd.concat([zp_s, pd.DataFrame({col_zp:['TOTAL GENERAL'], 'T_POS_COUNT':[zp_s['T_POS_COUNT'].sum()]})], ignore_index=True)
             st.dataframe(aplicar_mapa_calor_purpura(df_mostrar), use_container_width=True, height=400, hide_index=True)
 
@@ -1008,10 +1038,11 @@ if df_raw is not None:
             c_graf, c_tab = st.columns([1, 1.5])
             
             with c_graf:
-                # GRAFICO HORIZONTAL
+                # GRAFICO HORIZONTAL COMO LA IMAGEN DE REFERENCIA
                 fig_dias = px.bar(resumen_dias, x='TOTAL_POSITIVOS', y='DIA_NOMBRE', orientation='h', text='TOTAL_POSITIVOS',
                                   labels={'DIA_NOMBRE': 'Día de la Semana', 'TOTAL_POSITIVOS': 'Total de Positivos'},
                                   color='TOTAL_POSITIVOS', color_continuous_scale='Tealgrn', title="Incidentes Positivos por Día")
+                # Asegurar que el eje Y esté en el orden correcto (Lunes arriba)
                 fig_dias.update_layout(yaxis={'categoryorder':'array', 'categoryarray': list(reversed(orden_dias))},
                                        showlegend=False, coloraxis_showscale=False, paper_bgcolor='rgba(0,0,0,0)', 
                                        plot_bgcolor='rgba(0,0,0,0)', font=dict(color="white"), height=450)
@@ -1038,3 +1069,77 @@ if df_raw is not None:
             st.info("No hay datos válidos que cumplan con tener Cierre Subtipo y Tipo Positivo seleccionados en este rango.")
     else:
         st.info("No se encontró la columna de Fechas o Cierre Subtipo para realizar este análisis.")
+
+    # ==============================================================================
+    # EXTRA FINAL: DESGLOSE DE OFICIOS (CAPTURA Y CONDUCCIÓN) POR NARRATIVA
+    # ==============================================================================
+    st.markdown("---")
+    st.subheader("🚔 DESGLOSE DE OFICIOS (CAPTURA Y CONDUCCIÓN) SEGÚN NARRATIVA")
+
+    capturas_data = []
+    conducciones_data = []
+
+    if col_narrativo and not df.empty:
+        # Diccionario ampliado para detectar el tipo de oficio/delito desde el texto
+        delitos_keywords = {
+            'CONTRA LA VIDA E INTEGRIDAD (HOMICIDIO/LESIONES)': ['homicidio', 'asesinato', 'tentativa', 'lesiones', 'agresion', 'agresión', 'vida e integridad', 'femicidio', 'feminicidio'],
+            'CONTRA EL PATRIMONIO (ROBO/HURTO)': ['robo', 'hurto', 'patrimonio economico', 'patrimonio económico', 'extorsion', 'extorsión'],
+            'DELITOS SEXUALES (VIOLACIÓN)': ['violacion', 'violación', 'abuso sexual', 'delitos sexuales', 'estupro', 'libertad sexual', 'acto libidinoso', 'violacion carnal', 'acoso'],
+            'DROGAS / NARCOTRÁFICO': ['droga', 'drogas', 'sustancias ilicitas', 'sustancias ilícitas', 'narcotrafico', 'narcotráfico', 'microtrafico', 'posesion agravada de drogas', 'venta de drogas'],
+            'VIOLENCIA DOMÉSTICA': ['violencia domestica', 'violencia doméstica', 'violencia intrafamiliar', 'orden familiar', 'maltrato'],
+            'ESTAFA / DELITOS FINANCIEROS': ['estafa', 'fraude', 'orden economico', 'orden económico', 'blanqueo', 'falsificacion', 'falsificación', 'cheque', 'tarjeta'],
+            'PANDILLERISMO / ASOCIACIÓN ILÍCITA': ['pandillerismo', 'asociacion ilicita', 'asociación ilícita', 'pandilla'],
+            'PENSIÓN ALIMENTICIA / DESACATO': ['pension alimenticia', 'pensión alimenticia', 'desacato', 'juez de paz', 'alimentos', 'pension'],
+            'PORTE ILEGAL DE ARMAS': ['arma de fuego', 'posesion ilicita de arma', 'porte ilegal', 'seguridad colectiva', 'armas', 'municiones']
+        }
+
+        # Fundimos las columnas de positivos para contar CADA oficio individualmente (igual que las otras tablas)
+        df_oficios_melt = df.melt(id_vars=['CENTRO', col_narrativo], value_vars=cols_positivos, value_name='Tipo').dropna()
+        df_oficios_melt = df_oficios_melt[~df_oficios_melt['Tipo'].astype(str).str.strip().isin(['SELECCIONAR', '', 'None', 'nan'])]
+
+        for _, row in df_oficios_melt.iterrows():
+            centro = str(row.get('CENTRO', 'N/A')).strip()
+            tipo_oficial = str(row.get('Tipo', '')).lower()
+            text_lower = str(row.get(col_narrativo, '')).lower()
+            
+            es_captura = 'oficio de captura' in tipo_oficial
+            es_conduccion = 'oficio de conducci' in tipo_oficial
+            
+            if es_captura or es_conduccion:
+                tipo_delito = 'OTRO / NO ESPECIFICADO'
+                for delito, keywords in delitos_keywords.items():
+                    if any(kw in text_lower for kw in keywords):
+                        tipo_delito = delito
+                        break
+                        
+                if es_conduccion:
+                    conducciones_data.append({'CENTRO': centro, 'Delito': tipo_delito})
+                elif es_captura:
+                    capturas_data.append({'CENTRO': centro, 'Delito': tipo_delito})
+
+    df_conducciones = pd.DataFrame(conducciones_data)
+    df_capturas = pd.DataFrame(capturas_data)
+
+    st.write("### 📄 OFICIOS DE CONDUCCIÓN")
+    if not df_conducciones.empty:
+        tabla_cond = pd.crosstab(df_conducciones['Delito'], df_conducciones['CENTRO'])
+        tabla_cond['TOTAL'] = tabla_cond.sum(axis=1)
+        tabla_cond = tabla_cond.sort_values('TOTAL', ascending=False)
+        fila_total = tabla_cond.sum().to_frame(name='TOTAL GENERAL').T
+        tabla_cond = pd.concat([fila_total, tabla_cond])
+        st.dataframe(aplicar_mapa_calor_purpura(tabla_cond), use_container_width=True)
+    else:
+        st.info("No se encontraron registros de Oficios de Conducción en el período filtrado.")
+
+    st.markdown("<br>", unsafe_allow_html=True)
+
+    st.write("### 🚨 OFICIOS DE CAPTURA")
+    if not df_capturas.empty:
+        tabla_capt = pd.crosstab(df_capturas['Delito'], df_capturas['CENTRO'])
+        tabla_capt['TOTAL'] = tabla_capt.sum(axis=1)
+        tabla_capt = tabla_capt.sort_values('TOTAL', ascending=False)
+        fila_total = tabla_capt.sum().to_frame(name='TOTAL GENERAL').T
+        tabla_capt = pd.concat([fila_total, tabla_capt])
+        st.dataframe(aplicar_mapa_calor_purpura(tabla_capt), use_container_width=True)
+    else:
+        st.info("No se encontraron registros de Oficios de Captura en el período filtrado.")
