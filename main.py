@@ -967,6 +967,8 @@ if df_raw is not None:
                     muni_data.append({'CENTRO': centro, 'Calibre': '5.56 / .223', 'Cantidad': total_muni_narrativa})
                 elif '.40' in text_lower:
                     muni_data.append({'CENTRO': centro, 'Calibre': '.40', 'Cantidad': total_muni_narrativa})
+                elif '.25' in text_lower:
+                    muni_data.append({'CENTRO': centro, 'Calibre': '.25', 'Cantidad': total_muni_narrativa})
                 else:
                     muni_data.append({'CENTRO': centro, 'Calibre': 'OTROS', 'Cantidad': total_muni_narrativa})
 
