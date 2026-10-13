@@ -5,6 +5,7 @@ import plotly.graph_objects as go
 import time
 import unicodedata
 import re  
+import base64  # Añadido para procesar la descarga del archivo
 
 # ==============================================================================
 # 0. CONFIGURACIÓN DE LA PÁGINA
@@ -1231,6 +1232,8 @@ if df_raw is not None:
                 # df_ejecutivo['CENTRO'].value_counts() cuenta el total de incidentes por centro y los ordena descendente
                 centros_unicos = df_ejecutivo['CENTRO'].value_counts().index.tolist()
                 
+                todas_las_tarjetas_html = "" # <--- AÑADIDO PARA LA DESCARGA
+                
                 for i in range(0, len(centros_unicos), 2):
                     col1, col2 = st.columns(2)
                     centros_par = centros_unicos[i:i+2]
@@ -1393,3 +1396,39 @@ if df_raw is not None:
                                 
                             html_card += "</div>"
                             st.markdown(html_card, unsafe_allow_html=True)
+                            todas_las_tarjetas_html += html_card # <--- AÑADIDO PARA LA DESCARGA
+
+                # --- 5. BOTÓN DE EXPORTACIÓN A HTML ---
+                st.markdown("<hr style='border: 1px solid rgba(0, 212, 255, 0.3); margin-top: 30px;'>", unsafe_allow_html=True)
+                
+                html_completo = f"""
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <meta charset="utf-8">
+                    <title>Reporte Táctico C.O.N.</title>
+                    <style>
+                        body {{
+                            background-color: #0a0e17;
+                            color: white;
+                            font-family: Arial, sans-serif;
+                            padding: 20px;
+                        }}
+                    </style>
+                </head>
+                <body>
+                    <h1 style="color: #00d4ff; text-align: center;">REPORTE TÁCTICO - CENTRO DE OPERACIÓN NACIONAL</h1>
+                    <div style="display: flex; flex-direction: column; gap: 20px;">
+                        {todas_las_tarjetas_html}
+                    </div>
+                </body>
+                </html>
+                """
+                
+                b64 = base64.b64encode(html_completo.encode('utf-8')).decode()
+                href = f'<a href="data:text/html;base64,{b64}" download="reporte_tactico_con.html" style="background-color: #00d4ff; color: #0a0e17; padding: 10px 20px; text-decoration: none; font-weight: bold; border-radius: 5px; display: inline-block; margin-top: 10px;">📥 Descargar Presentación (HTML)</a>'
+                
+                col_btn_1, col_btn_2, col_btn_3 = st.columns([1,2,1])
+                with col_btn_2:
+                    st.markdown("<div style='text-align: center;'>" + href + "</div>", unsafe_allow_html=True)
+                    st.markdown("<p style='text-align: center; font-size: 11px; color: #888;'>El archivo descargado se puede abrir en cualquier navegador web y guardarlo como PDF usando la opción de Imprimir (Ctrl+P).</p>", unsafe_allow_html=True)
