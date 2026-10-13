@@ -5,7 +5,7 @@ import plotly.graph_objects as go
 import time
 import unicodedata
 import re  
-import base64  # Añadido para procesar la descarga del archivo
+import base64  
 
 # ==============================================================================
 # 0. CONFIGURACIÓN DE LA PÁGINA
@@ -1229,7 +1229,6 @@ if df_raw is not None:
 
             if not df_ejecutivo.empty:
                 # AQUÍ ESTÁ EL ORDENAMIENTO AUTOMÁTICO DE MAYOR A MENOR:
-                # df_ejecutivo['CENTRO'].value_counts() cuenta el total de incidentes por centro y los ordena descendente
                 centros_unicos = df_ejecutivo['CENTRO'].value_counts().index.tolist()
                 
                 todas_las_tarjetas_html = "" # <--- AÑADIDO PARA LA DESCARGA
@@ -1275,7 +1274,7 @@ if df_raw is not None:
                                 conteo = df_cat['Tipo'].value_counts()
                                 html = ""
                                 for k, v in conteo.items():
-                                    html += "<div style='display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding: 2px 0 2px 10px;'><span style='font-size: 11px; color: #ccc;'>- " + str(k) + "</span><span style='font-size: 12px; color: #00ffaa; font-weight: bold;'>" + str(v) + "</span></div>"
+                                    html += "<div style='display: flex; justify-content: space-between; border-bottom: 1px dashed rgba(0, 168, 255, 0.3); padding: 4px 0;'><span style='font-size: 11px; color: #ccc;'>- " + str(k) + "</span><span style='font-size: 12px; color: #ffffff; font-weight: bold;'>" + str(v) + "</span></div>"
                                 return html
 
                             desglose_armas = generar_filas_desglose(df_tipos[df_tipos['Categoria'] == 'ARMAS'])
@@ -1288,7 +1287,7 @@ if df_raw is not None:
                             desglose_otros = ""
                             if not top_5_otros.empty:
                                 for k, v in top_5_otros.items():
-                                    desglose_otros += "<div style='display: flex; justify-content: space-between; border-bottom: 1px solid rgba(255,255,255,0.05); padding: 2px 0 2px 10px;'><span style='font-size: 11px; color: #ccc;'>- " + str(k) + "</span><span style='font-size: 12px; color: #00ffaa; font-weight: bold;'>" + str(v) + "</span></div>"
+                                    desglose_otros += "<div style='display: flex; justify-content: space-between; border-bottom: 1px dashed rgba(0, 168, 255, 0.3); padding: 4px 0;'><span style='font-size: 11px; color: #ccc;'>- " + str(k) + "</span><span style='font-size: 12px; color: #ffffff; font-weight: bold;'>" + str(v) + "</span></div>"
                             else:
                                 desglose_otros = "<div style='font-size: 11px; color: #ccc; padding-left: 10px;'>Sin incidentes adicionales</div>"
 
@@ -1307,128 +1306,114 @@ if df_raw is not None:
                                 
                                 if ("arma " in text_lower or "pistola" in text_lower or "fusil" in text_lower or "munición" in text_lower or "municiones" in text_lower or "escopeta" in text_lower) and counts_rep['ARMAS'] < 2:
                                     counts_rep['ARMAS'] += 1
-                                    reportes_seleccionados.append({'TIPO': '🔫 ARMAS (HALLAZGO/DECOMISO)', 'COLOR': '#ff4b4b', 'DETALLE': texto_narrativo})
+                                    reportes_seleccionados.append({'TIPO': '🔫 ARMAS (HALLAZGO/DECOMISO)', 'COLOR': '#a0d8ef', 'DETALLE': texto_narrativo})
                                 elif "oficio" in text_lower and counts_rep['OFICIOS'] < 2:
                                     counts_rep['OFICIOS'] += 1
-                                    reportes_seleccionados.append({'TIPO': '📄 OFICIOS (CAPTURA/CONDUCCIÓN)', 'COLOR': '#ffaa00', 'DETALLE': texto_narrativo})
+                                    reportes_seleccionados.append({'TIPO': '📄 OFICIOS (CAPTURA/CONDUCCIÓN)', 'COLOR': '#a0d8ef', 'DETALLE': texto_narrativo})
                                 elif ("aprehendido" in text_lower or "aprehensión" in text_lower or "captura" in text_lower or "capturado" in text_lower) and counts_rep['APREHENSIONES'] < 2:
                                     counts_rep['APREHENSIONES'] += 1
-                                    reportes_seleccionados.append({'TIPO': '🚨 APREHENSIONES', 'COLOR': '#00ffaa', 'DETALLE': texto_narrativo})
+                                    reportes_seleccionados.append({'TIPO': '🚨 APREHENSIONES', 'COLOR': '#a0d8ef', 'DETALLE': texto_narrativo})
                                 elif ("vehículo" in text_lower or "vehiculo" in text_lower or "auto " in text_lower or "carro " in text_lower) and counts_rep['VEHICULOS'] < 2:
                                     counts_rep['VEHICULOS'] += 1
-                                    reportes_seleccionados.append({'TIPO': '🚘 VEHÍCULOS (RECUPERACIÓN)', 'COLOR': '#00d4ff', 'DETALLE': texto_narrativo})
+                                    reportes_seleccionados.append({'TIPO': '🚘 VEHÍCULOS (RECUPERACIÓN)', 'COLOR': '#a0d8ef', 'DETALLE': texto_narrativo})
 
-                            # --- 3. HORA PICO ---
-                            if 'HORA_NUM' in df_raw_c.columns and not df_raw_c['HORA_NUM'].empty:
-                                try:
-                                    hora_p = int(df_raw_c['HORA_NUM'].mode().iloc[0])
-                                    hora_pico_str = f"{hora_p:02d}:00 hrs"
-                                except:
-                                    hora_pico_str = "N/D"
-                            else:
-                                hora_pico_str = "N/D"
-                                
-                            estado_color = "#00d4ff" 
-
-                            # --- HTML DE LA TARJETA PRINCIPAL ---
-                            html_card = "<div style='background: rgba(5, 10, 20, 0.9); border: 2px solid " + estado_color + "; border-radius: 15px; padding: 20px; margin-bottom: 20px; box-shadow: 0 0 15px " + estado_color + "40;'>"
-                            html_card += "<div style='display: flex; justify-content: center; align-items: center; border-bottom: 1px solid " + estado_color + "; padding-bottom: 10px; gap: 15px;'>"
-                            html_card += "<h2 style='color: " + estado_color + "; margin: 0; text-transform: uppercase; letter-spacing: 2px;'>📍 " + centro_card + "</h2>"
-                            html_card += "<span style='background: rgba(0, 212, 255, 0.15); border: 2px solid #00d4ff; color: #ffffff; font-size: 20px; font-weight: bold; padding: 2px 15px; border-radius: 20px; text-shadow: 0 0 10px #ffffff, 0 0 20px #00d4ff; box-shadow: 0 0 10px #00d4ff;'>" + str(total_centro) + "</span>"
+                            # --- HTML DE LA TARJETA PRINCIPAL (ESTILO CIBERNÉTICO / HUD) ---
+                            html_card = "<div style='background: rgba(5, 10, 20, 0.95); border: 2px solid #00a8ff; border-radius: 12px; padding: 20px; margin-bottom: 25px; box-shadow: 0 0 15px rgba(0, 168, 255, 0.3);'>"
+                            
+                            html_card += "<div style='display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0, 168, 255, 0.5); padding-bottom: 15px; margin-bottom: 15px;'>"
+                            html_card += "<div style='display: flex; align-items: center; gap: 10px;'>"
+                            html_card += "<span style='font-size: 26px;'>📍</span>"
+                            html_card += "<h2 style='color: #00a8ff; margin: 0; font-size: 24px; text-transform: uppercase; letter-spacing: 2px;'>" + str(centro_card) + "</h2>"
+                            html_card += "</div>"
+                            html_card += "<div style='background: rgba(0, 168, 255, 0.15); border: 1px solid #00a8ff; padding: 5px 20px; border-radius: 25px; box-shadow: 0 0 10px rgba(0, 168, 255, 0.4);'>"
+                            html_card += "<span style='color: #e0e0e0; font-size: 14px; font-weight: bold; margin-right: 8px;'>TOTAL:</span>"
+                            html_card += "<span style='color: #ffffff; font-size: 24px; font-weight: 900; text-shadow: 0 0 10px #ffffff;'>" + str(total_centro) + "</span>"
+                            html_card += "</div>"
                             html_card += "</div>"
                             
-                            # Los 4 cuadros principales de arriba ordenados de mayor a menor
-                            html_card += "<div style='display: flex; flex-wrap: wrap; justify-content: space-between; margin-top: 15px;'>"
-                            iconos = {'CAPTURAS': '🚨', 'RECUPERACIONES': '🔍', 'SEGURIDAD VIAL': '🚗', 'EMERGENCIAS': '🚑'}
+                            # Los 4 cuadros principales de arriba
+                            html_card += "<div style='display: flex; flex-wrap: wrap; justify-content: space-between; gap: 15px; margin-top: 10px;'>"
+                            iconos = {'CAPTURAS': '🚨', 'RECUPERACIONES': '🔍', 'SEGURIDAD VIAL': '🛣️', 'EMERGENCIAS': '🚑'}
                             for grupo_nombre, cantidad in conteo_grupos.items():
                                 icono = iconos.get(grupo_nombre, '📌')
-                                html_card += "<div style='width: 48%; background: rgba(0, 212, 255, 0.1); border: 1px solid #00d4ff; border-radius: 8px; padding: 10px; margin-bottom: 10px; text-align: center;'>"
-                                html_card += "<div style='font-size: 24px; margin-bottom: 5px;'>" + icono + "</div>"
-                                html_card += "<div style='color: #ffffff; font-size: 11px; font-weight: bold;'>" + str(grupo_nombre) + "</div>"
-                                html_card += "<div style='color: #00ffaa; font-size: 24px; font-weight: 900; text-shadow: 0 0 10px #00ffaa;'>" + str(cantidad) + "</div>"
+                                html_card += "<div style='width: calc(50% - 8px); background: linear-gradient(135deg, rgba(0, 168, 255, 0.15) 0%, rgba(0,0,0,0.5) 100%); border: 1px solid #00a8ff; border-radius: 6px; padding: 15px; position: relative; overflow: hidden;'>"
+                                html_card += "<div style='position: absolute; top: 0; left: 0; width: 20px; height: 2px; background: #ffffff;'></div>"
+                                html_card += "<div style='position: absolute; top: 0; left: 0; width: 2px; height: 20px; background: #ffffff;'></div>"
+                                html_card += "<div style='position: absolute; bottom: 0; right: 0; width: 20px; height: 2px; background: #ffffff;'></div>"
+                                html_card += "<div style='position: absolute; bottom: 0; right: 0; width: 2px; height: 20px; background: #ffffff;'></div>"
+                                html_card += "<div style='display: flex; justify-content: space-between; align-items: center;'>"
+                                html_card += "<div style='text-align: left;'>"
+                                html_card += "<div style='color: #ffffff; font-size: 14px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase;'>" + str(grupo_nombre) + "</div>"
+                                html_card += "<div style='color: #ffffff; font-size: 38px; font-weight: 900; text-shadow: 0 0 15px rgba(255,255,255,0.5); line-height: 1.1;'>" + str(cantidad) + "</div>"
                                 html_card += "</div>"
+                                html_card += "<div style='font-size: 45px; opacity: 0.8; text-shadow: 0 0 20px #00a8ff;'>" + str(icono) + "</div>"
+                                html_card += "</div></div>"
                             html_card += "</div>"
 
                             # --- SECCIÓN DE INTELIGENCIA TÁCTICA Y DESGLOSE ---
-                            html_card += "<div style='margin-top: 15px; border-top: 1px solid rgba(0, 212, 255, 0.3); padding-top: 15px; background: rgba(0, 0, 0, 0.4); border-radius: 8px; padding: 12px; border-left: 3px solid #00d4ff;'>"
-                            html_card += "<div style='color: #00d4ff; font-size: 13px; font-weight: bold; margin-bottom: 10px; text-transform: uppercase;'>📊 RESUMEN PARA COMANDANCIA</div>"
-
-                            html_card += "<div style='display: flex; gap: 5px; margin-bottom: 10px;'>"
-                            html_card += "<div style='flex: 1; background: rgba(255, 75, 75, 0.1); border: 1px solid #ff4b4b; border-radius: 5px; padding: 5px; text-align: center;'><div style='color: #ff4b4b; font-size: 9px; font-weight: bold;'>🔫 ARMAS</div><div style='color: white; font-size: 14px; font-weight: bold;'>" + str(armas_count) + "</div></div>"
-                            html_card += "<div style='flex: 1; background: rgba(0, 255, 170, 0.1); border: 1px solid #00ffaa; border-radius: 5px; padding: 5px; text-align: center;'><div style='color: #00ffaa; font-size: 9px; font-weight: bold;'>🚨 APREH.</div><div style='color: white; font-size: 14px; font-weight: bold;'>" + str(aprehensiones_count) + "</div></div>"
-                            html_card += "<div style='flex: 1; background: rgba(255, 170, 0, 0.1); border: 1px solid #ffaa00; border-radius: 5px; padding: 5px; text-align: center;'><div style='color: #ffaa00; font-size: 9px; font-weight: bold;'>📄 OFICIOS</div><div style='color: white; font-size: 14px; font-weight: bold;'>" + str(oficios_count) + "</div></div>"
-                            html_card += "<div style='flex: 1; background: rgba(0, 212, 255, 0.1); border: 1px solid #00d4ff; border-radius: 5px; padding: 5px; text-align: center;'><div style='color: #00d4ff; font-size: 9px; font-weight: bold;'>🚘 VEHÍCULOS</div><div style='color: white; font-size: 14px; font-weight: bold;'>" + str(vehiculos_count) + "</div></div>"
+                            html_card += "<div style='margin-top: 25px; border: 1px solid #00a8ff; background: rgba(0, 0, 0, 0.4); border-radius: 6px; padding: 20px 15px 15px 15px; position: relative;'>"
+                            html_card += "<div style='position: absolute; top: -12px; left: 20px; background: #040d1a; padding: 0 15px; border: 1px solid #00a8ff; border-radius: 4px; color: #ffffff; font-size: 13px; font-weight: bold; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;'><div style='width: 8px; height: 8px; background: #00a8ff; border-radius: 50%; box-shadow: 0 0 8px #00a8ff;'></div>RESUMEN PARA COMANDANCIA</div>"
+                            
+                            html_card += "<div style='display: flex; gap: 10px; margin-bottom: 15px;'>"
+                            html_card += "<div style='flex: 1; border: 1px solid #00a8ff; background: rgba(0, 168, 255, 0.1); border-radius: 4px; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: inset 0 0 10px rgba(0, 168, 255, 0.2);'><div style='font-size: 22px; filter: drop-shadow(0 0 5px #00a8ff);'>🔫</div><div style='text-align: left;'><div style='color: #a0d8ef; font-size: 10px; font-weight: bold; letter-spacing: 1px;'>ARMAS</div><div style='color: #ffffff; font-size: 20px; font-weight: 900; line-height: 1;'>" + str(armas_count) + "</div></div></div>"
+                            html_card += "<div style='flex: 1; border: 1px solid #00a8ff; background: rgba(0, 168, 255, 0.1); border-radius: 4px; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: inset 0 0 10px rgba(0, 168, 255, 0.2);'><div style='font-size: 22px; filter: drop-shadow(0 0 5px #00a8ff);'>👤</div><div style='text-align: left;'><div style='color: #a0d8ef; font-size: 10px; font-weight: bold; letter-spacing: 1px;'>APREHENSIONES</div><div style='color: #ffffff; font-size: 20px; font-weight: 900; line-height: 1;'>" + str(aprehensiones_count) + "</div></div></div>"
+                            html_card += "<div style='flex: 1; border: 1px solid #00a8ff; background: rgba(0, 168, 255, 0.1); border-radius: 4px; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: inset 0 0 10px rgba(0, 168, 255, 0.2);'><div style='font-size: 22px; filter: drop-shadow(0 0 5px #00a8ff);'>📄</div><div style='text-align: left;'><div style='color: #a0d8ef; font-size: 10px; font-weight: bold; letter-spacing: 1px;'>OFICIOS</div><div style='color: #ffffff; font-size: 20px; font-weight: 900; line-height: 1;'>" + str(oficios_count) + "</div></div></div>"
+                            html_card += "<div style='flex: 1; border: 1px solid #00a8ff; background: rgba(0, 168, 255, 0.1); border-radius: 4px; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: inset 0 0 10px rgba(0, 168, 255, 0.2);'><div style='font-size: 22px; filter: drop-shadow(0 0 5px #00a8ff);'>🚘</div><div style='text-align: left;'><div style='color: #a0d8ef; font-size: 10px; font-weight: bold; letter-spacing: 1px;'>VEHÍCULOS</div><div style='color: #ffffff; font-size: 20px; font-weight: 900; line-height: 1;'>" + str(vehiculos_count) + "</div></div></div>"
                             html_card += "</div>"
 
-                            html_card += "<div style='margin-top: 10px; background: rgba(0, 0, 0, 0.5); padding: 8px; border-radius: 5px; border: 1px solid rgba(255,255,255,0.1);'>"
-                            html_card += "<div style='color: #00d4ff; font-size: 11px; font-weight: bold; margin-bottom: 5px; text-transform: uppercase;'>🔍 DESGLOSE DETALLADO DE INCIDENCIAS:</div>"
-                            html_card += "<div style='max-height: 220px; overflow-y: auto; padding-right: 5px;'>"
-                            html_card += "<div style='color: #ff4b4b; font-size: 10px; font-weight: bold; margin-top: 5px;'>🔫 DESGLOSE DE ARMAS</div>"
+                            html_card += "<div style='background: rgba(0, 15, 30, 0.6); border: 1px solid rgba(0, 168, 255, 0.3); border-radius: 4px; padding: 10px;'>"
+                            html_card += "<div style='color: #00a8ff; font-size: 11px; font-weight: bold; margin-bottom: 8px; letter-spacing: 1px;'>> DESGLOSE OPERATIVO DETALLADO</div>"
+                            html_card += "<div style='max-height: 180px; overflow-y: auto; padding-right: 8px; font-family: monospace;'>"
+                            html_card += "<div style='color: #a0d8ef; font-size: 10px; font-weight: bold; margin-top: 5px; border-bottom: 1px dashed rgba(0, 168, 255, 0.3); padding-bottom: 2px;'>[ ARMAS ]</div>"
                             html_card += desglose_armas
-                            html_card += "<div style='color: #00ffaa; font-size: 10px; font-weight: bold; margin-top: 10px;'>🚨 DESGLOSE DE APREHENSIONES</div>"
+                            html_card += "<div style='color: #a0d8ef; font-size: 10px; font-weight: bold; margin-top: 10px; border-bottom: 1px dashed rgba(0, 168, 255, 0.3); padding-bottom: 2px;'>[ APREHENSIONES ]</div>"
                             html_card += desglose_apreh
-                            html_card += "<div style='color: #ffaa00; font-size: 10px; font-weight: bold; margin-top: 10px;'>📄 DESGLOSE DE OFICIOS</div>"
+                            html_card += "<div style='color: #a0d8ef; font-size: 10px; font-weight: bold; margin-top: 10px; border-bottom: 1px dashed rgba(0, 168, 255, 0.3); padding-bottom: 2px;'>[ OFICIOS ]</div>"
                             html_card += desglose_oficios
-                            html_card += "<div style='color: #00d4ff; font-size: 10px; font-weight: bold; margin-top: 10px;'>🚘 DESGLOSE DE VEHÍCULOS</div>"
+                            html_card += "<div style='color: #a0d8ef; font-size: 10px; font-weight: bold; margin-top: 10px; border-bottom: 1px dashed rgba(0, 168, 255, 0.3); padding-bottom: 2px;'>[ VEHÍCULOS ]</div>"
                             html_card += desglose_vehiculos
-                            html_card += "<div style='color: #ffffff; font-size: 10px; font-weight: bold; margin-top: 10px;'>📌 TOP 5 OTROS INCIDENTES (MAYOR NÚMERO)</div>"
+                            html_card += "<div style='color: #a0d8ef; font-size: 10px; font-weight: bold; margin-top: 10px; border-bottom: 1px dashed rgba(0, 168, 255, 0.3); padding-bottom: 2px;'>[ TOP 5 OTROS INCIDENTES ]</div>"
                             html_card += desglose_otros
-                            html_card += "</div></div>"
-
-                            html_card += "<div style='color: #e0e0e0; font-size: 11px; margin-top: 10px; text-align: right;'><b>⏰ Hora de Máxima Tensión:</b> " + hora_pico_str + "</div>"
+                            html_card += "</div>"
+                            html_card += "</div>"
                             html_card += "</div>"
                             
                             # --- 4. REPORTES NARRATIVOS (HASTA 8 REPORTES, 2 POR CATEGORÍA) ---
                             if reportes_seleccionados:
-                                html_card += "<div style='margin-top: 15px; border-top: 1px solid rgba(255, 75, 75, 0.5); padding-top: 15px;'>"
-                                html_card += "<h4 style='color: #ff4b4b; margin-top: 0; text-align: center; text-shadow: 0 0 8px #ff4b4b;'>⚠️ REPORTES OPERATIVOS DESTACADOS</h4>"
-                                html_card += "<div style='max-height: 280px; overflow-y: auto; padding-right: 5px;'>"
+                                html_card += "<div style='margin-top: 15px; border: 1px solid rgba(0, 168, 255, 0.4); background: rgba(0, 0, 0, 0.3); border-radius: 6px; padding: 15px;'>"
+                                html_card += "<div style='color: #00a8ff; font-size: 12px; font-weight: bold; margin-bottom: 10px; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;'><span style='font-size: 16px;'>📡</span> REPORTES OPERATIVOS DESTACADOS</div>"
+                                html_card += "<div style='max-height: 250px; overflow-y: auto; padding-right: 8px;'>"
                                 for rep in reportes_seleccionados:
-                                    html_card += "<div style='background: rgba(255, 255, 255, 0.05); border-left: 4px solid " + rep['COLOR'] + "; padding: 10px; margin-bottom: 10px; border-radius: 0 8px 8px 0;'>"
-                                    html_card += "<div style='color: " + rep['COLOR'] + "; font-weight: bold; font-size: 12px; margin-bottom: 4px;'>[" + rep['TIPO'] + "]</div>"
-                                    html_card += "<div style='color: white; font-size: 11px; line-height: 1.4;'>" + rep['DETALLE'] + "</div>"
+                                    html_card += "<div style='background: rgba(0, 168, 255, 0.05); border-left: 3px solid #00a8ff; padding: 10px; margin-bottom: 8px; border-radius: 0 4px 4px 0;'>"
+                                    html_card += "<div style='color: #00a8ff; font-weight: bold; font-size: 11px; margin-bottom: 4px; font-family: monospace;'>" + str(rep['TIPO']) + "</div>"
+                                    html_card += "<div style='color: #e0e0e0; font-size: 11px; line-height: 1.4; text-align: justify;'>" + str(rep['DETALLE']) + "</div>"
                                     html_card += "</div>"
                                 html_card += "</div></div>"
-                            else:
-                                html_card += "<div style='margin-top: 15px; border-top: 1px dashed #00ffaa; padding-top: 15px; text-align: center;'>"
-                                html_card += "<div style='background: rgba(0, 255, 170, 0.1); border: 1px solid #00ffaa; border-radius: 20px; padding: 5px; text-align: center; color: #00ffaa; font-weight: bold; text-shadow: 0 0 8px #00ffaa;'>✔️ SIN REPORTES DESTACADOS</div>"
-                                html_card += "</div>"
                                 
                             html_card += "</div>"
+                            
+                            # Renderizar en pantalla
                             st.markdown(html_card, unsafe_allow_html=True)
-                            todas_las_tarjetas_html += html_card # <--- AÑADIDO PARA LA DESCARGA
+                            
+                            # Almacenar para la descarga
+                            todas_las_tarjetas_html += html_card
 
                 # --- 5. BOTÓN DE EXPORTACIÓN A HTML ---
                 st.markdown("<hr style='border: 1px solid rgba(0, 212, 255, 0.3); margin-top: 30px;'>", unsafe_allow_html=True)
                 
-                html_completo = f"""
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <meta charset="utf-8">
-                    <title>Reporte Táctico C.O.N.</title>
-                    <style>
-                        body {{
-                            background-color: #0a0e17;
-                            color: white;
-                            font-family: Arial, sans-serif;
-                            padding: 20px;
-                        }}
-                    </style>
-                </head>
-                <body>
-                    <h1 style="color: #00d4ff; text-align: center;">REPORTE TÁCTICO - CENTRO DE OPERACIÓN NACIONAL</h1>
-                    <div style="display: flex; flex-direction: column; gap: 20px;">
-                        {todas_las_tarjetas_html}
-                    </div>
-                </body>
-                </html>
-                """
+                # Crear el documento HTML completo
+                html_completo = "<!DOCTYPE html><html><head><meta charset='utf-8'><title>Reporte Táctico C.O.N.</title>"
+                html_completo += "<style>body { background-color: #040d1a; color: white; font-family: Arial, sans-serif; padding: 20px; }</style></head><body>"
+                html_completo += "<h1 style='color: #00d4ff; text-align: center; margin-bottom: 40px; font-family: sans-serif; letter-spacing: 2px;'>REPORTE TÁCTICO - CENTRO DE OPERACIÓN NACIONAL</h1>"
+                html_completo += "<div style='display: flex; flex-direction: column; gap: 40px; max-width: 1200px; margin: 0 auto;'>"
+                html_completo += todas_las_tarjetas_html
+                html_completo += "</div></body></html>"
                 
+                # Codificar en base64 para descargar
                 b64 = base64.b64encode(html_completo.encode('utf-8')).decode()
-                href = f'<a href="data:text/html;base64,{b64}" download="reporte_tactico_con.html" style="background-color: #00d4ff; color: #0a0e17; padding: 10px 20px; text-decoration: none; font-weight: bold; border-radius: 5px; display: inline-block; margin-top: 10px;">📥 Descargar Presentación (HTML)</a>'
+                href = '<a href="data:text/html;base64,' + b64 + '" download="reporte_tactico_con.html" style="background-color: #00a8ff; color: #040d1a; padding: 12px 25px; text-decoration: none; font-weight: bold; border-radius: 4px; display: inline-block; margin-top: 10px; font-family: sans-serif; letter-spacing: 1px; box-shadow: 0 0 15px rgba(0, 168, 255, 0.4);">📥 DESCARGAR REPORTE TÁCTICO (HTML)</a>'
                 
                 col_btn_1, col_btn_2, col_btn_3 = st.columns([1,2,1])
                 with col_btn_2:
                     st.markdown("<div style='text-align: center;'>" + href + "</div>", unsafe_allow_html=True)
-                    st.markdown("<p style='text-align: center; font-size: 11px; color: #888;'>El archivo descargado se puede abrir en cualquier navegador web y guardarlo como PDF usando la opción de Imprimir (Ctrl+P).</p>", unsafe_allow_html=True)
+                    st.markdown("<p style='text-align: center; font-size: 11px; color: #888; margin-top: 10px;'>El archivo descargado se puede abrir en cualquier navegador web y guardarlo como PDF usando la opción de Imprimir (Ctrl+P).</p>", unsafe_allow_html=True)
