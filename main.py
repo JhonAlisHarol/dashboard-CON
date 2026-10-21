@@ -1254,9 +1254,9 @@ if df_raw is not None:
                             df_tipos = pd.DataFrame({'Tipo': todos_tipos})
                             df_tipos['Categoria'] = 'OTROS'
                             
-                            cond_armas = df_tipos['Tipo'].str.contains('Arma de Fuego', case=False, na=False)
                             cond_oficios = df_tipos['Tipo'].str.contains('Oficio', case=False, na=False)
                             cond_apreh = df_tipos['Tipo'].str.contains('Aprehendido|Aprehensión|Captura|Capturado', case=False, na=False, regex=True) & ~cond_oficios
+                            cond_armas = df_tipos['Tipo'].str.contains('Arma de Fuego', case=False, na=False) & ~cond_apreh
                             cond_vehic = df_tipos['Tipo'].str.contains('Vehículo Recuperado|Vehiculo Recuperado', case=False, na=False, regex=True)
 
                             df_tipos.loc[cond_armas, 'Categoria'] = 'ARMAS'
