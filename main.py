@@ -477,7 +477,7 @@ if 'last_update' not in st.session_state:
     st.session_state.last_update = time.time()
 
 elapsed = int(time.time() - st.session_state.last_update)
-remaining = max(0, 300 - elapsed) # Aumentado a 300 segundos
+remaining = max(0, 300 - elapsed)
 
 if remaining <= 0:
     st.session_state.last_update = time.time()
@@ -489,7 +489,7 @@ if remaining <= 0:
 URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQzIFyCT2C22Hlrz80szN7J2mEfA8N1R7hiAmFAUXaoorwDTOeWNh-ktv__d0vIBS-AQcuV5ws3ZU4C/pub?gid=229458966&single=true&output=csv"
 URL_HOJA_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRJjM8N55oQ9GLvCm72Jz8kbJpqze5ouhbBudOkYACwCIDGq9KmwLYX9Tz9lPmDPYEBzefNXqIE13PM/pub?gid=2008069627&single=true&output=csv"
 
-@st.cache_data(ttl=300) # Aumentado a 300 segundos
+@st.cache_data(ttl=300)
 def load_full_data():
     try:
         df = pd.read_csv(URL_CSV)
@@ -542,7 +542,7 @@ def load_full_data():
         return df[df['T_POS_COUNT'] > 0].copy()
     except: return None
 
-@st.cache_data(ttl=300) # Aumentado a 300 segundos
+@st.cache_data(ttl=300)
 def load_traffic_only():
     try:
         df_c = pd.read_csv(URL_HOJA_CSV, header=None, dtype=str)
@@ -1291,6 +1291,44 @@ if df_raw is not None:
                             else:
                                 desglose_otros = "<div style='font-size: 11px; color: #ccc; padding-left: 10px;'>Sin incidentes adicionales</div>"
 
+                            # --- 1.5 EXTRACCIÓN DE MUNICIONES PARA EL CENTRO ---
+                            total_muni_centro = 0
+                            muni_centro_data = []
+                            if col_narrativo:
+                                patrones = [
+                                    r'\b(\d{1,4})\s*(?:municion|municiones|bala|balas|cartucho|cartuchos|casquillo|casquillos)\b',
+                                    r'\b(?:municion|municiones|bala|balas|cartucho|cartuchos|casquillo|casquillos)\b\s*(?:son|fueron|:|: |-|de)?\s*(\d{1,4})\b'
+                                ]
+                                for _, r_data in df_raw_c.iterrows():
+                                    text_lower = str(r_data.get(col_narrativo, '')).lower()
+                                    total_muni_narrativa = 0
+                                    for pat in patrones:
+                                        matches = re.findall(pat, text_lower)
+                                        total_muni_narrativa += sum(int(m) for m in matches)
+                                    
+                                    if total_muni_narrativa > 0:
+                                        total_muni_centro += total_muni_narrativa
+                                        if '9' in text_lower and 'mm' in text_lower or '9mm' in text_lower: cal = '9MM'
+                                        elif '380' in text_lower: cal = '.380'
+                                        elif '38' in text_lower: cal = '.38'
+                                        elif '45' in text_lower: cal = '.45'
+                                        elif '22' in text_lower: cal = '.22'
+                                        elif '12' in text_lower: cal = '12 (ESCOPETA)'
+                                        elif '5.56' in text_lower or '223' in text_lower: cal = '5.56 / .223'
+                                        elif '.40' in text_lower: cal = '.40'
+                                        elif '.25' in text_lower: cal = '.25'
+                                        else: cal = 'OTROS'
+                                        muni_centro_data.append({'Calibre': cal, 'Cantidad': total_muni_narrativa})
+                                        
+                            desglose_municiones = ""
+                            if muni_centro_data:
+                                df_muni_centro = pd.DataFrame(muni_centro_data)
+                                muni_agrupado = df_muni_centro.groupby('Calibre')['Cantidad'].sum().sort_values(ascending=False)
+                                for k, v in muni_agrupado.items():
+                                    desglose_municiones += "<div style='display: flex; justify-content: space-between; border-bottom: 1px dashed rgba(0, 168, 255, 0.3); padding: 4px 0;'><span style='font-size: 11px; color: #ccc;'>- " + str(k) + "</span><span style='font-size: 12px; color: #ffffff; font-weight: bold;'>" + str(v) + "</span></div>"
+                            else:
+                                desglose_municiones = "<div style='font-size: 11px; color: #ccc; padding-left: 10px;'>Sin registros</div>"
+
                             # --- 2. SELECCIÓN INTELIGENTE DE 8 NARRATIVAS COMPLETAS ---
                             reportes_seleccionados = []
                             counts_rep = {'ARMAS': 0, 'OFICIOS': 0, 'APREHENSIONES': 0, 'VEHICULOS': 0}
@@ -1354,11 +1392,33 @@ if df_raw is not None:
                             html_card += "<div style='margin-top: 25px; border: 1px solid #00a8ff; background: rgba(0, 0, 0, 0.4); border-radius: 6px; padding: 20px 15px 15px 15px; position: relative;'>"
                             html_card += "<div style='position: absolute; top: -12px; left: 20px; background: #040d1a; padding: 0 15px; border: 1px solid #00a8ff; border-radius: 4px; color: #ffffff; font-size: 13px; font-weight: bold; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;'><div style='width: 8px; height: 8px; background: #00a8ff; border-radius: 50%; box-shadow: 0 0 8px #00a8ff;'></div>RESUMEN PARA COMANDANCIA</div>"
                             
-                            html_card += "<div style='display: flex; gap: 10px; margin-bottom: 15px;'>"
-                            html_card += "<div style='flex: 1; border: 1px solid #00a8ff; background: rgba(0, 168, 255, 0.1); border-radius: 4px; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: inset 0 0 10px rgba(0, 168, 255, 0.2);'><div style='font-size: 22px; filter: drop-shadow(0 0 5px #00a8ff);'>🔫</div><div style='text-align: left;'><div style='color: #a0d8ef; font-size: 10px; font-weight: bold; letter-spacing: 1px;'>ARMAS</div><div style='color: #ffffff; font-size: 20px; font-weight: 900; line-height: 1;'>" + str(armas_count) + "</div></div></div>"
-                            html_card += "<div style='flex: 1; border: 1px solid #00a8ff; background: rgba(0, 168, 255, 0.1); border-radius: 4px; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: inset 0 0 10px rgba(0, 168, 255, 0.2);'><div style='font-size: 22px; filter: drop-shadow(0 0 5px #00a8ff);'>👤</div><div style='text-align: left;'><div style='color: #a0d8ef; font-size: 10px; font-weight: bold; letter-spacing: 1px;'>APREHENSIONES</div><div style='color: #ffffff; font-size: 20px; font-weight: 900; line-height: 1;'>" + str(aprehensiones_count) + "</div></div></div>"
-                            html_card += "<div style='flex: 1; border: 1px solid #00a8ff; background: rgba(0, 168, 255, 0.1); border-radius: 4px; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: inset 0 0 10px rgba(0, 168, 255, 0.2);'><div style='font-size: 22px; filter: drop-shadow(0 0 5px #00a8ff);'>📄</div><div style='text-align: left;'><div style='color: #a0d8ef; font-size: 10px; font-weight: bold; letter-spacing: 1px;'>OFICIOS</div><div style='color: #ffffff; font-size: 20px; font-weight: 900; line-height: 1;'>" + str(oficios_count) + "</div></div></div>"
-                            html_card += "<div style='flex: 1; border: 1px solid #00a8ff; background: rgba(0, 168, 255, 0.1); border-radius: 4px; padding: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; box-shadow: inset 0 0 10px rgba(0, 168, 255, 0.2);'><div style='font-size: 22px; filter: drop-shadow(0 0 5px #00a8ff);'>🚘</div><div style='text-align: left;'><div style='color: #a0d8ef; font-size: 10px; font-weight: bold; letter-spacing: 1px;'>VEHÍCULOS</div><div style='color: #ffffff; font-size: 20px; font-weight: 900; line-height: 1;'>" + str(vehiculos_count) + "</div></div></div>"
+                            html_card += "<div style='display: flex; gap: 6px; margin-bottom: 15px; flex-wrap: wrap;'>"
+                            
+                            # ARMAS (SVG Puro Incrustado - Modelo 9mm Sólido y Claro)
+                            html_card += "<div style='flex: 1; min-width: 65px; border: 1px solid #00a8ff; background: rgba(0, 168, 255, 0.1); border-radius: 4px; padding: 6px 4px; display: flex; align-items: center; justify-content: center; gap: 5px; box-shadow: inset 0 0 10px rgba(0, 168, 255, 0.2);'>"
+                            html_card += "<div><svg viewBox='0 0 24 24' width='22' height='22' fill='#00a8ff' style='filter: drop-shadow(0 0 5px #00a8ff);'><path d='M3 8h16a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-3v1l1.5 4.5a2 2 0 0 1-1.9 2.5h-3.2a2 2 0 0 1-1.9-1.4L9.3 16H3a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2z'/></svg></div>"
+                            html_card += "<div style='text-align: left; overflow: hidden;'><div style='color: #a0d8ef; font-size: 8px; font-weight: bold; letter-spacing: 0px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'>ARMAS</div><div style='color: #ffffff; font-size: 18px; font-weight: 900; line-height: 1;'>" + str(armas_count) + "</div></div></div>"
+                            
+                            # APREHENSIONES (SVG Puro Incrustado)
+                            html_card += "<div style='flex: 1; min-width: 65px; border: 1px solid #00a8ff; background: rgba(0, 168, 255, 0.1); border-radius: 4px; padding: 6px 4px; display: flex; align-items: center; justify-content: center; gap: 5px; box-shadow: inset 0 0 10px rgba(0, 168, 255, 0.2);'>"
+                            html_card += "<div><svg viewBox='0 0 24 24' width='22' height='22' fill='#00a8ff' style='filter: drop-shadow(0 0 5px #00a8ff);'><path d='M4,10A4,4 0 0,0 0,14A4,4 0 0,0 4,18A4,4 0 0,0 8,14A4,4 0 0,0 4,10M4,12A2,2 0 0,1 6,14A2,2 0 0,1 4,16A2,2 0 0,1 2,14A2,2 0 0,1 4,12M20,10A4,4 0 0,0 16,14A4,4 0 0,0 20,18A4,4 0 0,0 24,14A4,4 0 0,0 20,10M20,12A2,2 0 0,1 22,14A2,2 0 0,1 20,16A2,2 0 0,1 18,14A2,2 0 0,1 20,12M9,13V15H15V13H9Z'/></svg></div>"
+                            html_card += "<div style='text-align: left; overflow: hidden;'><div style='color: #a0d8ef; font-size: 8px; font-weight: bold; letter-spacing: 0px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'>APREHENSIONES</div><div style='color: #ffffff; font-size: 18px; font-weight: 900; line-height: 1;'>" + str(aprehensiones_count) + "</div></div></div>"
+                            
+                            # OFICIOS (SVG Puro Incrustado)
+                            html_card += "<div style='flex: 1; min-width: 65px; border: 1px solid #00a8ff; background: rgba(0, 168, 255, 0.1); border-radius: 4px; padding: 6px 4px; display: flex; align-items: center; justify-content: center; gap: 5px; box-shadow: inset 0 0 10px rgba(0, 168, 255, 0.2);'>"
+                            html_card += "<div><svg viewBox='0 0 24 24' width='22' height='22' fill='#00a8ff' style='filter: drop-shadow(0 0 5px #00a8ff);'><path d='M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z'/></svg></div>"
+                            html_card += "<div style='text-align: left; overflow: hidden;'><div style='color: #a0d8ef; font-size: 8px; font-weight: bold; letter-spacing: 0px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'>OFICIOS</div><div style='color: #ffffff; font-size: 18px; font-weight: 900; line-height: 1;'>" + str(oficios_count) + "</div></div></div>"
+                            
+                            # VEHÍCULOS (SVG Puro Incrustado)
+                            html_card += "<div style='flex: 1; min-width: 65px; border: 1px solid #00a8ff; background: rgba(0, 168, 255, 0.1); border-radius: 4px; padding: 6px 4px; display: flex; align-items: center; justify-content: center; gap: 5px; box-shadow: inset 0 0 10px rgba(0, 168, 255, 0.2);'>"
+                            html_card += "<div><svg viewBox='0 0 24 24' width='22' height='22' fill='#00a8ff' style='filter: drop-shadow(0 0 5px #00a8ff);'><path d='M18.92 6.01C18.72 5.42 18.16 5 17.5 5H15V3H13V5H11V3H9V5H6.5C5.84 5 5.28 5.42 5.08 6.01L3 12V20C3 20.55 3.45 21 4 21H5C5.55 21 6 20.55 6 20V19H18V20C18 20.55 18.45 21 19 21H20C20.55 21 21 20.55 21 20V12L18.92 6.01M6.5 6.5H17.5L18.67 10H5.33L6.5 6.5M6.5 16C5.67 16 5 15.33 5 14.5C5 13.67 5.67 13 6.5 13C7.33 13 8 13.67 8 14.5C8 15.33 7.33 16 6.5 16M17.5 16C16.67 16 16 15.33 16 14.5C16 13.67 16.67 13 17.5 13C18.33 13 19 13.67 19 14.5C19 15.33 18.33 16 17.5 16Z'/></svg></div>"
+                            html_card += "<div style='text-align: left; overflow: hidden;'><div style='color: #a0d8ef; font-size: 8px; font-weight: bold; letter-spacing: 0px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'>VEHÍCULOS</div><div style='color: #ffffff; font-size: 18px; font-weight: 900; line-height: 1;'>" + str(vehiculos_count) + "</div></div></div>"
+                            
+                            # MUNICIONES (SVG Puro Incrustado)
+                            html_card += "<div style='flex: 1; min-width: 65px; border: 1px solid #00a8ff; background: rgba(0, 168, 255, 0.1); border-radius: 4px; padding: 6px 4px; display: flex; align-items: center; justify-content: center; gap: 5px; box-shadow: inset 0 0 10px rgba(0, 168, 255, 0.2);'>"
+                            html_card += "<div><svg viewBox='0 0 24 24' width='22' height='22' fill='#00a8ff' style='filter: drop-shadow(0 0 5px #00a8ff);'><path d='M14,22H10V21H14V22M13,10V7H11V10L10,11.5V20H14V11.5L13,10M12,2C12,2 11,3 11,5V6H13V5C13,3 12,2 12,2Z'/></svg></div>"
+                            html_card += "<div style='text-align: left; overflow: hidden;'><div style='color: #a0d8ef; font-size: 8px; font-weight: bold; letter-spacing: 0px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'>MUNICIONES</div><div style='color: #ffffff; font-size: 18px; font-weight: 900; line-height: 1;'>" + str(total_muni_centro) + "</div></div></div>"
+                            
                             html_card += "</div>"
 
                             html_card += "<div style='background: rgba(0, 15, 30, 0.6); border: 1px solid rgba(0, 168, 255, 0.3); border-radius: 4px; padding: 10px;'>"
@@ -1366,6 +1426,8 @@ if df_raw is not None:
                             html_card += "<div style='max-height: 180px; overflow-y: auto; padding-right: 8px; font-family: monospace;'>"
                             html_card += "<div style='color: #a0d8ef; font-size: 10px; font-weight: bold; margin-top: 5px; border-bottom: 1px dashed rgba(0, 168, 255, 0.3); padding-bottom: 2px;'>[ ARMAS ]</div>"
                             html_card += desglose_armas
+                            html_card += "<div style='color: #a0d8ef; font-size: 10px; font-weight: bold; margin-top: 10px; border-bottom: 1px dashed rgba(0, 168, 255, 0.3); padding-bottom: 2px;'>[ MUNICIONES POR CALIBRE ]</div>"
+                            html_card += desglose_municiones
                             html_card += "<div style='color: #a0d8ef; font-size: 10px; font-weight: bold; margin-top: 10px; border-bottom: 1px dashed rgba(0, 168, 255, 0.3); padding-bottom: 2px;'>[ APREHENSIONES ]</div>"
                             html_card += desglose_apreh
                             html_card += "<div style='color: #a0d8ef; font-size: 10px; font-weight: bold; margin-top: 10px; border-bottom: 1px dashed rgba(0, 168, 255, 0.3); padding-bottom: 2px;'>[ OFICIOS ]</div>"
