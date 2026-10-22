@@ -1182,13 +1182,13 @@ if df_raw is not None:
     # ==============================================================================
     # OPCIÓN NUEVA: PRESENTACIÓN EJECUTIVA TÁCTICA
     # ==============================================================================
-    elif st.session_state.modo_pantalla == "PRESENTACION_OPERACIONAL":
+    elif st.session_state.modo_pantalla == "PRESENTACION_EJECUTIVA":
         st.markdown(
-            "<h1 style='color: #00d4ff; text-shadow: 0 0 12px #00d4ff; text-align: center;'>📈 PRESENTACIÓN OPERACIONAL TÁCTICA</h1>",
+            "<h1 style='color: #00d4ff; text-shadow: 0 0 12px #00d4ff; text-align: center;'>📈 PRESENTACIÓN EJECUTIVA TÁCTICA</h1>",
             unsafe_allow_html=True,
         )
         st.markdown(
-            "<p style='text-align: center; color: #ffffff; font-size: 16px;'>Desglose Operacional por Centro y Grupos Tácticos (Eventos Relevantes)</p>",
+            "<p style='text-align: center; color: #ffffff; font-size: 16px;'>Desglose Operacional por Centro y Grupos Tácticos (Modo Alto Contraste)</p>",
             unsafe_allow_html=True,
         )
         st.markdown("<hr style='border: 1px solid #00d4ff;'>", unsafe_allow_html=True)
