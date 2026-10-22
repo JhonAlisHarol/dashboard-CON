@@ -477,7 +477,7 @@ if 'last_update' not in st.session_state:
     st.session_state.last_update = time.time()
 
 elapsed = int(time.time() - st.session_state.last_update)
-remaining = max(0, 60 - elapsed)
+remaining = max(0, 120 - elapsed)
 
 if remaining <= 0:
     st.session_state.last_update = time.time()
@@ -489,7 +489,7 @@ if remaining <= 0:
 URL_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQzIFyCT2C22Hlrz80szN7J2mEfA8N1R7hiAmFAUXaoorwDTOeWNh-ktv__d0vIBS-AQcuV5ws3ZU4C/pub?gid=229458966&single=true&output=csv"
 URL_HOJA_CSV = "https://docs.google.com/spreadsheets/d/e/2PACX-1vRJjM8N55oQ9GLvCm72Jz8kbJpqze5ouhbBudOkYACwCIDGq9KmwLYX9Tz9lPmDPYEBzefNXqIE13PM/pub?gid=2008069627&single=true&output=csv"
 
-@st.cache_data(ttl=60)
+@st.cache_data(ttl=120)
 def load_full_data():
     try:
         df = pd.read_csv(URL_CSV)
