@@ -1182,7 +1182,7 @@ if df_raw is not None:
     # ==============================================================================
     # OPCIÓN NUEVA: PRESENTACIÓN EJECUTIVA TÁCTICA
     # ==============================================================================
-    elif st.session_state.modo_pantalla == "PRESENTACION_OPERACIONAL":
+    elif st.session_state.modo_pantalla == "PRESENTACION_EJECUTIVA":
         st.markdown(
             "<h1 style='color: #00d4ff; text-shadow: 0 0 12px #00d4ff; text-align: center;'>📈 PRESENTACIÓN EJECUTIVA TÁCTICA</h1>",
             unsafe_allow_html=True,
