@@ -391,9 +391,13 @@ with st.sidebar:
         st.session_state.modo_pantalla = "DASHBOARD OPERATIVO"
         st.rerun()
         
-    # BOTÓN NUEVO: PRESENTACIÓN EJECUTIVA
     if st.button("📈 Presentación Ejecutiva", use_container_width=True):
         st.session_state.modo_pantalla = "PRESENTACION_EJECUTIVA"
+        st.rerun()
+        
+    # NUEVO BOTÓN: PRESENTACIÓN MANDO POLICIAL
+    if st.button("🎖️ Presentación Mando Policial", use_container_width=True):
+        st.session_state.modo_pantalla = "PRESENTACION_MANDO_POLICIAL"
         st.rerun()
         
     # ----------------------------------------------------------------
@@ -879,7 +883,7 @@ if df_raw is not None:
 
             else:
                 st.info("No hay datos de positivos para mostrar en el período seleccionado.")
-                                                                  
+                                        
         cn1, cn2 = st.columns(2)
         with cn1:
             st.subheader("📉 CIERRE DEL INCIDENTE-SUBTIPO")
@@ -1180,7 +1184,7 @@ if df_raw is not None:
 
 
     # ==============================================================================
-    # OPCIÓN NUEVA: PRESENTACIÓN EJECUTIVA TÁCTICA
+    # OPCIÓN: PRESENTACIÓN EJECUTIVA TÁCTICA
     # ==============================================================================
     elif st.session_state.modo_pantalla == "PRESENTACION_EJECUTIVA":
         st.markdown(
@@ -1205,7 +1209,6 @@ if df_raw is not None:
             for _, row in df.iterrows():
                 centro_actual = str(row.get('CENTRO', 'N/A')).strip()
                 
-                # Mapeo de grupos tácticos generales para los 4 cuadros principales de arriba
                 for col in cols_positivos:
                     tipo = row.get(col)
                     if pd.notna(tipo) and str(tipo).strip() not in ['SELECCIONAR', '', 'None']:
@@ -1228,10 +1231,9 @@ if df_raw is not None:
             df_ejecutivo = pd.DataFrame(lista_final_ejecutiva)
 
             if not df_ejecutivo.empty:
-                # AQUÍ ESTÁ EL ORDENAMIENTO AUTOMÁTICO DE MAYOR A MENOR:
                 centros_unicos = df_ejecutivo['CENTRO'].value_counts().index.tolist()
                 
-                todas_las_tarjetas_html = "" # <--- AÑADIDO PARA LA DESCARGA
+                todas_las_tarjetas_html = "" 
                 
                 for i in range(0, len(centros_unicos), 2):
                     col1, col2 = st.columns(2)
@@ -1244,7 +1246,6 @@ if df_raw is not None:
                             conteo_grupos = df_c['GRUPO_TACTICO'].value_counts()
                             total_centro = int(conteo_grupos.sum())
                             
-                            # --- 1. EXTRACCIÓN DE DATOS PARA DESGLOSE ESPECÍFICO ---
                             todos_tipos = []
                             for col in cols_positivos:
                                 valid_vals = df_raw_c[col].dropna().astype(str)
@@ -1291,7 +1292,6 @@ if df_raw is not None:
                             else:
                                 desglose_otros = "<div style='font-size: 11px; color: #ccc; padding-left: 10px;'>Sin incidentes adicionales</div>"
 
-                            # --- 1.5 EXTRACCIÓN DE MUNICIONES PARA EL CENTRO ---
                             total_muni_centro = 0
                             muni_centro_data = []
                             if col_narrativo:
@@ -1329,7 +1329,6 @@ if df_raw is not None:
                             else:
                                 desglose_municiones = "<div style='font-size: 11px; color: #ccc; padding-left: 10px;'>Sin registros</div>"
 
-                            # --- 2. SELECCIÓN INTELIGENTE DE 8 NARRATIVAS COMPLETAS ---
                             reportes_seleccionados = []
                             counts_rep = {'ARMAS': 0, 'OFICIOS': 0, 'APREHENSIONES': 0, 'VEHICULOS': 0}
                             
@@ -1355,7 +1354,6 @@ if df_raw is not None:
                                     counts_rep['VEHICULOS'] += 1
                                     reportes_seleccionados.append({'TIPO': '🚘 VEHÍCULOS (RECUPERACIÓN)', 'COLOR': '#a0d8ef', 'DETALLE': texto_narrativo})
 
-                            # --- HTML DE LA TARJETA PRINCIPAL (ESTILO CIBERNÉTICO / HUD) ---
                             html_card = "<div style='background: rgba(5, 10, 20, 0.95); border: 2px solid #00a8ff; border-radius: 12px; padding: 20px; margin-bottom: 25px; box-shadow: 0 0 15px rgba(0, 168, 255, 0.3);'>"
                             
                             html_card += "<div style='display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid rgba(0, 168, 255, 0.5); padding-bottom: 15px; margin-bottom: 15px;'>"
@@ -1369,7 +1367,6 @@ if df_raw is not None:
                             html_card += "</div>"
                             html_card += "</div>"
                             
-                            # Los 4 cuadros principales de arriba
                             html_card += "<div style='display: flex; flex-wrap: wrap; justify-content: space-between; gap: 15px; margin-top: 10px;'>"
                             iconos = {'CAPTURAS': '🚨', 'RECUPERACIONES': '🔍', 'SEGURIDAD VIAL': '🛣️', 'EMERGENCIAS': '🚑'}
                             for grupo_nombre, cantidad in conteo_grupos.items():
@@ -1388,33 +1385,27 @@ if df_raw is not None:
                                 html_card += "</div></div>"
                             html_card += "</div>"
 
-                            # --- SECCIÓN DE INTELIGENCIA TÁCTICA Y DESGLOSE ---
                             html_card += "<div style='margin-top: 25px; border: 1px solid #00a8ff; background: rgba(0, 0, 0, 0.4); border-radius: 6px; padding: 20px 15px 15px 15px; position: relative;'>"
                             html_card += "<div style='position: absolute; top: -12px; left: 20px; background: #040d1a; padding: 0 15px; border: 1px solid #00a8ff; border-radius: 4px; color: #ffffff; font-size: 13px; font-weight: bold; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;'><div style='width: 8px; height: 8px; background: #00a8ff; border-radius: 50%; box-shadow: 0 0 8px #00a8ff;'></div>RESUMEN PARA COMANDANCIA</div>"
                             
                             html_card += "<div style='display: flex; gap: 6px; margin-bottom: 15px; flex-wrap: wrap;'>"
                             
-                            # ARMAS (SVG Puro Incrustado - Modelo 9mm Sólido y Claro)
                             html_card += "<div style='flex: 1; min-width: 65px; border: 1px solid #00a8ff; background: rgba(0, 168, 255, 0.1); border-radius: 4px; padding: 6px 4px; display: flex; align-items: center; justify-content: center; gap: 5px; box-shadow: inset 0 0 10px rgba(0, 168, 255, 0.2);'>"
                             html_card += "<div><svg viewBox='0 0 24 24' width='22' height='22' fill='#00a8ff' style='filter: drop-shadow(0 0 5px #00a8ff);'><path d='M3 8h16a2 2 0 0 1 2 2v2a2 2 0 0 1-2 2h-3v1l1.5 4.5a2 2 0 0 1-1.9 2.5h-3.2a2 2 0 0 1-1.9-1.4L9.3 16H3a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2z'/></svg></div>"
                             html_card += "<div style='text-align: left; overflow: hidden;'><div style='color: #a0d8ef; font-size: 8px; font-weight: bold; letter-spacing: 0px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'>ARMAS</div><div style='color: #ffffff; font-size: 18px; font-weight: 900; line-height: 1;'>" + str(armas_count) + "</div></div></div>"
                             
-                            # APREHENSIONES (SVG Puro Incrustado)
                             html_card += "<div style='flex: 1; min-width: 65px; border: 1px solid #00a8ff; background: rgba(0, 168, 255, 0.1); border-radius: 4px; padding: 6px 4px; display: flex; align-items: center; justify-content: center; gap: 5px; box-shadow: inset 0 0 10px rgba(0, 168, 255, 0.2);'>"
                             html_card += "<div><svg viewBox='0 0 24 24' width='22' height='22' fill='#00a8ff' style='filter: drop-shadow(0 0 5px #00a8ff);'><path d='M4,10A4,4 0 0,0 0,14A4,4 0 0,0 4,18A4,4 0 0,0 8,14A4,4 0 0,0 4,10M4,12A2,2 0 0,1 6,14A2,2 0 0,1 4,16A2,2 0 0,1 2,14A2,2 0 0,1 4,12M20,10A4,4 0 0,0 16,14A4,4 0 0,0 20,18A4,4 0 0,0 24,14A4,4 0 0,0 20,10M20,12A2,2 0 0,1 22,14A2,2 0 0,1 20,16A2,2 0 0,1 18,14A2,2 0 0,1 20,12M9,13V15H15V13H9Z'/></svg></div>"
                             html_card += "<div style='text-align: left; overflow: hidden;'><div style='color: #a0d8ef; font-size: 8px; font-weight: bold; letter-spacing: 0px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'>APREHENSIONES</div><div style='color: #ffffff; font-size: 18px; font-weight: 900; line-height: 1;'>" + str(aprehensiones_count) + "</div></div></div>"
                             
-                            # OFICIOS (SVG Puro Incrustado)
                             html_card += "<div style='flex: 1; min-width: 65px; border: 1px solid #00a8ff; background: rgba(0, 168, 255, 0.1); border-radius: 4px; padding: 6px 4px; display: flex; align-items: center; justify-content: center; gap: 5px; box-shadow: inset 0 0 10px rgba(0, 168, 255, 0.2);'>"
                             html_card += "<div><svg viewBox='0 0 24 24' width='22' height='22' fill='#00a8ff' style='filter: drop-shadow(0 0 5px #00a8ff);'><path d='M14,2H6A2,2 0 0,0 4,4V20A2,2 0 0,0 6,22H18A2,2 0 0,0 20,20V8L14,2M18,20H6V4H13V9H18V20Z'/></svg></div>"
                             html_card += "<div style='text-align: left; overflow: hidden;'><div style='color: #a0d8ef; font-size: 8px; font-weight: bold; letter-spacing: 0px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'>OFICIOS</div><div style='color: #ffffff; font-size: 18px; font-weight: 900; line-height: 1;'>" + str(oficios_count) + "</div></div></div>"
                             
-                            # VEHÍCULOS (SVG Puro Incrustado)
                             html_card += "<div style='flex: 1; min-width: 65px; border: 1px solid #00a8ff; background: rgba(0, 168, 255, 0.1); border-radius: 4px; padding: 6px 4px; display: flex; align-items: center; justify-content: center; gap: 5px; box-shadow: inset 0 0 10px rgba(0, 168, 255, 0.2);'>"
                             html_card += "<div><svg viewBox='0 0 24 24' width='22' height='22' fill='#00a8ff' style='filter: drop-shadow(0 0 5px #00a8ff);'><path d='M18.92 6.01C18.72 5.42 18.16 5 17.5 5H15V3H13V5H11V3H9V5H6.5C5.84 5 5.28 5.42 5.08 6.01L3 12V20C3 20.55 3.45 21 4 21H5C5.55 21 6 20.55 6 20V19H18V20C18 20.55 18.45 21 19 21H20C20.55 21 21 20.55 21 20V12L18.92 6.01M6.5 6.5H17.5L18.67 10H5.33L6.5 6.5M6.5 16C5.67 16 5 15.33 5 14.5C5 13.67 5.67 13 6.5 13C7.33 13 8 13.67 8 14.5C8 15.33 7.33 16 6.5 16M17.5 16C16.67 16 16 15.33 16 14.5C16 13.67 16.67 13 17.5 13C18.33 13 19 13.67 19 14.5C19 15.33 18.33 16 17.5 16Z'/></svg></div>"
                             html_card += "<div style='text-align: left; overflow: hidden;'><div style='color: #a0d8ef; font-size: 8px; font-weight: bold; letter-spacing: 0px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'>VEHÍCULOS</div><div style='color: #ffffff; font-size: 18px; font-weight: 900; line-height: 1;'>" + str(vehiculos_count) + "</div></div></div>"
                             
-                            # MUNICIONES (SVG Puro Incrustado)
                             html_card += "<div style='flex: 1; min-width: 65px; border: 1px solid #00a8ff; background: rgba(0, 168, 255, 0.1); border-radius: 4px; padding: 6px 4px; display: flex; align-items: center; justify-content: center; gap: 5px; box-shadow: inset 0 0 10px rgba(0, 168, 255, 0.2);'>"
                             html_card += "<div><svg viewBox='0 0 24 24' width='22' height='22' fill='#00a8ff' style='filter: drop-shadow(0 0 5px #00a8ff);'><path d='M14,22H10V21H14V22M13,10V7H11V10L10,11.5V20H14V11.5L13,10M12,2C12,2 11,3 11,5V6H13V5C13,3 12,2 12,2Z'/></svg></div>"
                             html_card += "<div style='text-align: left; overflow: hidden;'><div style='color: #a0d8ef; font-size: 8px; font-weight: bold; letter-spacing: 0px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;'>MUNICIONES</div><div style='color: #ffffff; font-size: 18px; font-weight: 900; line-height: 1;'>" + str(total_muni_centro) + "</div></div></div>"
@@ -1440,7 +1431,6 @@ if df_raw is not None:
                             html_card += "</div>"
                             html_card += "</div>"
                             
-                            # --- 4. REPORTES NARRATIVOS (HASTA 8 REPORTES, 2 POR CATEGORÍA) ---
                             if reportes_seleccionados:
                                 html_card += "<div style='margin-top: 15px; border: 1px solid rgba(0, 168, 255, 0.4); background: rgba(0, 0, 0, 0.3); border-radius: 6px; padding: 15px;'>"
                                 html_card += "<div style='color: #00a8ff; font-size: 12px; font-weight: bold; margin-bottom: 10px; letter-spacing: 1px; display: flex; align-items: center; gap: 8px;'><span style='font-size: 16px;'>📡</span> REPORTES OPERATIVOS DESTACADOS</div>"
@@ -1454,16 +1444,12 @@ if df_raw is not None:
                                 
                             html_card += "</div>"
                             
-                            # Renderizar en pantalla
                             st.markdown(html_card, unsafe_allow_html=True)
                             
-                            # Almacenar para la descarga
                             todas_las_tarjetas_html += html_card
 
-                # --- 5. BOTÓN DE EXPORTACIÓN A HTML ---
                 st.markdown("<hr style='border: 1px solid rgba(0, 212, 255, 0.3); margin-top: 30px;'>", unsafe_allow_html=True)
                 
-                # Crear el documento HTML completo
                 html_completo = "<!DOCTYPE html><html><head><meta charset='utf-8'><title>Reporte Táctico C.O.N.</title>"
                 html_completo += "<style>body { background-color: #040d1a; color: white; font-family: Arial, sans-serif; padding: 20px; }</style></head><body>"
                 html_completo += "<h1 style='color: #00d4ff; text-align: center; margin-bottom: 40px; font-family: sans-serif; letter-spacing: 2px;'>REPORTE TÁCTICO - CENTRO DE OPERACIÓN NACIONAL</h1>"
@@ -1471,7 +1457,6 @@ if df_raw is not None:
                 html_completo += todas_las_tarjetas_html
                 html_completo += "</div></body></html>"
                 
-                # Codificar en base64 para descargar
                 b64 = base64.b64encode(html_completo.encode('utf-8')).decode()
                 href = '<a href="data:text/html;base64,' + b64 + '" download="reporte_tactico_con.html" style="background-color: #00a8ff; color: #040d1a; padding: 12px 25px; text-decoration: none; font-weight: bold; border-radius: 4px; display: inline-block; margin-top: 10px; font-family: sans-serif; letter-spacing: 1px; box-shadow: 0 0 15px rgba(0, 168, 255, 0.4);">📥 DESCARGAR REPORTE TÁCTICO (HTML)</a>'
                 
@@ -1479,3 +1464,332 @@ if df_raw is not None:
                 with col_btn_2:
                     st.markdown("<div style='text-align: center;'>" + href + "</div>", unsafe_allow_html=True)
                     st.markdown("<p style='text-align: center; font-size: 11px; color: #888; margin-top: 10px;'>El archivo descargado se puede abrir en cualquier navegador web y guardarlo como PDF usando la opción de Imprimir (Ctrl+P).</p>", unsafe_allow_html=True)
+
+
+    # ==============================================================================
+    # NUEVA OPCIÓN: PRESENTACION MANDO POLICIAL (ESTILO FUTURISTA / HUD AVANZADO)
+    # ==============================================================================
+    elif st.session_state.modo_pantalla == "PRESENTACION_MANDO_POLICIAL":
+        st.markdown(
+            "<h1 style='color: #00ebff; text-shadow: 0 0 15px rgba(0,235,255,0.7); text-align: center; letter-spacing: 2px; font-family: sans-serif;'>🎖️ CENTRO DE OPERACIÓN NACIONAL | RESUMEN OPERACIONAL</h1>",
+            unsafe_allow_html=True,
+        )
+        st.markdown(
+            "<p style='text-align: center; color: #a0d8ef; font-size: 16px; font-family: monospace;'>[ SISTEMA DE MONITOREO OPERACIONAL - VISTA MANDO POLICIAL ]</p>",
+            unsafe_allow_html=True,
+        )
+        st.markdown("<hr style='border: 1px solid #00ebff; box-shadow: 0 0 12px #00ebff;'>", unsafe_allow_html=True)
+
+        # --------------------------------------------------------------------------
+        # 1. ESTADÍSTICAS DE LLAMADAS
+        # --------------------------------------------------------------------------
+        st.markdown("<h3 style='color: #00ebff; border-left: 4px solid #00ebff; padding-left: 10px; margin-top: 20px; font-family: monospace;'>📞 ESTADÍSTICAS DE LLAMADAS</h3>", unsafe_allow_html=True)
+        if df_traffic is not None and not df_traffic.empty:
+            c_f_1, c_f_2 = st.columns([2, 1])
+            with c_f_1:
+                centro_llamadas = st.radio("Centro (Llamadas):", ["AMBOS CENTROS (Sumados)", "CON-C5", "CORCOL"], horizontal=True, key="radio_llamadas_mando")
+            with c_f_2:
+                mes_llamadas = st.selectbox("Período (Llamadas):", ["TODOS LOS MESES"] + list(df_traffic.iloc[:,0].unique()), key="select_mes_llamadas_mando")
+
+            df_t_mando = df_traffic if mes_llamadas == "TODOS LOS MESES" else df_traffic[df_traffic.iloc[:,0] == mes_llamadas]
+            if centro_llamadas != "AMBOS CENTROS (Sumados)":
+                df_t_mando = df_t_mando[df_t_mando['CENTRO_ID'] == centro_llamadas]
+
+            tot_presentadas = int(df_t_mando['Presentadas'].sum())
+            tot_manejadas = int(df_t_mando['Contestadas'].sum())
+            tot_abandonadas = int(df_t_mando['Abandonadas'].sum())
+
+            c_call1, c_call2, c_call3 = st.columns(3)
+            with c_call1:
+                st.markdown(f'''
+                    <div style="background: rgba(5, 15, 30, 0.95); border: 2px solid #00a8ff; border-radius: 10px; padding: 20px; box-shadow: 0 0 15px rgba(0, 168, 255, 0.3); position: relative;">
+                        <div style="color: #a0d8ef; font-size: 11px; font-weight: bold; letter-spacing: 1px; font-family: monospace;">📞 PRESENTADAS</div>
+                        <div style="color: #ffffff; font-size: 34px; font-weight: 900; text-shadow: 0 0 12px rgba(0,168,255,0.7); margin-top: 8px;">{tot_presentadas:,}</div>
+                    </div>
+                ''', unsafe_allow_html=True)
+            with c_call2:
+                st.markdown(f'''
+                    <div style="background: rgba(5, 15, 30, 0.95); border: 2px solid #00ffaa; border-radius: 10px; padding: 20px; box-shadow: 0 0 15px rgba(0, 255, 170, 0.3); position: relative;">
+                        <div style="color: #a0ffdf; font-size: 11px; font-weight: bold; letter-spacing: 1px; font-family: monospace;">📲 MANEJADAS</div>
+                        <div style="color: #ffffff; font-size: 34px; font-weight: 900; text-shadow: 0 0 12px rgba(0,255,170,0.7); margin-top: 8px;">{tot_manejadas:,}</div>
+                    </div>
+                ''', unsafe_allow_html=True)
+            with c_call3:
+                st.markdown(f'''
+                    <div style="background: rgba(5, 15, 30, 0.95); border: 2px solid #ff4b4b; border-radius: 10px; padding: 20px; box-shadow: 0 0 15px rgba(255, 75, 75, 0.3); position: relative;">
+                        <div style="color: #ff9999; font-size: 11px; font-weight: bold; letter-spacing: 1px; font-family: monospace;">📵 ABANDONADAS</div>
+                        <div style="color: #ffffff; font-size: 34px; font-weight: 900; text-shadow: 0 0 12px rgba(255,75,75,0.7); margin-top: 8px;">{tot_abandonadas:,}</div>
+                    </div>
+                ''', unsafe_allow_html=True)
+        else:
+            st.info("No hay datos de tráfico de llamadas disponibles.")
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # --------------------------------------------------------------------------
+        # 2. RESUMEN OPERATIVO
+        # --------------------------------------------------------------------------
+        st.markdown("<h3 style='color: #00ebff; border-left: 4px solid #00ebff; padding-left: 10px; font-family: monospace;'>📊 RESUMEN OPERATIVO GLOBAL</h3>", unsafe_allow_html=True)
+        tot_eventos_glob = len(df)
+        tot_positivos_glob = int(df["T_POS_COUNT"].sum()) if not df.empty and "T_POS_COUNT" in df.columns else 0
+
+        c_op1, c_op2 = st.columns(2)
+        with c_op1:
+            st.markdown(f'''
+                <div style="background: rgba(5, 15, 30, 0.95); border: 2px solid #00a8ff; border-radius: 12px; padding: 22px; box-shadow: 0 0 20px rgba(0, 168, 255, 0.4);">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="color: #a0d8ef; font-size: 12px; font-weight: bold; letter-spacing: 1px; font-family: monospace;">📊 TOTAL DE EVENTOS</div>
+                            <div style="color: #ffffff; font-size: 42px; font-weight: 900; text-shadow: 0 0 15px #00a8ff; margin-top: 5px;">{tot_eventos_glob:,}</div>
+                        </div>
+                        <div style="font-size: 45px; opacity: 0.8;">📈</div>
+                    </div>
+                </div>
+            ''', unsafe_allow_html=True)
+        with c_op2:
+            st.markdown(f'''
+                <div style="background: rgba(5, 15, 30, 0.95); border: 2px solid #00ffaa; border-radius: 12px; padding: 22px; box-shadow: 0 0 20px rgba(0, 255, 170, 0.4);">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="color: #a0ffdf; font-size: 12px; font-weight: bold; letter-spacing: 1px; font-family: monospace;">✅ TOTAL DE EVENTOS POSITIVOS</div>
+                            <div style="color: #ffffff; font-size: 42px; font-weight: 900; text-shadow: 0 0 15px #00ffaa; margin-top: 5px;">{tot_positivos_glob:,}</div>
+                        </div>
+                        <div style="font-size: 45px; opacity: 0.8;">🎯</div>
+                    </div>
+                </div>
+            ''', unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # --------------------------------------------------------------------------
+        # 3. LOS GRUPOS TÁCTICOS (Estilo HUD Avanzado)
+        # --------------------------------------------------------------------------
+        st.markdown("<h3 style='color: #00ebff; border-left: 4px solid #00ebff; padding-left: 10px; font-family: monospace;'>🛡️ GRUPOS TÁCTICOS (TOTALES GLOBALES)</h3>", unsafe_allow_html=True)
+        
+        conteo_gt_globales = {'SEGURIDAD VIAL': 0, 'EMERGENCIAS': 0, 'CAPTURAS': 0, 'RECUPERACIONES': 0}
+        if not df.empty:
+            for _, row in df.iterrows():
+                for col in ['RESULTADO POSITIVO 1', 'RESULTADO POSITIVO 2', 'RESULTADO POSITIVO 3', 'RESULTADO POSITIVO 4', 'RESULTADO POSITIVO 5', 'RESULTADO POSITIVO 6']:
+                    val = row.get(col)
+                    if pd.notna(val) and str(val).strip() not in ['SELECCIONAR', '', 'None']:
+                        v_str = str(val).strip()
+                        if 'ruido' in v_str.lower() or 'gases' in v_str.lower():
+                            conteo_gt_globales['SEGURIDAD VIAL'] += 1
+                            continue
+                        encontrado = False
+                        for k_map, g_map in map_tactico_raw.items():
+                            if k_map.lower().strip() == v_str.lower().strip():
+                                conteo_gt_globales[g_map] += 1
+                                encontrado = True
+                                break
+                        if not encontrado:
+                            conteo_gt_globales['SEGURIDAD VIAL'] += 1
+
+        gt1, gt2 = st.columns(2)
+        with gt1:
+            st.markdown(f'''
+                <div style="background: rgba(5, 15, 30, 0.95); border: 2px solid #00a8ff; border-radius: 12px; padding: 22px; box-shadow: 0 0 20px rgba(0, 168, 255, 0.35); margin-bottom: 15px; position: relative;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="color: #a0d8ef; font-size: 14px; font-weight: bold; letter-spacing: 1px; font-family: monospace;">SEGURIDAD VIAL</div>
+                            <div style="color: #ffffff; font-size: 44px; font-weight: 900; text-shadow: 0 0 15px #00a8ff; margin-top: 5px;">{conteo_gt_globales["SEGURIDAD VIAL"]:,}</div>
+                        </div>
+                        <div style="font-size: 45px; border: 2px solid rgba(0,168,255,0.5); border-radius: 10px; padding: 12px; background: rgba(0,168,255,0.12);">🛣️</div>
+                    </div>
+                </div>
+            ''', unsafe_allow_html=True)
+        with gt2:
+            st.markdown(f'''
+                <div style="background: rgba(5, 15, 30, 0.95); border: 2px solid #00a8ff; border-radius: 12px; padding: 22px; box-shadow: 0 0 20px rgba(0, 168, 255, 0.35); margin-bottom: 15px; position: relative;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="color: #a0d8ef; font-size: 14px; font-weight: bold; letter-spacing: 1px; font-family: monospace;">EMERGENCIAS</div>
+                            <div style="color: #ffffff; font-size: 44px; font-weight: 900; text-shadow: 0 0 15px #00a8ff; margin-top: 5px;">{conteo_gt_globales["EMERGENCIAS"]:,}</div>
+                        </div>
+                        <div style="font-size: 45px; border: 2px solid rgba(0,168,255,0.5); border-radius: 10px; padding: 12px; background: rgba(0,168,255,0.12);">🚑</div>
+                    </div>
+                </div>
+            ''', unsafe_allow_html=True)
+
+        gt3, gt4 = st.columns(2)
+        with gt3:
+            st.markdown(f'''
+                <div style="background: rgba(5, 15, 30, 0.95); border: 2px solid #00a8ff; border-radius: 12px; padding: 22px; box-shadow: 0 0 20px rgba(0, 168, 255, 0.35); position: relative;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="color: #a0d8ef; font-size: 14px; font-weight: bold; letter-spacing: 1px; font-family: monospace;">CAPTURAS</div>
+                            <div style="color: #ffffff; font-size: 44px; font-weight: 900; text-shadow: 0 0 15px #00a8ff; margin-top: 5px;">{conteo_gt_globales["CAPTURAS"]:,}</div>
+                        </div>
+                        <div style="font-size: 45px; border: 2px solid rgba(0,168,255,0.5); border-radius: 10px; padding: 12px; background: rgba(0,168,255,0.12);">🚨</div>
+                    </div>
+                </div>
+            ''', unsafe_allow_html=True)
+        with gt4:
+            st.markdown(f'''
+                <div style="background: rgba(5, 15, 30, 0.95); border: 2px solid #00a8ff; border-radius: 12px; padding: 22px; box-shadow: 0 0 20px rgba(0, 168, 255, 0.35); position: relative;">
+                    <div style="display: flex; justify-content: space-between; align-items: center;">
+                        <div>
+                            <div style="color: #a0d8ef; font-size: 14px; font-weight: bold; letter-spacing: 1px; font-family: monospace;">RECUPERACIONES</div>
+                            <div style="color: #ffffff; font-size: 44px; font-weight: 900; text-shadow: 0 0 15px #00a8ff; margin-top: 5px;">{conteo_gt_globales["RECUPERACIONES"]:,}</div>
+                        </div>
+                        <div style="font-size: 45px; border: 2px solid rgba(0,168,255,0.5); border-radius: 10px; padding: 12px; background: rgba(0,168,255,0.12);">🔍</div>
+                    </div>
+                </div>
+            ''', unsafe_allow_html=True)
+
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # --------------------------------------------------------------------------
+        # 4. ACCIONES RELEVANTES (RESUMEN PARA COMANDANCIA - Iconos Grandes y Etiquetas Modificadas)
+        # --------------------------------------------------------------------------
+        st.markdown(f'''
+            <div style="background: rgba(5, 15, 30, 0.95); border: 2px solid #00a8ff; border-radius: 12px; padding: 22px; box-shadow: 0 0 25px rgba(0, 168, 255, 0.4);">
+                <div style="color: #00d4ff; font-size: 14px; font-weight: bold; letter-spacing: 2px; margin-bottom: 15px; font-family: monospace; border-bottom: 1px solid rgba(0,168,255,0.4); padding-bottom: 8px;">
+                    📡 RESUMEN POSITIVO DE (ACCIONES RELEVANTES)
+                </div>
+        ''', unsafe_allow_html=True)
+
+        col_narrativo = next((c for c in df.columns if 'NARRATIV' in c.upper() or 'DETALLE' in c.upper() or 'HECHO' in c.upper() or 'RESUMEN' in c.upper()), None)
+
+        flagrancia_count = 0
+        oficios_total_count = 0
+        armas_incautadas_count = 0
+        drogas_incautadas_count = 0
+        municiones_total_count = 0
+        vehiculos_recuperados_count = 0
+
+        if not df.empty:
+            for _, row in df.iterrows():
+                for col in ['RESULTADO POSITIVO 1', 'RESULTADO POSITIVO 2', 'RESULTADO POSITIVO 3', 'RESULTADO POSITIVO 4', 'RESULTADO POSITIVO 5', 'RESULTADO POSITIVO 6']:
+                    val = row.get(col)
+                    if pd.notna(val) and str(val).strip() not in ['SELECCIONAR', '', 'None']:
+                        val_str = str(val).strip()
+                        val_lower = val_str.lower()
+
+                        if 'oficio' in val_lower:
+                            oficios_total_count += 1
+                        elif ('aprehendido' in val_lower or 'aprehensión' in val_lower or 'capturado' in val_lower) and 'oficio' not in val_lower:
+                            flagrancia_count += 1
+
+                        if 'arma de fuego' in val_lower and 'ciudadano aprehendido' not in val_lower:
+                            armas_incautadas_count += 1
+
+                        if 'sustancia' in val_lower or 'droga' in val_lower:
+                            drogas_incautadas_count += 1
+
+                        if 'vehículo recuperado' in val_lower or 'vehiculo recuperado' in val_lower:
+                            vehiculos_recuperados_count += 1
+
+                if col_narrativo:
+                    text_narr = str(row.get(col_narrativo, '')).lower()
+                    patrones_muni = [
+                        r'\b(\d{1,4})\s*(?:municion|municiones|bala|balas|cartucho|cartuchos|casquillo|casquillos)\b',
+                        r'\b(?:municion|municiones|bala|balas|cartucho|cartuchos|casquillo|casquillos)\b\s*(?:son|fueron|:|: |-|de)?\s*(\d{1,4})\b'
+                    ]
+                    for pat in patrones_muni:
+                        matches = re.findall(pat, text_narr)
+                        municiones_total_count += sum(int(m) for m in matches)
+
+        rc1, rc2, rc3, rc4, rc5, rc6 = st.columns(6)
+        
+        with rc1:
+            st.markdown(f'''
+                <div style="background: rgba(0, 168, 255, 0.12); border: 1px solid #00a8ff; border-radius: 8px; padding: 14px 6px; text-align: center;">
+                    <div style="font-size: 26px; margin-bottom: 4px;">👥</div>
+                    <div style="color: #a0d8ef; font-size: 10px; font-weight: bold; font-family: monospace; letter-spacing: 0.5px;">A. FLAGRANCIA</div>
+                    <div style="color: #ffffff; font-size: 24px; font-weight: 900; text-shadow: 0 0 10px #00a8ff; margin-top: 4px;">{flagrancia_count:,}</div>
+                </div>
+            ''', unsafe_allow_html=True)
+        with rc2:
+            st.markdown(f'''
+                <div style="background: rgba(0, 168, 255, 0.12); border: 1px solid #00a8ff; border-radius: 8px; padding: 14px 6px; text-align: center;">
+                    <div style="font-size: 26px; margin-bottom: 4px;">📄</div>
+                    <div style="color: #a0d8ef; font-size: 10px; font-weight: bold; font-family: monospace; letter-spacing: 0.5px;">A. OFICIO</div>
+                    <div style="color: #ffffff; font-size: 24px; font-weight: 900; text-shadow: 0 0 10px #00a8ff; margin-top: 4px;">{oficios_total_count:,}</div>
+                </div>
+            ''', unsafe_allow_html=True)
+        with rc3:
+            st.markdown(f'''
+                <div style="background: rgba(0, 168, 255, 0.12); border: 1px solid #00a8ff; border-radius: 8px; padding: 14px 6px; text-align: center;">
+                    <div style="font-size: 26px; margin-bottom: 4px;">🔫</div>
+                    <div style="color: #a0d8ef; font-size: 10px; font-weight: bold; font-family: monospace; letter-spacing: 0.5px;">ARMAS</div>
+                    <div style="color: #ffffff; font-size: 24px; font-weight: 900; text-shadow: 0 0 10px #00a8ff; margin-top: 4px;">{armas_incautadas_count:,}</div>
+                </div>
+            ''', unsafe_allow_html=True)
+        with rc4:
+            st.markdown(f'''
+                <div style="background: rgba(0, 168, 255, 0.12); border: 1px solid #00a8ff; border-radius: 8px; padding: 14px 6px; text-align: center;">
+                    <div style="font-size: 26px; margin-bottom: 4px;">📦</div>
+                    <div style="color: #a0d8ef; font-size: 10px; font-weight: bold; font-family: monospace; letter-spacing: 0.5px;">DROGAS</div>
+                    <div style="color: #ffffff; font-size: 24px; font-weight: 900; text-shadow: 0 0 10px #00a8ff; margin-top: 4px;">{drogas_incautadas_count:,}</div>
+                </div>
+            ''', unsafe_allow_html=True)
+        with rc5:
+            st.markdown(f'''
+                <div style="background: rgba(0, 168, 255, 0.12); border: 1px solid #00a8ff; border-radius: 8px; padding: 14px 6px; text-align: center;">
+                    <div style="font-size: 26px; margin-bottom: 4px;">🎯</div>
+                    <div style="color: #a0d8ef; font-size: 10px; font-weight: bold; font-family: monospace; letter-spacing: 0.5px;">MUNICIONES</div>
+                    <div style="color: #ffffff; font-size: 24px; font-weight: 900; text-shadow: 0 0 10px #00a8ff; margin-top: 4px;">{municiones_total_count:,}</div>
+                </div>
+            ''', unsafe_allow_html=True)
+        with rc6:
+            st.markdown(f'''
+                <div style="background: rgba(0, 168, 255, 0.12); border: 1px solid #00a8ff; border-radius: 8px; padding: 14px 6px; text-align: center;">
+                    <div style="font-size: 26px; margin-bottom: 4px;">🚘</div>
+                    <div style="color: #a0d8ef; font-size: 10px; font-weight: bold; font-family: monospace; letter-spacing: 0.5px;">VEHÍCULOS</div>
+                    <div style="color: #ffffff; font-size: 24px; font-weight: 900; text-shadow: 0 0 10px #00a8ff; margin-top: 4px;">{vehiculos_recuperados_count:,}</div>
+                </div>
+            ''', unsafe_allow_html=True)
+
+        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("<br>", unsafe_allow_html=True)
+
+        # --------------------------------------------------------------------------
+        # 5. ANÁLISIS POR CENTROS (Gráfico vertical con leyendas limpias encima de cada barra)
+        # --------------------------------------------------------------------------
+        st.markdown("<h3 style='color: #00ebff; border-left: 4px solid #00ebff; padding-left: 10px; font-family: monospace;'>🏢 ANÁLISIS POR CENTROS</h3>", unsafe_allow_html=True)
+
+        if not df_raw.empty and not df.empty:
+            tot_gen_filtrado = len(df)
+            
+            centros_resumen = df.groupby('CENTRO').agg(
+                TOTAL_EVENTOS=('CENTRO', 'count'),
+                TOTAL_POSITIVOS=('T_POS_COUNT', 'sum')
+            ).reset_index()
+
+            centros_resumen['PORCENTAJE'] = centros_resumen['TOTAL_EVENTOS'].apply(lambda x: (x / tot_gen_filtrado * 100) if tot_gen_filtrado > 0 else 0)
+            centros_resumen = centros_resumen.sort_values(by='TOTAL_EVENTOS', ascending=False)
+
+            # Leyenda ordenada exactamente como lo pediste: T. Evento, T. Positivo y Porcentaje
+            centros_resumen['TEXTO_BARRA'] = centros_resumen.apply(
+                lambda r: f"T. Evento: {r['TOTAL_EVENTOS']:,}<br>T. Positivo: {r['TOTAL_POSITIVOS']:,}<br>({r['PORCENTAJE']:.1f}%)", 
+                axis=1
+            )
+
+            colores_centros = ['#00ebff', '#00ffaa', '#ffaa00', '#ff4b4b', '#b000ff', '#ff00c8', '#00ffd5', '#7a00ff']
+
+            fig_centros_mando = go.Figure()
+
+            fig_centros_mando.add_trace(go.Bar(
+                x=centros_resumen['CENTRO'],
+                y=centros_resumen['TOTAL_EVENTOS'],
+                text=centros_resumen['TEXTO_BARRA'],
+                textposition='outside',  # <--- UBICA LOS DATOS LIMPIAMENTE FLOTANDO ENCIMA DE CADA BARRA
+                marker_color=colores_centros[:len(centros_resumen)],
+                showlegend=False,
+                textfont=dict(color='#ffffff', size=11, family='monospace', weight='bold')
+            ))
+
+            fig_centros_mando.update_layout(
+                paper_bgcolor='rgba(0,0,0,0)',
+                plot_bgcolor='rgba(0,0,0,0)',
+                font=dict(color="white", family="monospace"),
+                xaxis=dict(title="Centro de Operación", showgrid=False, tickfont=dict(color='white', size=12, weight='bold')),
+                yaxis=dict(title="Cantidad de Eventos", showgrid=True, gridcolor='rgba(0, 235, 255, 0.15)', tickfont=dict(color='white')),
+                margin=dict(t=80, b=30, l=40, r=20),
+                height=520
+            )
+
+            st.plotly_chart(fig_centros_mando, use_container_width=True)
+        else:
+            st.info("No hay suficientes datos para generar el análisis por centros.")
