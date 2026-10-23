@@ -1745,7 +1745,7 @@ if df_raw is not None:
         st.markdown("<br>", unsafe_allow_html=True)
 
         # --------------------------------------------------------------------------
-        # 5. ANÁLISIS POR CENTROS (Gráfico vertical con leyendas limpias encima de cada barra)
+        # 5. ANÁLISIS POR CENTROS (Gráfico vertical optimizado para Streamlit Cloud)
         # --------------------------------------------------------------------------
         st.markdown("<h3 style='color: #00ebff; border-left: 4px solid #00ebff; padding-left: 10px; font-family: monospace;'>🏢 ANÁLISIS POR CENTROS</h3>", unsafe_allow_html=True)
 
@@ -1760,7 +1760,6 @@ if df_raw is not None:
             centros_resumen['PORCENTAJE'] = centros_resumen['TOTAL_EVENTOS'].apply(lambda x: (x / tot_gen_filtrado * 100) if tot_gen_filtrado > 0 else 0)
             centros_resumen = centros_resumen.sort_values(by='TOTAL_EVENTOS', ascending=False)
 
-            # Usamos etiquetas HTML <b> para asegurar la negrita sin causar conflictos en Plotly
             centros_resumen['TEXTO_BARRA'] = centros_resumen.apply(
                 lambda r: f"<b>T. Evento: {r['TOTAL_EVENTOS']:,}</b><br><b>T. Positivo: {r['TOTAL_POSITIVOS']:,}</b><br><b>({r['PORCENTAJE']:.1f}%)</b>", 
                 axis=1
@@ -1774,7 +1773,7 @@ if df_raw is not None:
                 x=centros_resumen['CENTRO'],
                 y=centros_resumen['TOTAL_EVENTOS'],
                 text=centros_resumen['TEXTO_BARRA'],
-                textposition='outside',  # <--- FLOTANDO ENCIMA DE CADA BARRA
+                textposition='outside',
                 marker_color=colores_centros[:len(centros_resumen)],
                 showlegend=False,
                 textfont=dict(color='#ffffff', size=11, family='monospace')
@@ -1784,7 +1783,7 @@ if df_raw is not None:
                 paper_bgcolor='rgba(0,0,0,0)',
                 plot_bgcolor='rgba(0,0,0,0)',
                 font=dict(color="white", family="monospace"),
-                xaxis=dict(title="Centro de Operación", showgrid=False, tickfont=dict(color='white', size=12, weight='bold')),
+                xaxis=dict(title="Centro de Operación", showgrid=False, tickfont=dict(color='white', size=12)),
                 yaxis=dict(title="Cantidad de Eventos", showgrid=True, gridcolor='rgba(0, 235, 255, 0.15)', tickfont=dict(color='white')),
                 margin=dict(t=80, b=30, l=40, r=20),
                 height=520
