@@ -1760,9 +1760,9 @@ if df_raw is not None:
             centros_resumen['PORCENTAJE'] = centros_resumen['TOTAL_EVENTOS'].apply(lambda x: (x / tot_gen_filtrado * 100) if tot_gen_filtrado > 0 else 0)
             centros_resumen = centros_resumen.sort_values(by='TOTAL_EVENTOS', ascending=False)
 
-            # Leyenda ordenada exactamente como lo pediste: T. Evento, T. Positivo y Porcentaje
+            # Usamos etiquetas HTML <b> para asegurar la negrita sin causar conflictos en Plotly
             centros_resumen['TEXTO_BARRA'] = centros_resumen.apply(
-                lambda r: f"T. Evento: {r['TOTAL_EVENTOS']:,}<br>T. Positivo: {r['TOTAL_POSITIVOS']:,}<br>({r['PORCENTAJE']:.1f}%)", 
+                lambda r: f"<b>T. Evento: {r['TOTAL_EVENTOS']:,}</b><br><b>T. Positivo: {r['TOTAL_POSITIVOS']:,}</b><br><b>({r['PORCENTAJE']:.1f}%)</b>", 
                 axis=1
             )
 
@@ -1774,10 +1774,10 @@ if df_raw is not None:
                 x=centros_resumen['CENTRO'],
                 y=centros_resumen['TOTAL_EVENTOS'],
                 text=centros_resumen['TEXTO_BARRA'],
-                textposition='outside',  # <--- UBICA LOS DATOS LIMPIAMENTE FLOTANDO ENCIMA DE CADA BARRA
+                textposition='outside',  # <--- FLOTANDO ENCIMA DE CADA BARRA
                 marker_color=colores_centros[:len(centros_resumen)],
                 showlegend=False,
-                textfont=dict(color='#ffffff', size=11, family='monospace', weight='bold')
+                textfont=dict(color='#ffffff', size=11, family='monospace')
             ))
 
             fig_centros_mando.update_layout(
