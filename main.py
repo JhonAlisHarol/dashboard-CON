@@ -514,15 +514,19 @@ def load_full_data():
         if col_h: 
             df['HORA_NUM'] = pd.to_datetime(df[col_h], errors='coerce').dt.hour.fillna(0).astype(int)
         
-        def to_m(v):
+        def to_m_clean(v):
             try:
                 if pd.isna(v) or v == "" or v == 0: return 0.0
                 p = str(v).split(':')
-                return float(int(p[0])*60 + int(p[1])) if len(p) >= 2 else float(v)
+                minutos = float(int(p[0])*60 + int(p[1])) if len(p) >= 2 else float(v)
+                # Filtro de cordura: si un registro supera las 12 o 24 horas por error de tipeo/turno, se neutraliza a 0 o se descarta para no contaminar el promedio
+                if minutos < 0 or minutos > 720:  # Más de 12 horas en una sola varianza es un error operativo de digitación
+                    return 0.0
+                return minutos
             except: return 0.0
             
         for c in ['VARIANZA DE DESPACHO', 'VARIANZA DE LA ATENCION', 'VARIANZA DEL CIERRE', 'VARIANZA DE CIERRE']:
-            if c in df.columns: df[c+'_M'] = df[c].apply(to_m)
+            if c in df.columns: df[c+'_M'] = df[c].apply(to_m_clean)
             
         cols_pos = [c for c in df.columns if 'RESULTADO POSITIVO' in c.upper()]
         df['T_POS_COUNT'] = df[cols_pos].notna().sum(axis=1)
@@ -561,7 +565,7 @@ def load_traffic_only():
         df_all.columns = df_all.columns.str.replace(r'\s+', ' ', regex=True).str.strip()
         
         cols_convertir = ['Presentadas', 'Contestadas', 'Abandonadas', 'Orientación', 'Maliciosa', 
-                          'Contestadas Despues de 05 seg.', 'Abandonadas Despues de 05 seg.']
+                         'Contestadas Despues de 05 seg.', 'Abandonadas Despues de 05 seg.']
         for col in cols_convertir:
             if col in df_all.columns:
                 df_all[col] = pd.to_numeric(df_all[col].str.replace('.', '', regex=False), errors='coerce').fillna(0).astype(int)
@@ -883,7 +887,7 @@ if df_raw is not None:
 
             else:
                 st.info("No hay datos de positivos para mostrar en el período seleccionado.")
-                                        
+                                    
         cn1, cn2 = st.columns(2)
         with cn1:
             st.subheader("📉 CIERRE DEL INCIDENTE-SUBTIPO")
