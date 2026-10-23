@@ -352,7 +352,7 @@ map_tactico_raw = {
 USUARIOS_AUTORIZADOS = {
     "CONC5": "12345", "CORCOL": "CORCOLONC3", "COMCH": "12345678",
     "COMAR": "hex123", "COMDA": "COMDA2027", "COMCHEP": "hex123",
-    "CEVIBO": "hex123", "COMSAM": "hex123", "ALISJHON": "199432"
+    "CEVIBO": "hex123", "COMSAM": "hex123", "ALISJHON": "199432", "LUIS DE LA CRUZ": "10941"
 }
 
 def login():
